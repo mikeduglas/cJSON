@@ -11,6 +11,13 @@ Now unzip cJSON-master.zip into a temporary folder somewhere.
 Copy the contents of "libsrc" folder into %ClarionRoot%\Accessory\libsrc\win  
 where %ClarionRoot% is the folder into which you installed Clarion.
 
+## Contacts
+- <mikeduglas@yandex.ru>
+- <mikeduglas66@gmail.com>
+
+## Price
+Free
+
 ## Version history
 v0.99 (21.09.2018)
 - FIX: array handling
