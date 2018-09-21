@@ -51,7 +51,7 @@ depth                           LONG  !How deeply nested (in arrays/objects) is 
     !parse 4 digit hexadecimal number
     parse_hex4(TParseBuffer buffer, LONG pos), UNSIGNED, PRIVATE
     !converts a UTF-16 literal to UTF-8. A literal can be one or two sequences of the form \uXXXX
-    utf16_literal_to_utf8(*TParseBuffer buffer, LONG input_end, *STRING output), BYTE, PRIVATE
+    utf16_literal_to_utf8(*TParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output), BYTE, PRIVATE
     !skip the UTF-8 BOM (byte order mark) if it is at the beginning of a buffer
     skip_utf8_bom(*TParseBuffer buffer), PRIVATE
     !Utility to jump whitespace and cr/lf
@@ -94,8 +94,8 @@ new_type                        cJSON_Type(cJSON_Invalid)
     new_key &= str
     new_type = BOR(item.type, cJSON_StringIsConst)
   ELSE
-    new_key &= NEW STRING(LEN(str))
-    new_key = str
+    new_key &= NEW STRING(LEN(CLIP(str)))
+    new_key = CLIP(str)
     new_type = BAND(item.type, cJSON_StringIsNotConst)
   END
   
@@ -178,7 +178,7 @@ current_child                   &cJSON
   END
   
   current_child &= array.child
-  LOOP WHILE (NOT current_child &= NULL) AND (index > 1)  !in c: index > 0
+  LOOP WHILE (NOT current_child &= NULL) AND (index > 1)
     index -= 1
     current_child &= current_child.next
   END
@@ -531,22 +531,35 @@ i                               LONG, AUTO
 parse_string                  PROCEDURE(*cJSON item, *TParseBuffer buffer)
 cur_char                        STRING(1)
 next_char                       STRING(1)
-i                               LONG, AUTO
 skipped_bytes                   LONG(0)
 output                          DynStr
-tempout                         STRING(20), AUTO
+input_pos                       LONG, AUTO
 input_end                       LONG, AUTO
 sequence_length                 LONG, AUTO
   CODE
+  input_pos = buffer.pos + 1
+  input_end = buffer.pos + 1
+
   !not a string
   IF SUB(buffer.content, buffer.pos, 1) <> '"'
-    buffer.pos += 1
-    RETURN FALSE
+    DO Fail
   END
-
-  input_end = buffer.pos + 1
-  LOOP i = input_end TO buffer.len
-    cur_char = SUB(buffer.content, i, 1)
+!  LOOP i = input_end TO buffer.len
+!    cur_char = SUB(buffer.content, i, 1)
+!    IF cur_char = '"'
+!      BREAK
+!    END
+!    
+!    !is escape sequence
+!    IF cur_char = '\'
+!      skipped_bytes += 1
+!      input_end += 1
+!    END
+!
+!    input_end += 1
+!  END
+  LOOP WHILE input_end < buffer.len
+    cur_char = SUB(buffer.content, input_end, 1)
     IF cur_char = '"'
       BREAK
     END
@@ -562,21 +575,23 @@ sequence_length                 LONG, AUTO
   
   IF cur_char <> '"'
     !string ended unexpectedly
-    buffer.pos = i + 1
-    RETURN FALSE
+    DO Fail
   END
 
+  
+  !buffer.pos points to opening "
+  !input_end points to next char after closing "
+  
   !loop through the string literal
-  i = buffer.pos + 1
-  LOOP WHILE i < input_end
-    cur_char = SUB(buffer.content, i, 1)
+  LOOP WHILE input_pos < input_end
+    cur_char = SUB(buffer.content, input_pos, 1)
     IF cur_char <> '\'
       output.Cat(cur_char)
-      i += 1
+      input_pos += 1
     ELSE
       sequence_length = 2
       
-      next_char = SUB(buffer.content, i + 1, 1)
+      next_char = SUB(buffer.content, input_pos + 1, 1)
       CASE next_char
       OF 'b'
         output.Cat(_Backspace_)
@@ -592,31 +607,29 @@ sequence_length                 LONG, AUTO
         output.Cat(next_char)
       OF 'u'
         !UTF-16 literal
-        CLEAR(tempout)
-        sequence_length = utf16_literal_to_utf8(buffer, input_end, tempout)
+        sequence_length = utf16_literal_to_utf8(buffer, input_pos, input_end, output)
         IF sequence_length = 0
           !failed to convert UTF16-literal to UTF-8
-          buffer.pos = i + 1
-          RETURN FALSE
+          DO Fail
         END
-        
-        output.Cat(CLIP(tempout))
       ELSE
-        buffer.pos = i + 1
-        RETURN FALSE
+        DO Fail
       END
       
-      i += sequence_length
+      input_pos += sequence_length
     END
   END
   
-!  json::DebugInfo('parse_string: '& output.Str())
   item.type = cJSON_String
   item.valuestring &= NEW STRING(output.StrLen())
   item.valuestring = output.Str()
 
   buffer.pos = input_end + 1
   RETURN TRUE
+  
+Fail                          ROUTINE
+  buffer.pos = input_pos
+  RETURN FALSE
   
 !Build an array from input text.
 parse_array                   PROCEDURE(*cJSON item, *TParseBuffer buffer)
@@ -805,7 +818,7 @@ char                            STRING(1), AUTO
   
   RETURN h
   
-utf16_literal_to_utf8         PROCEDURE(*TParseBuffer buffer, LONG input_end, *STRING output)
+utf16_literal_to_utf8         PROCEDURE(*TParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output)
 codepoint                       DECIMAL(10, 0)  !uint64
 first_sequence                  LONG, AUTO
 second_sequence                 LONG, AUTO
@@ -815,19 +828,22 @@ second_code                     LONG, AUTO
 utf8_length                     BYTE(0)
 first_byte_mark                 BYTE(0)
 utf8_position                   LONG, AUTO
+tempstr                         STRING(4)
   CODE
-  first_sequence = buffer.pos
+  first_sequence = input_pos
   
   IF input_end - first_sequence + 1 < 6
     !input ends unexpectedly
+    json::DebugInfo('input ends unexpectedly')
     RETURN 0
   END
   
   !get the first utf16 sequence
-  first_code = parse_hex4(buffer, first_sequence + 1)
-  
+  first_code = parse_hex4(buffer, first_sequence + 2)
+
   !check that the code is valid
   IF first_code >= 0DC00h AND first_code <= 0DFFFh
+    json::DebugInfo('the code is invalid')
     RETURN 0
   END
 
@@ -839,19 +855,22 @@ utf8_position                   LONG, AUTO
       
     IF input_end - second_sequence < 6
       !input ends unexpectedly
+      json::DebugInfo('input ends unexpectedly #2')
       RETURN 0
     END
 
     IF buffer.content[second_sequence] <> '\' OR buffer.content[second_sequence + 1] <> 'u'
       !missing second half of the surrogate pair
+      json::DebugInfo('missing second half of the surrogate pair')
       RETURN 0
     END
     
     !get the second utf16 sequence
-    second_code = parse_hex4(buffer, second_sequence + 1)
+    second_code = parse_hex4(buffer, second_sequence + 2)
     !check that the code is valid
     IF second_code < 0DC00h OR second_code > 0DFFFh
       !invalid second half of the surrogate pair
+      json::DebugInfo('invalid second half of the surrogate pair')
       RETURN 0
     END
     
@@ -882,23 +901,25 @@ utf8_position                   LONG, AUTO
     first_byte_mark = 0F0h  ! 11110000
   ELSE
     !invalid unicode codepoint
+    json::DebugInfo('invalid unicode codepoint')
     RETURN 0
   END
-  
+
   !encode as utf8
-  LOOP utf8_position = utf8_length - 1 TO 1 BY -1
+  LOOP utf8_position = utf8_length TO 2 BY -1
     !10xxxxxx
-    output[utf8_position + 1] = CHR(BAND(BOR(codepoint, 080h), 0BFh))
+    tempstr[utf8_position] = CHR(BAND(BOR(codepoint, 080h), 0BFh))
     codepoint = BSHIFT(codepoint, -6)
   END
-  
+
   !encode first byte
   IF utf8_length > 1
-    output[1] = CHR(BAND(BOR(codepoint, first_byte_mark), 0FFh))
+    tempstr[1] = CHR(BAND(BOR(codepoint, first_byte_mark), 0FFh))
   ELSE
-    output[1] = CHR(BAND(codepoint, 07Fh))
+    tempstr[1] = CHR(BAND(codepoint, 07Fh))
   END
 
+  output.Cat(CLIP(tempstr))
   RETURN sequence_length
 
 skip_utf8_bom                 PROCEDURE(*TParseBuffer buffer)
@@ -945,6 +966,53 @@ cJSON.Destruct                PROCEDURE()
   ELSE
 !    json::DebugInfo('Destruct, valuestring = '& SELF.valuestring)
     DISPOSE(SELF.valuestring)
+  END
+
+cJSON.GetPrevious             PROCEDURE()
+  CODE
+  RETURN SELF.prev
+
+cJSON.GetNext                 PROCEDURE()
+  CODE
+  RETURN SELF.next
+  
+cJSON.GetChild                PROCEDURE()
+  CODE
+  RETURN SELF.child
+
+cJSON.GetName                 PROCEDURE()
+  CODE
+  RETURN SELF.name
+  
+cJSON.SetName                 PROCEDURE(STRING pNewName)
+  CODE
+  IF (NOT BAND(SELF.type, cJSON_StringIsConst))
+    IF NOT SELF.name &= NULL
+      DISPOSE(SELF.name)
+    END
+    SELF.name &= NEW STRING(LEN(CLIP(pNewName)))
+    SELF.name = CLIP(pNewName)
+  END
+
+cJSON.GetType                 PROCEDURE()
+  CODE
+  RETURN SELF.type
+  
+cJSON.GetNumberValue          PROCEDURE()
+  CODE
+  RETURN SELF.valuedouble
+  
+cJSON.SetNumberValue          PROCEDURE(REAL pNewValue)
+  CODE
+  SELF.valuedouble = pNewValue
+ 
+  !use saturation in case of overflow
+  IF SELF.valuedouble >= INT_MAX
+    SELF.valueint = INT_MAX
+  ELSIF SELF.valuedouble <= INT_MIN
+    SELF.valueint = INT_MIN
+  ELSE
+    SELF.valueint = SELF.valuedouble
   END
 
 cJSON.ToString                PROCEDURE(BOOL pFormat = FALSE)
@@ -994,19 +1062,15 @@ sz                              LONG(0)
   
 cJSON.GetArrayItem            PROCEDURE(LONG index)
   CODE
-  IF index < 0
+  IF index < 1
     RETURN NULL
   END
   
   RETURN get_array_item(SELF, index)
 
-cJSON.GetObjectItem           PROCEDURE(STRING str, BOOL caseSensitive = FALSE)
+cJSON.GetObjectItem           PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
   CODE
-  RETURN get_object_item(SELF, str, caseSensitive)
-  
-cJSON.GetError                PROCEDURE()
-  CODE
-  RETURN ''
+  RETURN get_object_item(SELF, itemName, caseSensitive)
   
 cJSON.GetStringValue          PROCEDURE()
   CODE
@@ -1016,6 +1080,19 @@ cJSON.GetStringValue          PROCEDURE()
   
   RETURN SELF.valuestring
   
+cJSON.SetStringValue          PROCEDURE(STRING pNewValue)
+  CODE
+  IF NOT SELF.IsString()
+    RETURN
+  END
+
+  IF NOT SELF.valuestring &= NULL
+    DISPOSE(SELF.valuestring)
+  END
+
+  SELF.valuestring &= NEW STRING(LEN(CLIP(pNewValue)))
+  SELF.valuestring = CLIP(pNewValue)
+
 cJSON.IsInvalid               PROCEDURE()
   CODE
   RETURN CHOOSE(BAND(SELF.type, 0FFh) = cJSON_Invalid)
@@ -1119,16 +1196,16 @@ item                            &cJSON
     item.Delete()
   END
 
-cJSON.DetachItemFromObject    PROCEDURE(STRING str, BOOL caseSensitive = FALSE)
+cJSON.DetachItemFromObject    PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
 item                            &cJSON
   CODE
-  item &= SELF.GetObjectItem(str, caseSensitive)
+  item &= SELF.GetObjectItem(itemName, caseSensitive)
   RETURN SELF.DetachItemViaPointer(item)
   
-cJSON.DeleteItemFromObject    PROCEDURE(STRING str, BOOL caseSensitive = FALSE)
+cJSON.DeleteItemFromObject    PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
 item                            &cJSON
   CODE
-  item &= SELF.DetachItemFromObject(str, caseSensitive)
+  item &= SELF.DetachItemFromObject(itemName, caseSensitive)
   IF NOT item &= NULL
     item.Delete()
   END
@@ -1270,11 +1347,11 @@ number_item                     &cJSON
   number_item.Delete()
   RETURN NULL
   
-cJSON.AddStringToObject       PROCEDURE(STRING name, STRING string)
+cJSON.AddStringToObject       PROCEDURE(STRING name, STRING value)
 factory                         cJSONFactory
 string_item                     &cJSON
   CODE
-  string_item &= factory.CreateString(string)
+  string_item &= factory.CreateString(value)
   IF add_item_to_object(SELF, name, string_item, FALSE)
     RETURN string_item
   END
@@ -1354,16 +1431,17 @@ item                            &cJSON
   CODE
   item &= NEW cJSON
   item.type = cJSON_Number
-  item.valuedouble = num
+!  item.valuedouble = num
   
-  !use saturation in case of overflow
-  IF num >= INT_MAX
-    item.valueint = INT_MAX
-  ELSIF num <= INT_MIN
-    item.valueint = INT_MIN
-  ELSE
-    item.valueint = num
-  END
+!  !use saturation in case of overflow
+!  IF num >= INT_MAX
+!    item.valueint = INT_MAX
+!  ELSIF num <= INT_MIN
+!    item.valueint = INT_MIN
+!  ELSE
+!    item.valueint = num
+!  END
+  item.SetNumberValue(num)
 
   RETURN item
   
@@ -1514,10 +1592,142 @@ a                                   &cJSON
   
   RETURN a
 
+cJSONFactory.CreateObject     PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE)
+ndx                             LONG, AUTO
+fldRef                          ANY
+fldName                         STRING(256), AUTO
+fldDim                          LONG, AUTO
+item                            &cJSON
+factory                         cJSONFactory
+  CODE
+  item &= SELF.CreateObject()
+  
+  LOOP ndx = 1 TO 9999
+    fldRef &= WHAT(grp, ndx)
+    IF fldRef &= NULL
+      !end of group
+      BREAK
+    END
+    
+    fldName = WHO(grp, ndx)
+    IF NOT fldName
+      !skip fields with blank names
+      CYCLE
+    END
+    
+    DO RemovePrefix
+    
+    IF pNamesInLowerCase
+      fldName = LOWER(fldName)
+    END
+    
+    fldDim = HOWMANY(grp, ndx)
+    IF fldDim = 1
+      !not arrays
+      
+      IF ISSTRING(fldRef)
+        item.AddStringToObject(fldName, fldRef)
+      ELSIF NUMERIC(fldRef)
+        item.AddNumberToObject(fldName, fldRef)
+      ELSE
+        !neither STRING nor NUMERIC
+        item.AddStringToObject(fldName, fldRef)
+      END
+    ELSE
+      !arrays
+      
+      IF ISSTRING(fldRef)
+        !string array
+        DO CreateStringArray
+        
+      !ELSIF NUMERIC(fldRef)  - this line throws runtime error
+      ELSE  !assume this is numeric array
+        DO CreateNumericArray
+      END
+    END
+  END
+  
+  RETURN item
+
+RemovePrefix                  ROUTINE
+  DATA
+first_colon_pos LONG, AUTO
+  CODE
+  first_colon_pos = INSTRING(':', fldName, 1, 1)
+  IF first_colon_pos
+    fldName = SUB(fldName, first_colon_pos + 1, LEN(fldName))
+  END
+  
+CreateStringArray             ROUTINE
+  DATA
+strings STRING(256), DIM(fldDim)
+elemRef ANY
+elemNdx LONG, AUTO
+  CODE
+  !copy array
+  LOOP elemNdx = 1 TO fldDim
+    elemRef &= WHAT(grp, ndx, elemNdx)
+    strings[elemNdx] = elemRef
+  END
+  item.AddItemToObject(fldName, factory.CreateStringArray(strings))
+
+CreateNumericArray            ROUTINE
+  DATA
+numbers REAL, DIM(fldDim)
+elemRef ANY
+elemNdx LONG, AUTO
+  CODE
+  !copy array
+  LOOP elemNdx = 1 TO fldDim
+    elemRef &= WHAT(grp, ndx, elemNdx)
+    numbers[elemNdx] = elemRef
+  END
+  item.AddItemToObject(fldName, factory.CreateDoubleArray(numbers))
+  
+cJSONFactory.CreateArray      PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE)
+array                           &cJSON
+grp                             &GROUP
+ndx                             LONG, AUTO
+  CODE
+  array &= SELF.CreateArray()
+  LOOP ndx = 1 TO RECORDS(que)
+    GET(que, ndx)
+    grp &= que
+    array.AddItemToArray(SELF.CreateObject(grp, pNamesInLowerCase))
+  END
+  
+  RETURN array
+  
+cJSONFactory.CreateArray      PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE)
+array                           &cJSON
+ferr                            LONG, AUTO
+grp                             &GROUP
+  CODE
+  array &= SELF.CreateArray()
+  LOOP
+    NEXT(pFile)
+    ferr = ERRORCODE()
+    IF ferr
+      IF ferr <> 33
+        !real error, not end of file
+        json::DebugInfo('NEXT(file) failed: '& ERROR())
+      END
+      BREAK
+    END
+    
+    grp &= pFile{PROP:Record}
+    array.AddItemToArray(SELF.CreateObject(grp, pNamesInLowerCase))
+  END
+  
+  RETURN array
+
 cJSONFactory.Parse            PROCEDURE(STRING value)
 item                            &cJSON
 buffer                          LIKE(TParseBuffer)
   CODE
+  CLEAR(SELF.parseErrorString)
+  CLEAR(SELF.parseErrorPos)
+  
   IF NOT value
     RETURN NULL
   END
@@ -1534,8 +1744,24 @@ buffer                          LIKE(TParseBuffer)
     !parse failure. ep is set.
     item.Delete()
     item &= NULL
+  
+    IF buffer.pos <= buffer.len
+      SELF.parseErrorPos = buffer.pos
+    ELSIF buffer.len > 0
+      SELF.parseErrorPos = buffer.len
+    END
+    
+    SELF.parseErrorString = SUB(value, SELF.parseErrorPos, LEN(SELF.parseErrorString))
   END
   
   RETURN item
+  
+cJSONFactory.GetError         PROCEDURE()
+  CODE
+  RETURN CLIP(SELF.parseErrorString)
+  
+cJSONFactory.GetErrorPosition PROCEDURE()
+  CODE
+  RETURN SELF.parseErrorPos
 
 !!!endregion

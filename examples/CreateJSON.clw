@@ -1,33 +1,33 @@
+! create following JSON string:
+!
+!  { 
+!    "name": "Jack (\"Bee\") Nimble", 
+!    "format": { 
+!      "type": "rect", 
+!      "width": 1920, 
+!      "height": 1080, 
+!      "interlace": false, 
+!      "frame rate": 24 
+!    }, 
+!    "days of week": ["Monday",  "Tuesday",  "Wednesday",  "Thursday",  "Friday",  "Saturday",  "Sunday"] 
+!  }
+
   PROGRAM
-
   INCLUDE('cjson.inc')
-
   MAP
     CreateJSON()
-    ParseJSON()
   END
 
   CODE
-!  CreateJSON()
-  ParseJSON()
-  
-ParseJSON                     PROCEDURE()
-jsonFactory                     cJSONFactory
-root                            &cJSON
-jsonstr                         STRING(1024), AUTO
-  CODE
-  jsonstr = '{{"menu": {{"id": "file", "value": "File", "popup": {{"menuitem": [{{"value": "New", "onclick": "CreateNewDoc()"}, {{"value": "Open", "onclick": "OpenDoc()"}, {{"value": "Close", "onclick": "CloseDoc()"}]}}}'
-  root &= jsonFactory.Parse(jsonstr)
-  MESSAGE(root.ToString(FALSE))
-!  MESSAGE(root.ToString(TRUE))
-  root.Delete()
+
+  CreateJSON()
 
 CreateJSON                    PROCEDURE()
 jsonFactory                     cJSONFactory
 
-root                            &cJSON
-fmt                             &cJSON
-dow                             &cJSON
+root                            &cJSON  !root object
+fmt                             &cJSON  !format object
+dow                             &cJSON  !days of week array
 
 strings                         STRING(9), DIM(7)
   CODE
@@ -39,8 +39,7 @@ strings                         STRING(9), DIM(7)
   strings[6] = 'Saturday'
   strings[7] = 'Sunday'
   
-  MESSAGE('Start')
-  
+  !create format object
   fmt &= jsonFactory.CreateObject()
   fmt.AddStringToObject('type', 'rect')
   fmt.AddNumberToObject('width', 1920)  
@@ -48,16 +47,23 @@ strings                         STRING(9), DIM(7)
   fmt.AddFalseToObject('interlace')
   fmt.AddNumberToObject('frame rate', 24)
   
+  !create days of week array
   dow &= jsonFactory.CreateStringArray(strings)
   
+  !create root object
   root &= jsonFactory.CreateObject()
+  
+  !add a string to root
   root.AddItemToObject('name', jsonFactory.CreateString('Jack ("Bee") Nimble'))
+  
+  !add format object to root
   root.AddItemToObject('format', fmt)
+
+  !add days array to root
   root.AddItemToObject('days of week', dow)
   
+  !json::DebugInfo(root.ToString(TRUE))
+  MESSAGE(root.ToString(TRUE))
   
-  MESSAGE(root.ToString())
+  !dispose all cJSON objects at once
   root.Delete()
-!  MESSAGE('See debuglog!')
-  
-  MESSAGE('Finish')
