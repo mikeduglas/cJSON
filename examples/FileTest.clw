@@ -1,4 +1,4 @@
-!converts FILE to json array
+!converts FILE to json array and vice versa
 !
   PROGRAM
   PRAGMA('project(#pragma link(C%V%TPS%X%%L%.LIB))')
@@ -23,18 +23,31 @@ Hobbies                             STRING(20), DIM(2)
 Digits                              REAL, DIM(3)
                                   END
                                 END
+
+simple                          FILE, DRIVER('Topspeed'),PRE(SIM),CREATE,BINDABLE,THREAD
+ByName                            KEY(SIM:LastName, SIM:FirstName),NOCASE,OPT
+ByAge                             KEY(SIM:Age, SIM:LastName, SIM:FirstName),NOCASE,OPT
+Record                            RECORD,PRE()
+FirstName                           STRING(20)
+LastName                            STRING(20)
+Gender                              STRING(1)
+Age                                 LONG
+                                  END
+                                END
+fIndex                          LONG, AUTO
+
 jsonFactory                     cJSONFactory
 root                            &cJSON
   CODE
   CREATE(persons)
   IF ERRORCODE()
-    MESSAGE('CREATE fails: '& ERROR())
+    MESSAGE('CREATE(persons) fails: '& ERROR())
     RETURN
   END
   
   OPEN(persons)
   IF ERRORCODE()
-    MESSAGE('OPEN fails: '& ERROR())
+    MESSAGE('OPEN(persons) fails: '& ERROR())
     RETURN
   END
 
@@ -66,6 +79,42 @@ root                            &cJSON
   MESSAGE(root.ToString(TRUE))
    
   CLOSE(persons)
+
+  !convert json array to simple table, by pos
+  CREATE(simple)
+  IF ERRORCODE()
+    MESSAGE('CREATE(simple) fails: '& ERROR())
+    RETURN
+  END
+
+  OPEN(simple)
+  IF ERRORCODE()
+    MESSAGE('OPEN(simple) fails: '& ERROR())
+    RETURN
+  END
+  
+  root.ToFile(simple, TRUE)
+  !check the result
+  json::DebugInfo('ToFile BY FIELD POS')
+  
+  fIndex = 0
+  SET(simple)
+  LOOP
+    NEXT(simple)
+    IF ERRORCODE()
+      BREAK
+    END
+    
+    fIndex += 1
+    
+    json::DebugInfo('Record#'& fIndex)
+    json::DebugInfo('FirstName: '& simple.FirstName)
+    json::DebugInfo('LastName '& simple.LastName)
+    json::DebugInfo('Gender '& simple.Gender)
+    json::DebugInfo('Age '& simple.Age)
+  END
+  
+  CLOSE(simple)
 
   !dispose all cJSON objects at once
   root.Delete()

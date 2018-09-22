@@ -1,0 +1,219 @@
+{
+	"variables": [],
+
+/* multiline comments
+*
+*
+* end of multiline comment
+*/
+// single comment
+
+	"info": {
+		"name": "Test_API_Permits_Create3ZonesAddPermitInLastZone_IsValid",
+		"_postman_id": "bd21f8c3-1bf7-8a13-615e-79722cb93d1b",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/zones/1",
+			"request": {
+				"url": "https://127.0.0.1/api/pbp/v2014-06/zones/1",
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"Id\":\"1\",\"Name\":\"Parking A\"}"
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/zones/2",
+			"request": {
+				"url": "https://127.0.0.1/api/pbp/v2014-06/zones/2",
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"Id\":\"2\",\"Name\":\"Parking B\"}"
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/zones/3",
+			"request": {
+				"url": "https://127.0.0.1/api/pbp/v2014-06/zones/3",
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"Id\":\"3\",\"Name\":\"Parking C\"}"
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/zones",
+			"request": {
+				"url": "https://127.0.0.1/api/pbp/v2014-06/zones",
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"Id\":\"3\",\"Name\":\"Parking C\"}"
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/zones/3/permits/1?forceCreate=true",
+			"request": {
+				"url": {
+					"raw": "https://127.0.0.1/api/pbp/v2014-06/zones/3/permits/1?forceCreate=true",
+					"protocol": "https",
+					"host": [
+						"biomatrixrx",
+						"com"
+					],
+					"path": [
+						"api",
+						"pbp",
+						"v2014-06",
+						"zones",
+						"3",
+						"permits",
+						"1"
+					],
+					"query": [
+						{
+							"key": "forceCreate",
+							"value": "true",
+							"equals": true,
+							"description": ""
+						}
+					],
+					"variable": []
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"Expiry\":\"2017-07-09T13:28:32.6500058Z\",\"Activation\":\"0001-01-01T00:00:00\",\"PermitId\":\"1\",\"PlateNumber\":\"ABC1234\",\"PlateState\":\"QC\"}\r\n"
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/zones/3/permits",
+			"request": {
+				"url": "https://127.0.0.1/api/pbp/v2014-06/zones/3/permits",
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"Expiry\":\"2017-07-09T13:28:32.6500058Z\",\"Activation\":\"0001-01-01T00:00:00\",\"PermitId\":\"1\",\"PlateNumber\":\"ABC1234\",\"PlateState\":\"QC\"}\r\n"
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "https://127.0.0.1/api/pbp/v2014-06/isvalid",
+			"request": {
+				"url": "https://127.0.0.1/api/pbp/v2014-06/isvalid",
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-ApiKey",
+						"value": "certify",
+						"description": ""
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"PlateNumber\":\"ABC1234\",\"ZoneIds\":[\"1\",\"2\",\"3\"]}"
+				},
+				"description": ""
+			},
+			"response": []
+		}
+	]
+}

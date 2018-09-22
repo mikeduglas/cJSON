@@ -1,6 +1,11 @@
   MAP
     MODULE('cjson')
       json::DebugInfo(STRING pMsg)
+      json::Minify(*STRING pJson)
+      
+      !Recursively compare two cJSON items for equality. If either a or b is NULL or invalid, they will be considered unequal. 
+      !case_sensitive determines if object keys are treated case sensitive (1) or case insensitive (0)
+      json::Compare(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
     END
   END
 
@@ -56,7 +61,8 @@ GetChild                        PROCEDURE(), *cJSON
 GetName                         PROCEDURE(), STRING
 SetName                         PROCEDURE(STRING pNewName)
 
-GetType                         PROCEDURE(),cJSON_Type
+GetType                         PROCEDURE(), cJSON_Type
+SetType                         PROCEDURE(cJSON_Type pType)
 
 !Render a cJSON entity to text for transfer/storage.
 ToString                        PROCEDURE(BOOL pFormat = FALSE), STRING
@@ -121,17 +127,11 @@ ReplaceItemViaPointer           PROCEDURE(*cJSON item, *cJSON replacement), BOOL
 ReplaceItemInArray              PROCEDURE(LONG which, *cJSON newitem)
 ReplaceItemInObject             PROCEDURE(STRING str, *cJSON newitem, BOOL caseSensitive = FALSE)
 
-!Duplicate a cJSON item
-!Duplicate             PROCEDURE(BOOL recurse), *cJSON
-
+!Duplicate a cJSON item.
 !Duplicate will create a new, identical cJSON item to the one you pass, in new memory that will 
 !need to be released. With recurse!=0, it will duplicate any children connected to the item.
 !The item->next and ->prev pointers are always zero on return from Duplicate.
-!Recursively compare two cJSON items for equality. If either a or b is NULL or invalid, they will be considered unequal. 
-!case_sensitive determines if object keys are treated case sensitive (1) or case insensitive (0)
-!Compare               PROCEDURE(cJSON that, BOOL caseSensitive), BOOL
-
-!Minify                PROCEDURE(STRING json)
+Duplicate                       PROCEDURE(BOOL recurse), *cJSON
 
 !Helper functions for creating and adding items to an object at the same time. 
 !They return the added item or NULL on failure.
@@ -144,6 +144,17 @@ AddStringToObject               PROCEDURE(STRING name, STRING value), *cJSON, PR
 AddRawToObject                  PROCEDURE(STRING name, STRING raw), *cJSON, PROC
 AddObjectToObject               PROCEDURE(STRING name), *cJSON  !, PROC
 AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
+
+!save json object to a simple GROUP (only string and numeric fields, no arrays, no nested groups etc...),
+!matchByFieldNumber = false saves by field number.
+ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE), BOOL, PROC
+!save json array to a simple QUEUE (only string and numeric fields, no arrays, no nested groups etc...),
+!matchByFieldNumber = false saves by field number.
+ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE), BOOL, PROC
+!save json array to a simple FILE's RECORD (only string and numeric fields, no arrays, no nested groups etc...),
+!matchByFieldNumber = false saves by field number.
+!pFile must allow ADD(). Any ADD() errors are logged in debugview.
+ToFile                          PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE), BOOL, PROC
                               END
 
 

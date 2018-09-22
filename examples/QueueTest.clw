@@ -1,4 +1,4 @@
-!converts QUEUE to json array
+!converts QUEUE to json array and vice versa
 !
   PROGRAM
   INCLUDE('cjson.inc')
@@ -18,6 +18,15 @@ Age                               LONG
 Hobbies                           STRING(20), DIM(2)
 Digits                            REAL, DIM(3)
                                 END
+
+simpleQ                         QUEUE
+FirstName                         STRING(20)
+LastName                          STRING(20)
+Gender                            STRING(1)
+Age                               LONG
+                                END
+qIndex                          LONG, AUTO
+
 jsonFactory                     cJSONFactory
 root                            &cJSON
   CODE
@@ -44,6 +53,19 @@ root                            &cJSON
   
   root &= jsonFactory.CreateArray(persons)
   MESSAGE(root.ToString(TRUE))
+  
+  !convert json array to simple queue, by pos
+  root.ToQueue(simpleQ, TRUE)
+  !check the result
+  json::DebugInfo('ToQueue BY FIELD POS')
+  LOOP qIndex = 1 TO RECORDS(simpleQ)
+    GET(simpleQ, qIndex)
+    json::DebugInfo('Record#'& qIndex)
+    json::DebugInfo('FirstName: '& simpleQ.FirstName)
+    json::DebugInfo('LastName '& simpleQ.LastName)
+    json::DebugInfo('Gender '& simpleQ.Gender)
+    json::DebugInfo('Age '& simpleQ.Age)
+  END
   
   !dispose all cJSON objects at once
   root.Delete()

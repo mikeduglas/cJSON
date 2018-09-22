@@ -56,27 +56,210 @@ depth                           LONG  !How deeply nested (in arrays/objects) is 
     skip_utf8_bom(*TParseBuffer buffer), PRIVATE
     !Utility to jump whitespace and cr/lf
     buffer_skip_whitespace(*TParseBuffer buffer), PRIVATE
+  
+    json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
+
+    RemoveFieldPrefix(*STRING fldName), PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
 INT_MIN                       EQUATE(-2147483648)
 
 !ASCII control codes
-_Backspace_                   EQUATE('<08h>')
-_Tab_                         EQUATE('<09h>')
-_LF_                          EQUATE('<0Ah>')
-_FF_                          EQUATE('<0Ch>')
-_CR_                          EQUATE('<0Dh>')
-_CRLF_                        EQUATE('<0Dh,0Ah>')
+_Backspace_                   EQUATE('<08h>')     !\b
+_Tab_                         EQUATE('<09h>')     !\t
+_LF_                          EQUATE('<0Ah>')     !\n
+_FF_                          EQUATE('<0Ch>')     !\f
+_CR_                          EQUATE('<0Dh>')     !\r
+_CRLF_                        EQUATE('<0Dh,0Ah>') !\r\n
 
   
-!!!region static functions
+!!!region public functions
+RemoveFieldPrefix             PROCEDURE(*STRING fldName)
+first_colon_pos                 LONG, AUTO
+  CODE
+  first_colon_pos = INSTRING(':', fldName, 1, 1)
+  IF first_colon_pos
+    fldName = SUB(fldName, first_colon_pos + 1, LEN(fldName))
+  END
+
 json::DebugInfo               PROCEDURE(STRING pMsg)
 cs                              CSTRING(LEN('cJSON') + LEN(pMsg) + 3 + 1)
   CODE
   cs = '['& 'cJSON' &'] ' & CLIP(pMsg)
   winapi::OutputDebugString(cs)
+  
+json::Minify                  PROCEDURE(*STRING pJson)
+into                            &STRING
+len                             LONG, AUTO
+srcpos                          LONG, AUTO
+dstpos                          LONG, AUTO
+  CODE
+  into &= pJson
+  IF into &= NULL OR into = ''
+    RETURN
+  END
+  
+  len = LEN(CLIP(pJson))
 
+  srcpos = 1
+  dstpos = 1
+  LOOP WHILE srcpos <= len
+    IF pJson[srcpos] = ' ' OR pJson[srcpos] = _Tab_ OR pJson[srcpos] = _CR_ OR pJson[srcpos] = _LF_
+      !Whitespace characters.
+      srcpos += 1
+    ELSIF srcpos < len AND pJson[srcpos] = '/' AND pJson[srcpos + 1] = '/'
+      !double-slash comments, to end of line.
+      LOOP WHILE srcpos <= len AND pJson[srcpos] <> _LF_
+        srcpos += 1
+      END
+    ELSIF srcpos < len AND pJson[srcpos] = '/' AND pJson[srcpos + 1] = '*'
+      ! multiline comments.
+      LOOP WHILE srcpos <= len AND NOT (pJson[srcpos] = '*' AND pJson[srcpos + 1] = '/')
+        srcpos += 1
+      END
+      srcpos += 2
+    ELSIF pJson[srcpos] = '"'
+      !string literals, which are " sensitive.
+      into[dstpos] = pJson[srcpos]
+      srcpos += 1; dstpos += 1
+      LOOP WHILE srcpos <= len AND pJson[srcpos] <> '"'
+        IF pJson[srcpos] = '\'
+          into[dstpos] = pJson[srcpos]
+          srcpos += 1; dstpos += 1
+        END
+        into[dstpos] = pJson[srcpos]
+        srcpos += 1; dstpos += 1
+      END
+      into[dstpos] = pJson[srcpos]
+      srcpos += 1; dstpos += 1
+    ELSE
+      !All other characters.
+      into[dstpos] = pJson[srcpos]
+      srcpos += 1; dstpos += 1
+    END
+  END
+  
+  !clear string tail
+  LOOP WHILE dstpos <= len
+    into[dstpos] = ' '
+    dstpos += 1
+  END
+
+json::Compare                 PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive)
+  CODE
+  RETURN json::Compare_In_Module(a, b, case_sensitive)
+
+json::Compare_In_Module       PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive)
+a_element                       &cJSON
+b_element                       &cJSON
+  CODE
+  IF (a &= NULL) OR (b &= NULL) OR (BAND(a.GetType(), 0FFh) <> BAND(b.GetType(), 0FFh)) OR a.IsInvalid()
+    RETURN FALSE
+  END
+  
+  !check if type is valid
+  CASE BAND(a.GetType(), 0FFh)
+  OF   cJSON_False
+  OROF cJSON_True
+  OROF cJSON_NULL
+  OROF cJSON_Number
+  OROF cJSON_String
+  OROF cJSON_Raw
+  OROF cJSON_Array
+  OROF cJSON_Object
+    !nop
+  ELSE
+    RETURN FALSE
+  END
+  
+  !identical objects are equal
+  IF a &= b
+    RETURN TRUE
+  END
+
+  CASE BAND(a.GetType(), 0FFh)
+  OF   cJSON_False
+  OROF cJSON_True
+  OROF cJSON_NULL
+    !in these cases and equal type is enough
+    RETURN TRUE
+    
+  OF cJSON_Number
+    IF a.valuedouble = b.valuedouble
+      RETURN TRUE
+    END
+    RETURN FALSE
+    
+  OF cJSON_String
+  OROF cJSON_Raw
+    IF a.valuestring &= NULL OR b.valuestring &= NULL
+      RETURN FALSE
+    END
+    IF a.valuestring = b.valuestring
+      RETURN TRUE
+    END
+    RETURN FALSE
+    
+  OF cJSON_Array
+    a_element &= a.child
+    b_element &= b.child
+    
+    LOOP WHILE (NOT a_element &= NULL) AND (NOT b_element &= NULL)
+      IF NOT json::Compare(a_element, b_element, case_sensitive)
+        RETURN FALSE
+      END
+      a_element &= a_element.next
+      b_element &= b_element.next
+    END
+    
+    !one of the arrays is longer than the other
+    IF NOT a_element &= b_element
+      RETURN FALSE
+    END
+    RETURN TRUE
+    
+  OF cJSON_Object
+    a_element &= a.child
+    b_element &= NULL
+    LOOP WHILE NOT a_element &= NULL
+      !TODO This has O(n^2) runtime, which is horrible!
+      b_element &= get_object_item(b, a_element.name, case_sensitive)
+      IF b_element &= NULL
+        RETURN FALSE
+      END
+      
+      IF NOT json::Compare(a_element, b_element, case_sensitive)
+        RETURN FALSE
+      END
+      
+      a_element &= a_element.next
+    END
+    
+    !doing this twice, once on a and b to prevent true comparison if a subset of b
+    !TODO: Do this the proper way, this is just a fix for now
+    b_element &= b.child
+    LOOP WHILE NOT b_element &= NULL
+      a_element &= get_object_item(a, b_element.name, case_sensitive)
+      IF a_element &= NULL
+        RETURN FALSE
+      END
+
+      IF NOT json::Compare(b_element, a_element, case_sensitive)
+        RETURN FALSE
+      END
+
+      b_element &= b_element.next
+    END
+    
+    RETURN TRUE
+    
+  ELSE
+    RETURN FALSE
+  END
+!!!endregion
+  
+!!!region private functions
 suffix_object                 PROCEDURE(*cJSON prev, *cJSON item)
   CODE
   prev.next &= item
@@ -463,7 +646,7 @@ start_char                      STRING(1), AUTO
     RETURN parse_string(item, buffer)
   END
   !number
-  IF start_char = '-' OR INRANGE(VAL(start_char), 0, 9)
+  IF start_char = '-' OR INRANGE(VAL(start_char), VAL('0'), VAL('9'))
     RETURN parse_number(item, buffer)
   END
   !array
@@ -502,9 +685,9 @@ i                               LONG, AUTO
     OROF '-'
     OROF 'e'
     OROF 'E'
-      number_c_string[i] = buffer.content[i]
+      number_c_string[i - buffer.pos + 1] = buffer.content[i]
     OF '.'
-      number_c_string[i] = decimal_point
+      number_c_string[i - buffer.pos + 1] = decimal_point
     ELSE
       i -= 1
       BREAK !end of loop
@@ -544,21 +727,8 @@ sequence_length                 LONG, AUTO
   IF SUB(buffer.content, buffer.pos, 1) <> '"'
     DO Fail
   END
-!  LOOP i = input_end TO buffer.len
-!    cur_char = SUB(buffer.content, i, 1)
-!    IF cur_char = '"'
-!      BREAK
-!    END
-!    
-!    !is escape sequence
-!    IF cur_char = '\'
-!      skipped_bytes += 1
-!      input_end += 1
-!    END
-!
-!    input_end += 1
-!  END
-  LOOP WHILE input_end < buffer.len
+
+  LOOP WHILE input_end <= buffer.len
     cur_char = SUB(buffer.content, input_end, 1)
     IF cur_char = '"'
       BREAK
@@ -580,7 +750,8 @@ sequence_length                 LONG, AUTO
 
   
   !buffer.pos points to opening "
-  !input_end points to next char after closing "
+  !input_pos points to first char after opening "
+  !input_end points to closing "
   
   !loop through the string literal
   LOOP WHILE input_pos < input_end
@@ -615,7 +786,7 @@ sequence_length                 LONG, AUTO
       ELSE
         DO Fail
       END
-      
+  
       input_pos += sequence_length
     END
   END
@@ -647,13 +818,16 @@ new_item                        &cJSON
   !skip whitespaces
   buffer_skip_whitespace(buffer)
 
-  IF buffer.content[buffer.pos] = ']'
+  IF buffer.pos <= buffer.len AND buffer.content[buffer.pos] = ']'
     !empty array
     DO Success
   END
   
   !check if we skipped to the end of the buffer
-  !...
+  IF buffer.pos > buffer.len
+    buffer.pos -= 1
+    DO Fail
+  END
   
   !step back to character in front of the first element
   buffer.pos -= 1
@@ -685,7 +859,7 @@ new_item                        &cJSON
 
   WHILE buffer.pos < buffer.len AND buffer.content[buffer.pos] = ','
   
-  IF buffer.pos >= buffer.len OR buffer.content[buffer.pos] <> ']'
+  IF buffer.pos > buffer.len OR buffer.content[buffer.pos] <> ']'
     DO Fail   !expected end of array
   END
   
@@ -725,7 +899,10 @@ new_item                        &cJSON
   END
   
   !check if we skipped to the end of the buffer
-  !...
+  IF buffer.pos > buffer.len
+    buffer.pos -= 1
+    DO Fail
+  END
   
   !step back to character in front of the first element
   buffer.pos -= 1
@@ -942,7 +1119,7 @@ i                               LONG, AUTO
     
     buffer.pos += 1
   END
-  IF buffer.pos = buffer.len
+  IF buffer.pos > buffer.len
     buffer.pos -= 1
   END
 
@@ -997,6 +1174,10 @@ cJSON.SetName                 PROCEDURE(STRING pNewName)
 cJSON.GetType                 PROCEDURE()
   CODE
   RETURN SELF.type
+  
+cJSON.SetType                 PROCEDURE(cJSON_Type pType)
+  CODE
+  SELF.type = pType
   
 cJSON.GetNumberValue          PROCEDURE()
   CODE
@@ -1276,16 +1457,66 @@ cJSON.ReplaceItemInObject     PROCEDURE(STRING str, *cJSON newitem, BOOL caseSen
   CODE
   replace_item_in_object(SELF, str, newitem, caseSensitive)
   
-!cJSON.Duplicate     PROCEDURE(BOOL recurse)
-!  CODE
-!  RETURN NULL
+cJSON.Duplicate               PROCEDURE(BOOL recurse)
+newitem                         &cJSON
+child                           &cJSON
+next                            &cJSON
+newchild                        &cJSON
+  CODE
+  !Create new item
+  newitem &= NEW cJSON
+  !Copy over all vars
+  newitem.type = SELF.type
+  newitem.valueint = SELF.valueint
+  newitem.valuedouble = SELF.valuedouble
+  IF NOT SELF.valuestring &= NULL
+    newitem.valuestring &= NEW STRING(LEN(SELF.valuestring))
+    newitem.valuestring = SELF.valuestring
+  END
+  IF NOT SELF.name &= NULL
+    IF BAND(SELF.type, cJSON_StringIsConst)
+      newitem.name &= SELF.name
+    ELSE
+      newitem.name &= NEW STRING(LEN(SELF.name))
+      newitem.name = SELF.name
+    END
+  END
+
+  !If non-recursive, then we're done!
+  IF NOT recurse
+    RETURN newitem
+  END
+
+  !Walk the ->next chain for the child.
+  child &= SELF.child
+  LOOP WHILE NOT child &= NULL
+    newchild &= child.Duplicate(TRUE) !Duplicate (with recurse) each item in the ->next chain
+    IF newchild &= NULL
+      DO Fail
+    END
+    
+    IF NOT next &= NULL
+      !If newitem->child already set, then crosswire ->prev and ->next and move on
+      next.next &= newchild
+      newchild.prev &= next
+      next &= newchild
+    ELSE
+      !Set newitem->child and move to it 
+      newitem.child &= child
+      next &= newchild
+    END
   
-!cJSON.Compare       PROCEDURE(cJSON that, BOOL caseSensitive)
-!  CODE
-!  RETURN FALSE
+    child &= child.next
+  END
   
-!cJSON.Minify        PROCEDURE(STRING json)
-!  CODE
+  RETURN newitem
+
+Fail                          ROUTINE
+  IF NOT newitem &= NULL
+    newitem.Delete()
+  END
+  
+  RETURN NULL
   
 cJSON.AddNullToObject         PROCEDURE(STRING name)
 factory                         cJSONFactory
@@ -1395,6 +1626,145 @@ array                           &cJSON
   array.Delete()
   RETURN NULL
 
+cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE)
+item                            &cJSON
+fldRef                          ANY
+fldName                         STRING(256), AUTO
+fidNdx                          LONG, AUTO
+  CODE
+  IF NOT SELF.IsObject()
+    !not an object
+    RETURN FALSE
+  END
+    
+  CLEAR(grp)
+
+  item &= SELF.child
+  IF item &= NULL
+    !empty object
+    RETURN TRUE
+  END
+
+  IF NOT matchByFieldNumber
+    !by field names
+
+    LOOP WHILE NOT item &= NULL
+      IF NOT item.name &= NULL AND item.name <> ''
+        !search for group field with same name
+        LOOP fidNdx = 1 TO 99999
+          fldRef &= WHAT(grp, fidNdx)
+          IF fldRef &= NULL
+            !end of group
+            BREAK
+          END
+
+          fldName = WHO(grp, fidNdx)
+          RemoveFieldPrefix(fldName)
+
+          IF LOWER(fldName) = LOWER(item.name)
+            !found group field, assign the value
+            DO AssignGroup
+    
+            !go to next element
+            BREAK
+          END
+        END
+      END
+      
+      item &= item.next
+    END
+  ELSE
+    !by field ordinal position
+    
+    fidNdx = 0
+    LOOP WHILE NOT item &= NULL
+      fidNdx += 1
+      fldRef &= WHAT(grp, fidNdx)
+      IF fldRef &= NULL
+        !index out of range (number of group fields less than number of object items)
+        BREAK
+      END
+
+      DO AssignGroup
+
+      item &= item.next
+    END
+  END
+  
+  RETURN TRUE
+  
+AssignGroup                   ROUTINE
+  IF item.IsString()
+    fldRef = item.valuestring
+  ELSIF item.IsNumber()
+    fldRef = item.valuedouble
+  ELSIF item.IsBool()
+    fldRef = item.valueint
+  ELSIF item.IsFalse()
+    fldRef = 0
+  ELSIF item.IsTrue()
+    fldRef = 1
+  END
+
+cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE)
+grp                             &GROUP
+item                            &cJSON
+  CODE
+  IF NOT SELF.IsArray()
+    !not an array
+    RETURN FALSE
+  END
+
+  item &= SELF.child
+  IF item &= NULL
+    !empty array
+    RETURN TRUE
+  END
+
+  !go thru array elements
+  LOOP WHILE NOT item &= NULL
+    grp &= que
+    IF item.ToGroup(grp)
+      !add a record
+      ADD(que)
+    END
+    
+    item &= item.next
+  END
+
+  RETURN TRUE
+
+cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE)
+grp                             &GROUP
+item                            &cJSON
+  CODE
+  IF NOT SELF.IsArray()
+    !not an array
+    RETURN FALSE
+  END
+
+  item &= SELF.child
+  IF item &= NULL
+    !empty array
+    RETURN TRUE
+  END
+
+  !go thru array elements
+  LOOP WHILE NOT item &= NULL
+    grp &= pFile{PROP:Record}
+    IF item.ToGroup(grp)
+      !add a record
+      ADD(pFile)
+      IF ERRORCODE()
+        json::DebugInfo('ADD error: '& ERROR())
+      END
+    END
+    
+    item &= item.next
+  END
+
+  RETURN TRUE
+
 !!!endregion
   
 !!!region cJSONFactory
@@ -1431,16 +1801,6 @@ item                            &cJSON
   CODE
   item &= NEW cJSON
   item.type = cJSON_Number
-!  item.valuedouble = num
-  
-!  !use saturation in case of overflow
-!  IF num >= INT_MAX
-!    item.valueint = INT_MAX
-!  ELSIF num <= INT_MIN
-!    item.valueint = INT_MIN
-!  ELSE
-!    item.valueint = num
-!  END
   item.SetNumberValue(num)
 
   RETURN item
@@ -1602,7 +1962,7 @@ factory                         cJSONFactory
   CODE
   item &= SELF.CreateObject()
   
-  LOOP ndx = 1 TO 9999
+  LOOP ndx = 1 TO 99999
     fldRef &= WHAT(grp, ndx)
     IF fldRef &= NULL
       !end of group
@@ -1615,7 +1975,7 @@ factory                         cJSONFactory
       CYCLE
     END
     
-    DO RemovePrefix
+    RemoveFieldPrefix(fldName)
     
     IF pNamesInLowerCase
       fldName = LOWER(fldName)
@@ -1648,15 +2008,6 @@ factory                         cJSONFactory
   END
   
   RETURN item
-
-RemovePrefix                  ROUTINE
-  DATA
-first_colon_pos LONG, AUTO
-  CODE
-  first_colon_pos = INSTRING(':', fldName, 1, 1)
-  IF first_colon_pos
-    fldName = SUB(fldName, first_colon_pos + 1, LEN(fldName))
-  END
   
 CreateStringArray             ROUTINE
   DATA

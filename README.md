@@ -19,6 +19,16 @@ where %ClarionRoot% is the folder into which you installed Clarion.
 Free
 
 ## Version history
+v1.00 (23.09.2018)
+- FIX: Parse could fail
+- NEW: ToGroup method converts json object into a GROUP
+- NEW: ToQueue method converts json array into a QUEUE
+- NEW: ToFile method converts json array into a FILE
+- NEW: Duplicate method creates a new, identical cJSON item
+- NEW: json::Minify function removes whitespaces and comments
+- NEW: json::Compare function compares two cJSON items
+- CHG: new and modified examples
+
 v0.99 (21.09.2018)
 - FIX: array handling
 - FIX: Unicode handling
