@@ -1341,11 +1341,11 @@ cJSON.DetachItemViaPointer    PROCEDURE(*cJSON item)
     RETURN NULL
   END
   
-  IF item.prev &= NULL
+  IF NOT item.prev &= NULL
     !not the first element
     item.prev.next &= item.next
   END
-  IF item.next &= NULL
+  IF NOT item.next &= NULL
     !not the last element
     item.next.prev &= item.prev
   END

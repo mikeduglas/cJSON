@@ -19,6 +19,9 @@ where %ClarionRoot% is the folder into which you installed Clarion.
 Free
 
 ## Version history
+v1.01 (25.09.2018)
+- FIX: bugs in DetachItemViaPointer method
+
 v1.00 (23.09.2018)
 - FIX: Parse could fail
 - NEW: ToGroup method converts json object into a GROUP

@@ -11,3 +11,6 @@
 - ReplaceItemViaPointer
 - ReplaceItemInArray
 - ReplaceItemInObject
+
+### ToDo
+- Add a parameter to Parse, to allow parsing tweaks.
