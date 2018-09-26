@@ -27,7 +27,6 @@ Age                               LONG
                                 END
 qIndex                          LONG, AUTO
 
-jsonFactory                     cJSONFactory
 root                            &cJSON
   CODE
   CLEAR(persons)
@@ -51,7 +50,7 @@ root                            &cJSON
   persons.Hobbies[2] = 'Railway trains'
   ADD(persons)
   
-  root &= jsonFactory.CreateArray(persons)
+  root &= json::CreateArray(persons)
   MESSAGE(root.ToString(TRUE))
   
   !convert json array to simple queue, by pos

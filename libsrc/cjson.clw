@@ -18,6 +18,17 @@ pos                             LONG  !1..len(clip(input))
 depth                           LONG  !How deeply nested (in arrays/objects) is the input at the current offset.
                               END
 
+
+!ToGroup/ToQueue/ToFILE modifiers
+TFieldRule                    GROUP, TYPE
+Name                            STRING(64)  !field name w/o prefix
+Format                          STRING(32)  !call fld = FORMAT(value, picture)
+Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
+Ignore                          BOOL        !ignore the field
+                              END
+TFieldRules                   QUEUE(TFieldRule), TYPE
+                              END
+
   MAP
     MODULE('win api')
       winapi::memcpy(LONG lpDest,LONG lpSource,LONG nCount),LONG,PROC,NAME('_memcpy')
@@ -60,6 +71,10 @@ depth                           LONG  !How deeply nested (in arrays/objects) is 
     json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
 
     RemoveFieldPrefix(*STRING fldName), PRIVATE
+
+    ParseFieldRules(STRING json, *TFieldRules rules), PRIVATE
+    FindFieldRule(STRING fldName, *TFieldRules rules), PRIVATE
+    ApplyFieldRules(? value, TFieldRule rule), ?, PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
@@ -83,6 +98,49 @@ first_colon_pos                 LONG, AUTO
     fldName = SUB(fldName, first_colon_pos + 1, LEN(fldName))
   END
 
+ParseFieldRules               PROCEDURE(STRING json, *TFieldRules rules)
+factory                         cJSONFactory
+object                          &cJSON
+  CODE
+  !- field convertion rules
+  IF json
+    object &= factory.Parse(json)
+    IF NOT object &= NULL
+      IF object.IsArray()
+        object.ToQueue(rules)
+      ELSIF object.IsObject()
+        IF object.ToGroup(rules)
+          ADD(rules)
+        END
+      END
+
+      object.Delete()
+    END
+  END
+  
+FindFieldRule PROCEDURE(STRING fldName, *TFieldRules rules)
+qIndex          LONG, AUTO
+  CODE
+  LOOP qIndex = 1 TO RECORDS(rules)
+    GET(rules, qIndex)
+    IF LOWER(rules.Name) = LOWER(fldName)
+      !- found field rules
+      RETURN
+    END
+  END
+  !- not found field rules
+  CLEAR(rules)
+
+ApplyFieldRules               PROCEDURE(? value, TFieldRule rule)
+  CODE
+  IF rule.Format
+    RETURN FORMAT(value, rule.Format)
+  ELSIF rule.Deformat
+    RETURN DEFORMAT(value, rule.Deformat)
+  ELSE
+    RETURN value
+  END
+  
 json::DebugInfo               PROCEDURE(STRING pMsg)
 cs                              CSTRING(LEN('cJSON') + LEN(pMsg) + 3 + 1)
   CODE
@@ -1125,6 +1183,330 @@ i                               LONG, AUTO
 
 !!!endregion
 
+!!!region shortcuts
+json::CreateNull              PROCEDURE()
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_Null
+  RETURN item
+  
+json::CreateTrue              PROCEDURE()
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_True
+  RETURN item
+
+json::CreateFalse             PROCEDURE()
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_False
+  RETURN item
+
+json::CreateBool              PROCEDURE(BOOL b)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = CHOOSE(b = TRUE, cJSON_True, cJSON_False)
+  RETURN item
+
+json::CreateNumber            PROCEDURE(REAL num)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_Number
+  item.SetNumberValue(num)
+
+  RETURN item
+
+json::CreateString            PROCEDURE(STRING str)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_String
+  IF str
+    item.valuestring &= NEW STRING(LEN(CLIP(str)))
+    item.valuestring = CLIP(str)
+  END
+  
+  RETURN item
+
+json::CreateRaw               PROCEDURE(STRING rawJson)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_Raw
+  IF rawJson
+    item.valuestring &= NEW STRING(LEN(CLIP(rawJson)))
+    item.valuestring = CLIP(rawJson)
+  END
+  
+  RETURN item
+
+json::CreateArray             PROCEDURE()
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_Array
+  
+  RETURN item
+
+json::CreateObject            PROCEDURE()
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = cJSON_Object
+  
+  RETURN item
+
+json::CreateStringReference   PROCEDURE(*STRING str)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = BOR(cJSON_String, cJSON_IsReference)
+  item.valuestring &= str
+  
+  RETURN item
+
+json::CreateObjectReference   PROCEDURE(*cJSON child)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = BOR(cJSON_Object, cJSON_IsReference)
+  item.child &= child
+  
+  RETURN item
+
+json::CreateArrayReference    PROCEDURE(*cJSON child)
+item                            &cJSON
+  CODE
+  item &= NEW cJSON
+  item.type = BOR(cJSON_Array, cJSON_IsReference)
+  item.child &= child
+  
+  RETURN item
+
+json::CreateIntArray          PROCEDURE(LONG[] numbers)
+i                               LONG, AUTO
+n                               &cJSON
+p                               &cJSON
+a                               &cJSON
+  CODE
+  a &= json::CreateArray()
+  
+  LOOP i = 1 TO MAXIMUM(numbers, 1)
+    IF NOT a &= NULL
+      n &= json::CreateNumber(numbers[i])
+      IF n &= NULL
+        a.Delete()
+        RETURN NULL
+      END
+      
+      IF i = 1
+        a.child &= n
+      ELSE
+        suffix_object(p, n)
+      END
+      
+      p &= n
+    END
+  END
+  
+  RETURN a
+
+json::CreateDoubleArray       PROCEDURE(REAL[] numbers)
+i                               LONG, AUTO
+n                               &cJSON
+p                               &cJSON
+a                               &cJSON
+  CODE
+  a &= json::CreateArray()
+  
+  LOOP i = 1 TO MAXIMUM(numbers, 1)
+    IF NOT a &= NULL
+      n &= json::CreateNumber(numbers[i])
+      IF n &= NULL
+        a.Delete()
+        RETURN NULL
+      END
+      
+      IF i = 1
+        a.child &= n
+      ELSE
+        suffix_object(p, n)
+      END
+      
+      p &= n
+    END
+  END
+  
+  RETURN a
+
+json::CreateStringArray       PROCEDURE(STRING[] strings)
+i                               LONG, AUTO
+n                               &cJSON
+p                               &cJSON
+a                               &cJSON
+  CODE
+  a &= json::CreateArray()
+  
+  LOOP i = 1 TO MAXIMUM(strings, 1)
+    IF NOT a &= NULL
+      n &= json::CreateString(strings[i])
+      IF n &= NULL
+        a.Delete()
+        RETURN NULL
+      END
+      
+      IF i = 1
+        a.child &= n
+      ELSE
+        suffix_object(p, n)
+      END
+      
+      p &= n
+    END
+  END
+  
+  RETURN a
+
+json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+ndx                             LONG, AUTO
+fldRef                          ANY
+fldName                         STRING(256), AUTO
+fldDim                          LONG, AUTO
+item                            &cJSON
+fldRules                        QUEUE(TFieldRules)
+                                END
+fldValue                        ANY
+  CODE
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+
+  item &= json::CreateObject()
+  
+  LOOP ndx = 1 TO 99999
+    fldRef &= WHAT(grp, ndx)
+    IF fldRef &= NULL
+      !end of group
+      BREAK
+    END
+    
+    fldName = WHO(grp, ndx)
+    IF NOT fldName
+      !skip fields with blank names
+      CYCLE
+    END
+    
+    RemoveFieldPrefix(fldName)
+    
+    IF pNamesInLowerCase
+      fldName = LOWER(fldName)
+    END
+    
+    !- find field rules
+    FindFieldRule(fldName, fldRules)
+    
+    IF NOT fldRules.Ignore
+      fldDim = HOWMANY(grp, ndx)
+      IF fldDim = 1
+        !not arrays
+
+        !- apply field rules
+        fldValue = ApplyFieldRules(fldRef, fldRules)
+
+        IF ISSTRING(fldValue)
+          item.AddStringToObject(fldName, fldValue)
+        ELSIF NUMERIC(fldValue)
+          item.AddNumberToObject(fldName, fldValue)
+        ELSE
+          !neither STRING nor NUMERIC
+          item.AddStringToObject(fldName, fldValue)
+        END
+      
+      ELSE
+        !arrays
+      
+        IF ISSTRING(fldRef)
+          !string array
+          DO CreateStringArray
+        
+          !ELSIF NUMERIC(fldRef)  - this line throws runtime error
+        ELSE  !assume this is numeric array
+          DO CreateNumericArray
+        END
+      END
+    END
+  END
+  
+  RETURN item
+
+CreateStringArray             ROUTINE
+  DATA
+strings                       STRING(256), DIM(fldDim)
+elemRef                       ANY
+elemNdx                       LONG, AUTO
+  CODE
+  !copy array
+  LOOP elemNdx = 1 TO fldDim
+    elemRef &= WHAT(grp, ndx, elemNdx)
+    strings[elemNdx] = ApplyFieldRules(elemRef, fldRules)
+  END
+  item.AddItemToObject(fldName, json::CreateStringArray(strings))
+
+CreateNumericArray            ROUTINE
+  DATA
+numbers                       REAL, DIM(fldDim)
+elemRef                       ANY
+elemNdx                       LONG, AUTO
+  CODE
+  !copy array
+  LOOP elemNdx = 1 TO fldDim
+    elemRef &= WHAT(grp, ndx, elemNdx)
+    numbers[elemNdx] = ApplyFieldRules(elemRef, fldRules)
+  END
+  item.AddItemToObject(fldName, json::CreateDoubleArray(numbers))
+
+json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+array                           &cJSON
+grp                             &GROUP
+ndx                             LONG, AUTO
+  CODE
+  array &= json::CreateArray()
+  LOOP ndx = 1 TO RECORDS(que)
+    GET(que, ndx)
+    grp &= que
+    array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
+  END
+  
+  RETURN array
+
+json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+array                           &cJSON
+ferr                            LONG, AUTO
+grp                             &GROUP
+  CODE
+  array &= json::CreateArray()
+  LOOP
+    NEXT(pFile)
+    ferr = ERRORCODE()
+    IF ferr
+      IF ferr <> 33
+        !real error, not end of file
+        json::DebugInfo('NEXT(file) failed: '& ERROR())
+      END
+      BREAK
+    END
+    
+    grp &= pFile{PROP:Record}
+    array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
+  END
+  
+  RETURN array
+!!!endregion
+  
 !!!region cJSON
 cJSON.Construct               PROCEDURE()
   CODE
@@ -1626,11 +2008,14 @@ array                           &cJSON
   array.Delete()
   RETURN NULL
 
-cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE)
+cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
 item                            &cJSON
+factory                         cJSONFactory
 fldRef                          ANY
 fldName                         STRING(256), AUTO
 fidNdx                          LONG, AUTO
+fldRules                        QUEUE(TFieldRules)
+                                END
   CODE
   IF NOT SELF.IsObject()
     !not an object
@@ -1645,6 +2030,9 @@ fidNdx                          LONG, AUTO
     RETURN TRUE
   END
 
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+  
   IF NOT matchByFieldNumber
     !by field names
 
@@ -1685,28 +2073,42 @@ fidNdx                          LONG, AUTO
         BREAK
       END
 
+      fldName = WHO(grp, fidNdx)
+      RemoveFieldPrefix(fldName)
+
       DO AssignGroup
 
       item &= item.next
     END
   END
-  
-  RETURN TRUE
-  
-AssignGroup                   ROUTINE
-  IF item.IsString()
-    fldRef = item.valuestring
-  ELSIF item.IsNumber()
-    fldRef = item.valuedouble
-  ELSIF item.IsBool()
-    fldRef = item.valueint
-  ELSIF item.IsFalse()
-    fldRef = 0
-  ELSIF item.IsTrue()
-    fldRef = 1
-  END
 
-cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE)
+  RETURN TRUE
+
+AssignGroup                   ROUTINE
+  DATA
+fldValue    ANY
+  CODE
+  !- find field rules
+  FindFieldRule(fldName, fldRules)
+
+  IF NOT fldRules.Ignore
+    IF item.IsString()
+      fldValue = item.valuestring
+    ELSIF item.IsNumber()
+      fldValue = item.valuedouble
+    ELSIF item.IsBool()
+      fldValue = item.valueint
+    ELSIF item.IsFalse()
+      fldValue = 0
+    ELSIF item.IsTrue()
+      fldValue = 1
+    END
+
+    !- apply field rule, if exists
+    fldRef = ApplyFieldRules(fldValue, fldRules)
+  END
+  
+cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
 grp                             &GROUP
 item                            &cJSON
   CODE
@@ -1724,7 +2126,7 @@ item                            &cJSON
   !go thru array elements
   LOOP WHILE NOT item &= NULL
     grp &= que
-    IF item.ToGroup(grp)
+    IF item.ToGroup(grp, matchByFieldNumber, options)
       !add a record
       ADD(que)
     END
@@ -1734,7 +2136,7 @@ item                            &cJSON
 
   RETURN TRUE
 
-cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE)
+cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>)
 grp                             &GROUP
 item                            &cJSON
   CODE
@@ -1752,7 +2154,7 @@ item                            &cJSON
   !go thru array elements
   LOOP WHILE NOT item &= NULL
     grp &= pFile{PROP:Record}
-    IF item.ToGroup(grp)
+    IF item.ToGroup(grp, matchByFieldNumber, options)
       !add a record
       ADD(pFile)
       IF ERRORCODE()
@@ -1769,308 +2171,76 @@ item                            &cJSON
   
 !!!region cJSONFactory
 cJSONFactory.CreateNull       PROCEDURE()
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_Null
-  RETURN item
+  RETURN json::CreateNull()
   
 cJSONFactory.CreateTrue       PROCEDURE()
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_True
-  RETURN item
+  RETURN json::CreateTrue()
   
 cJSONFactory.CreateFalse      PROCEDURE()
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_False
-  RETURN item
+  RETURN json::CreateFalse()
   
 cJSONFactory.CreateBool       PROCEDURE(BOOL b)
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = CHOOSE(b = TRUE, cJSON_True, cJSON_False)
-  RETURN item
+  RETURN json::CreateBool(b)
   
 cJSONFactory.CreateNumber     PROCEDURE(REAL num)
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_Number
-  item.SetNumberValue(num)
-
-  RETURN item
+  RETURN json::CreateNumber(num)
   
 cJSONFactory.CreateString     PROCEDURE(STRING str)
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_String
-  item.valuestring &= NEW STRING(LEN(CLIP(str)))
-  item.valuestring = CLIP(str)
+  RETURN json::CreateString(str)
   
-  RETURN item
-  
-cJSONFactory.CreateRaw        PROCEDURE(STRING raw)
-item                            &cJSON
+cJSONFactory.CreateRaw        PROCEDURE(STRING rawJson)
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_Raw
-  item.valuestring &= NEW STRING(LEN(CLIP(raw)))
-  item.valuestring = CLIP(raw)
-  
-  RETURN item
+  RETURN json::CreateRaw(rawJson)
   
 cJSONFactory.CreateArray      PROCEDURE()
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_Array
-  
-  RETURN item
+  RETURN json::CreateArray()
   
 cJSONFactory.CreateObject     PROCEDURE()
-item                            &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = cJSON_Object
-  
-  RETURN item
+  RETURN json::CreateObject()
   
 cJSONFactory.CreateStringReference    PROCEDURE(*STRING str)
-item                                    &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = BOR(cJSON_String, cJSON_IsReference)
-  item.valuestring &= str
-  
-  RETURN item
+  RETURN json::CreateStringReference(str)
 
 cJSONFactory.CreateObjectReference    PROCEDURE(*cJSON child)
-item                                    &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = BOR(cJSON_Object, cJSON_IsReference)
-  item.child &= child
-  
-  RETURN item
+  RETURN json::CreateObjectReference(child)
   
 cJSONFactory.CreateArrayReference PROCEDURE(*cJSON child)
-item                                &cJSON
   CODE
-  item &= NEW cJSON
-  item.type = BOR(cJSON_Array, cJSON_IsReference)
-  item.child &= child
-  
-  RETURN item
+  RETURN json::CreateArrayReference(child)
   
 cJSONFactory.CreateIntArray   PROCEDURE(LONG[] numbers)
-i                               LONG, AUTO
-n                               &cJSON
-p                               &cJSON
-a                               &cJSON
   CODE
-  a &= SELF.CreateArray()
-  
-  LOOP i = 1 TO MAXIMUM(numbers, 1)
-    IF NOT a &= NULL
-      n &= SELF.CreateNumber(numbers[i])
-      IF n &= NULL
-        a.Delete()
-        RETURN NULL
-      END
-      
-      IF i = 1
-        a.child &= n
-      ELSE
-        suffix_object(p, n)
-      END
-      
-      p &= n
-    END
-  END
-  
-  RETURN a
+  RETURN json::CreateIntArray(numbers)
 
 cJSONFactory.CreateDoubleArray    PROCEDURE(REAL[] numbers)
-i                                   LONG, AUTO
-n                                   &cJSON
-p                                   &cJSON
-a                                   &cJSON
   CODE
-  a &= SELF.CreateArray()
-  
-  LOOP i = 1 TO MAXIMUM(numbers, 1)
-    IF NOT a &= NULL
-      n &= SELF.CreateNumber(numbers[i])
-      IF n &= NULL
-        a.Delete()
-        RETURN NULL
-      END
-      
-      IF i = 1
-        a.child &= n
-      ELSE
-        suffix_object(p, n)
-      END
-      
-      p &= n
-    END
-  END
-  
-  RETURN a
+  RETURN json::CreateDoubleArray(numbers)
   
 cJSONFactory.CreateStringArray    PROCEDURE(STRING[] strings)
-i                                   LONG, AUTO
-n                                   &cJSON
-p                                   &cJSON
-a                                   &cJSON
   CODE
-  a &= SELF.CreateArray()
-  
-  LOOP i = 1 TO MAXIMUM(strings, 1)
-    IF NOT a &= NULL
-      n &= SELF.CreateString(strings[i])
-      IF n &= NULL
-        a.Delete()
-        RETURN NULL
-      END
-      
-      IF i = 1
-        a.child &= n
-      ELSE
-        suffix_object(p, n)
-      END
-      
-      p &= n
-    END
-  END
-  
-  RETURN a
+  RETURN json::CreateStringArray(strings)
 
-cJSONFactory.CreateObject     PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE)
-ndx                             LONG, AUTO
-fldRef                          ANY
-fldName                         STRING(256), AUTO
-fldDim                          LONG, AUTO
-item                            &cJSON
-factory                         cJSONFactory
+cJSONFactory.CreateObject     PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>)
   CODE
-  item &= SELF.CreateObject()
+  RETURN json::CreateObject(grp, pNamesInLowerCase, options)
   
-  LOOP ndx = 1 TO 99999
-    fldRef &= WHAT(grp, ndx)
-    IF fldRef &= NULL
-      !end of group
-      BREAK
-    END
-    
-    fldName = WHO(grp, ndx)
-    IF NOT fldName
-      !skip fields with blank names
-      CYCLE
-    END
-    
-    RemoveFieldPrefix(fldName)
-    
-    IF pNamesInLowerCase
-      fldName = LOWER(fldName)
-    END
-    
-    fldDim = HOWMANY(grp, ndx)
-    IF fldDim = 1
-      !not arrays
-      
-      IF ISSTRING(fldRef)
-        item.AddStringToObject(fldName, fldRef)
-      ELSIF NUMERIC(fldRef)
-        item.AddNumberToObject(fldName, fldRef)
-      ELSE
-        !neither STRING nor NUMERIC
-        item.AddStringToObject(fldName, fldRef)
-      END
-    ELSE
-      !arrays
-      
-      IF ISSTRING(fldRef)
-        !string array
-        DO CreateStringArray
-        
-      !ELSIF NUMERIC(fldRef)  - this line throws runtime error
-      ELSE  !assume this is numeric array
-        DO CreateNumericArray
-      END
-    END
-  END
-  
-  RETURN item
-  
-CreateStringArray             ROUTINE
-  DATA
-strings STRING(256), DIM(fldDim)
-elemRef ANY
-elemNdx LONG, AUTO
+cJSONFactory.CreateArray      PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
   CODE
-  !copy array
-  LOOP elemNdx = 1 TO fldDim
-    elemRef &= WHAT(grp, ndx, elemNdx)
-    strings[elemNdx] = elemRef
-  END
-  item.AddItemToObject(fldName, factory.CreateStringArray(strings))
-
-CreateNumericArray            ROUTINE
-  DATA
-numbers REAL, DIM(fldDim)
-elemRef ANY
-elemNdx LONG, AUTO
+  RETURN json::CreateArray(que, pNamesInLowerCase, options)
+  
+cJSONFactory.CreateArray      PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
   CODE
-  !copy array
-  LOOP elemNdx = 1 TO fldDim
-    elemRef &= WHAT(grp, ndx, elemNdx)
-    numbers[elemNdx] = elemRef
-  END
-  item.AddItemToObject(fldName, factory.CreateDoubleArray(numbers))
-  
-cJSONFactory.CreateArray      PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE)
-array                           &cJSON
-grp                             &GROUP
-ndx                             LONG, AUTO
-  CODE
-  array &= SELF.CreateArray()
-  LOOP ndx = 1 TO RECORDS(que)
-    GET(que, ndx)
-    grp &= que
-    array.AddItemToArray(SELF.CreateObject(grp, pNamesInLowerCase))
-  END
-  
-  RETURN array
-  
-cJSONFactory.CreateArray      PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE)
-array                           &cJSON
-ferr                            LONG, AUTO
-grp                             &GROUP
-  CODE
-  array &= SELF.CreateArray()
-  LOOP
-    NEXT(pFile)
-    ferr = ERRORCODE()
-    IF ferr
-      IF ferr <> 33
-        !real error, not end of file
-        json::DebugInfo('NEXT(file) failed: '& ERROR())
-      END
-      BREAK
-    END
-    
-    grp &= pFile{PROP:Record}
-    array.AddItemToArray(SELF.CreateObject(grp, pNamesInLowerCase))
-  END
-  
-  RETURN array
+  RETURN json::CreateArray(pFile, pNamesInLowerCase, options)
 
 cJSONFactory.Parse            PROCEDURE(STRING value)
 item                            &cJSON

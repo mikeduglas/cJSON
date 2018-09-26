@@ -10,7 +10,6 @@
   ArrayTest()
 
 ArrayTest                     PROCEDURE()
-jsonFactory                     cJSONFactory
 dows                            &cJSON
 item                            &cJSON
 strings                         STRING(9), DIM(7)
@@ -24,7 +23,7 @@ aIndex                          LONG, AUTO
   strings[6] = 'Saturday'
   strings[7] = 'Sunday'
   
-  dows &= jsonFactory.CreateStringArray(strings)
+  dows &= json::CreateStringArray(strings)
   
   !check the type
   IF dows.GetType() = cJSON_Array

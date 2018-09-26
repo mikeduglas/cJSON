@@ -36,7 +36,6 @@ Age                                 LONG
                                 END
 fIndex                          LONG, AUTO
 
-jsonFactory                     cJSONFactory
 root                            &cJSON
   CODE
   CREATE(persons)
@@ -75,7 +74,7 @@ root                            &cJSON
   !sort by ages
   SET(PER:ByAge)
   
-  root &= jsonFactory.CreateArray(persons)
+  root &= json::CreateArray(persons)
   MESSAGE(root.ToString(TRUE))
    
   CLOSE(persons)

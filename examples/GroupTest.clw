@@ -26,7 +26,6 @@ Gender                            STRING(1)
 Age                               LONG
                                 END
 
-jsonFactory                     cJSONFactory
 root                            &cJSON
   CODE
   personGrp.FirstName = 'Mike'
@@ -39,7 +38,7 @@ root                            &cJSON
   personGrp.Digits[2] = 2.5
   personGrp.Digits[3] = 10 / 3
   
-  root &= jsonFactory.CreateObject(personGrp)
+  root &= json::CreateObject(personGrp)
   MESSAGE(root.ToString(TRUE))
   
   !convert json object to simple group, by names

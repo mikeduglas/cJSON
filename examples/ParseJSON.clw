@@ -49,7 +49,6 @@ root                            &cJSON
   END
   
   !see the resulting json
-!  MESSAGE(root.ToString(FALSE)) !unformatted outpur
   json::DebugInfo(root.ToString(TRUE)) !formatted outpur
   MESSAGE(root.ToString(TRUE)) !formatted outpur
   
@@ -65,7 +64,7 @@ item                            &cJSON
   !parse json string, get root object
   root &= jsonFactory.Parse(pJsonString)
   IF root &= NULL
-    !error
+    !display parse error
     MESSAGE('Syntax error near: '& jsonFactory.GetError() &'|at position '& jsonFactory.GetErrorPosition())
     RETURN
   END

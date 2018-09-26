@@ -6,6 +6,27 @@
       !Recursively compare two cJSON items for equality. If either a or b is NULL or invalid, they will be considered unequal. 
       !case_sensitive determines if object keys are treated case sensitive (1) or case insensitive (0)
       json::Compare(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
+
+
+      !shortcuts
+      json::CreateNull(), *cJSON
+      json::CreateTrue(), *cJSON
+      json::CreateFalse(), *cJSON
+      json::CreateBool(BOOL b), *cJSON
+      json::CreateNumber(REAL num), *cJSON
+      json::CreateString(STRING str), *cJSON
+      json::CreateRaw(STRING rawJson), *cJSON
+      json::CreateArray(), *cJSON
+      json::CreateObject(), *cJSON
+      json::CreateStringReference(*STRING str), *cJSON
+      json::CreateObjectReference(*cJSON child), *cJSON
+      json::CreateArrayReference(*cJSON child), *cJSON
+      json::CreateIntArray(LONG[] numbers), *cJSON
+      json::CreateDoubleArray(REAL[] numbers), *cJSON
+      json::CreateStringArray(STRING[] strings), *cJSON
+      json::CreateObject(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+      json::CreateArray(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+      json::CreateArray(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
     END
   END
 
@@ -27,8 +48,7 @@ cJSON_StringIsNotConst        EQUATE(0111111111b)   !511
 
 !Limits how deeply nested arrays/objects can be before cJSON rejects to parse them.
 !This is to prevent stack overflows.
-CJSON_NESTING_LIMIT           EQUATE(1000)
-
+CJSON_NESTING_LIMIT           EQUATE(1000)  !not used for now
 
 cJSON                         CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
 !next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem
@@ -146,15 +166,21 @@ AddObjectToObject               PROCEDURE(STRING name), *cJSON  !, PROC
 AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
 
 !save json object to a simple GROUP (only string and numeric fields, no arrays, no nested groups etc...),
-!matchByFieldNumber = false saves by field number.
-ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE), BOOL, PROC
+!matchByFieldNumber = false saves by field number,
+!options - json string, examples:
+!'{{"name":"DOB", "format":"@d17"}': convert numeric json "dob" field to string(@d17) (iow call FORMAT(value, @d17)
+!'{{"name":"DOB", "deformat":"@d17"}': convert string(@d17) json "dob" field to Clarion DATE (iow call DEFORMAT(value, @d17)
+!use field name w/o prefix.
+!alowed multiply fields, in this case use array of objects:
+!'[{{"name":"DOB", "format":"@d17"}, {{"name":"LastVisit", "format":"@d17"}]': converts DOB and LastVisit as string(@d17)
+ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 !save json array to a simple QUEUE (only string and numeric fields, no arrays, no nested groups etc...),
 !matchByFieldNumber = false saves by field number.
-ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE), BOOL, PROC
+ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 !save json array to a simple FILE's RECORD (only string and numeric fields, no arrays, no nested groups etc...),
 !matchByFieldNumber = false saves by field number.
 !pFile must allow ADD(). Any ADD() errors are logged in debugview.
-ToFile                          PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE), BOOL, PROC
+ToFile                          PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
                               END
 
 
@@ -192,14 +218,14 @@ CreateStringArray               PROCEDURE(STRING[] strings), *cJSON
 
 !Create an object from simple GROUP (no nested GROUPS etc...),
 !string and numeric arrays are allowed.
-CreateObject                    PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE), *cJSON
+CreateObject                    PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 !Create an array from simple QUEUE (no nested GROUPS etc...),
 !string and numeric arrays are allowed.
-CreateArray                     PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE), *cJSON
+CreateArray                     PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 !Create an array from simple FILE's RECORD (no nested GROUPS etc...),
 !string and numeric arrays are allowed; Blobs and Memos aren't.
 !File must be OPENed and SET before calling this method.
-CreateArray                     PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE), *cJSON
+CreateArray                     PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
 !Parse an object - create a new root, and populate.
 Parse                           PROCEDURE(STRING value), *cJSON

@@ -19,6 +19,40 @@ where %ClarionRoot% is the folder into which you installed Clarion.
 Free
 
 ## Version history
+v1.02 (26.09.2018)
+- NEW: static functions, which can be called instead of cJSONFactory methods:
+```
+      json::CreateNull(), *cJSON
+      json::CreateTrue(), *cJSON
+      json::CreateFalse(), *cJSON
+      json::CreateBool(BOOL b), *cJSON
+      json::CreateNumber(REAL num), *cJSON
+      json::CreateString(STRING str), *cJSON
+      json::CreateRaw(STRING rawJson), *cJSON
+      json::CreateArray(), *cJSON
+      json::CreateObject(), *cJSON
+      json::CreateStringReference(*STRING str), *cJSON
+      json::CreateObjectReference(*cJSON child), *cJSON
+      json::CreateArrayReference(*cJSON child), *cJSON
+      json::CreateIntArray(LONG[] numbers), *cJSON
+      json::CreateDoubleArray(REAL[] numbers), *cJSON
+      json::CreateStringArray(STRING[] strings), *cJSON
+      json::CreateObject(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+      json::CreateArray(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+      json::CreateArray(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+```
+- NEW: "options" parameter in CreateObject(GROUP), CreateArray(QUEUE/FILE), ToGroup(), ToQueue, ToFILE(), 
+it allows to override default parser/converter behaviour.  
+"options" format:
+{{"name":"fieldname", "param1":value1, "param2":value2...}, where 
+ - "fieldname" - GROUP/QUEUE/FILE field name without prefix
+ - "paramN" - parameter name. Available parameters are: "format", "deformat", "ignore".
+ - "valueN" - parameter value. For "format" and "deformat" parameters the value is picture token (for example, "@d17"), for "ignore" parameter the value can be true or false (no quotes).
+
+'{{"name":"Password", "ignore":true}' means Password field will not included in json.
+'{{"name":"LastVisitDate", "format":"@d10-"}' means LastVisitDate (LONG field with Clarion date) will be included in json as "2018-09-26".
+
+
 v1.01 (25.09.2018)
 - FIX: bugs in DetachItemViaPointer method
 

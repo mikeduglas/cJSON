@@ -23,8 +23,6 @@
   CreateJSON()
 
 CreateJSON                    PROCEDURE()
-jsonFactory                     cJSONFactory
-
 root                            &cJSON  !root object
 fmt                             &cJSON  !format object
 dow                             &cJSON  !days of week array
@@ -40,7 +38,7 @@ strings                         STRING(9), DIM(7)
   strings[7] = 'Sunday'
   
   !create format object
-  fmt &= jsonFactory.CreateObject()
+  fmt &= json::CreateObject()
   fmt.AddStringToObject('type', 'rect')
   fmt.AddNumberToObject('width', 1920)  
   fmt.AddNumberToObject('height', 1080)  
@@ -48,13 +46,13 @@ strings                         STRING(9), DIM(7)
   fmt.AddNumberToObject('frame rate', 24)
   
   !create days of week array
-  dow &= jsonFactory.CreateStringArray(strings)
+  dow &= json::CreateStringArray(strings)
   
   !create root object
-  root &= jsonFactory.CreateObject()
+  root &= json::CreateObject()
   
   !add a string to root
-  root.AddItemToObject('name', jsonFactory.CreateString('Jack ("Bee") Nimble'))
+  root.AddItemToObject('name', json::CreateString('Jack ("Bee") Nimble'))
   
   !add format object to root
   root.AddItemToObject('format', fmt)
