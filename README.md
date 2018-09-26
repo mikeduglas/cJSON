@@ -48,10 +48,10 @@ it allows to override default parser/converter behaviour.
  - "fieldname" - GROUP/QUEUE/FILE field name without prefix
  - "paramN" - parameter name. Available parameters are: "format", "deformat", "ignore".
  - "valueN" - parameter value. For "format" and "deformat" parameters the value is picture token (for example, "@d17"), for "ignore" parameter the value can be true or false (no quotes).
-
-'{{"name":"Password", "ignore":true}' means Password field will not included in json.
+```
+'{{"name":"Password", "ignore":true}' means Password field will not included in json.  
 '{{"name":"LastVisitDate", "format":"@d10-"}' means LastVisitDate (LONG field with Clarion date) will be included in json as "2018-09-26".
-
+```
 
 v1.01 (25.09.2018)
 - FIX: bugs in DetachItemViaPointer method
