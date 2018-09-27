@@ -19,6 +19,15 @@ where %ClarionRoot% is the folder into which you installed Clarion.
 Free
 
 ## Version history
+v1.03 (27.09.2018)
+- FIX: the bug in parse_number function.
+- NEW: "jsonname" parameter for "options" (this allows to git rid of NAME attribute on entity fields):
+```
+'{{"name":"Description", "jsonname":"error_description"}' means that entity field 'Description' corresponds to json field 'error_description'.  
+```
+see OptionsTest.clw for details.
+- [Performance tests](https://github.com/mikeduglas/cjson/tree/master/Performance Tests.md)
+
 v1.02 (26.09.2018)
 - NEW: static functions, which can be called instead of cJSONFactory methods:
 ```

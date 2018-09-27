@@ -230,6 +230,11 @@ CreateArray                     PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = 
 !Parse an object - create a new root, and populate.
 Parse                           PROCEDURE(STRING value), *cJSON
 
+!shortcut for object &= factory.Parse(json); object.ToGroup(grp); object.Delete()
+ToGroup                         PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToQueue                         PROCEDURE(STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToFile                          PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+
 !For analysing failed parses. This returns a parse error. You'll probably need to look a few chars back to make sense of it. 
 !Defined when Parse() returns NULL. '' when Parse() succeeds.
 GetError                        PROCEDURE(), STRING

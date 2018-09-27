@@ -22,6 +22,7 @@ depth                           LONG  !How deeply nested (in arrays/objects) is 
 !ToGroup/ToQueue/ToFILE modifiers
 TFieldRule                    GROUP, TYPE
 Name                            STRING(64)  !field name w/o prefix
+JsonName                        STRING(64)  !json name
 Format                          STRING(32)  !call fld = FORMAT(value, picture)
 Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
 Ignore                          BOOL        !ignore the field
@@ -724,6 +725,7 @@ number                          REAL(0)
 number_c_string                 STRING(64)
 decimal_point                   STRING(1), AUTO
 i                               LONG, AUTO
+digitPos                        LONG AUTO
   CODE
   IF item &= NULL
     RETURN FALSE
@@ -731,9 +733,10 @@ i                               LONG, AUTO
   
 !  decimal_point = get_decimal_point()
   decimal_point = '.'
-  
+  digitPos = 0
   LOOP i = buffer.pos TO buffer.len
-    IF i > LEN(number_c_string)
+    digitPos += 1
+    IF digitPos > LEN(number_c_string)
       BREAK
     END
     
@@ -743,9 +746,9 @@ i                               LONG, AUTO
     OROF '-'
     OROF 'e'
     OROF 'E'
-      number_c_string[i - buffer.pos + 1] = buffer.content[i]
+      number_c_string[digitPos] = buffer.content[i]
     OF '.'
-      number_c_string[i - buffer.pos + 1] = decimal_point
+      number_c_string[digitPos] = decimal_point
     ELSE
       i -= 1
       BREAK !end of loop
@@ -1381,6 +1384,7 @@ item                            &cJSON
 fldRules                        QUEUE(TFieldRules)
                                 END
 fldValue                        ANY
+jsonName                        &STRING
   CODE
   !- field convertion rules
   ParseFieldRules(options, fldRules)
@@ -1409,6 +1413,13 @@ fldValue                        ANY
     !- find field rules
     FindFieldRule(fldName, fldRules)
     
+    !- map Field name to Json name
+    IF fldRules.JsonName
+      jsonName &= fldRules.JsonName
+    ELSE
+      jsonName &= fldName
+    END
+    
     IF NOT fldRules.Ignore
       fldDim = HOWMANY(grp, ndx)
       IF fldDim = 1
@@ -1418,12 +1429,12 @@ fldValue                        ANY
         fldValue = ApplyFieldRules(fldRef, fldRules)
 
         IF ISSTRING(fldValue)
-          item.AddStringToObject(fldName, fldValue)
+          item.AddStringToObject(jsonName, fldValue)
         ELSIF NUMERIC(fldValue)
-          item.AddNumberToObject(fldName, fldValue)
+          item.AddNumberToObject(jsonName, fldValue)
         ELSE
           !neither STRING nor NUMERIC
-          item.AddStringToObject(fldName, fldValue)
+          item.AddStringToObject(jsonName, fldValue)
         END
       
       ELSE
@@ -1454,7 +1465,7 @@ elemNdx                       LONG, AUTO
     elemRef &= WHAT(grp, ndx, elemNdx)
     strings[elemNdx] = ApplyFieldRules(elemRef, fldRules)
   END
-  item.AddItemToObject(fldName, json::CreateStringArray(strings))
+  item.AddItemToObject(jsonName, json::CreateStringArray(strings))
 
 CreateNumericArray            ROUTINE
   DATA
@@ -1467,7 +1478,7 @@ elemNdx                       LONG, AUTO
     elemRef &= WHAT(grp, ndx, elemNdx)
     numbers[elemNdx] = ApplyFieldRules(elemRef, fldRules)
   END
-  item.AddItemToObject(fldName, json::CreateDoubleArray(numbers))
+  item.AddItemToObject(jsonName, json::CreateDoubleArray(numbers))
 
 json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
 array                           &cJSON
@@ -2016,6 +2027,7 @@ fldName                         STRING(256), AUTO
 fidNdx                          LONG, AUTO
 fldRules                        QUEUE(TFieldRules)
                                 END
+jsonName                        &STRING
   CODE
   IF NOT SELF.IsObject()
     !not an object
@@ -2049,7 +2061,17 @@ fldRules                        QUEUE(TFieldRules)
           fldName = WHO(grp, fidNdx)
           RemoveFieldPrefix(fldName)
 
-          IF LOWER(fldName) = LOWER(item.name)
+          !- find field rules
+          FindFieldRule(fldName, fldRules)
+          
+          !- map Field name to Json name
+          IF fldRules.JsonName
+            jsonName &= fldRules.JsonName
+          ELSE
+            jsonName &= fldName
+          END
+
+          IF LOWER(jsonName) = LOWER(item.name)
             !found group field, assign the value
             DO AssignGroup
     
@@ -2076,6 +2098,9 @@ fldRules                        QUEUE(TFieldRules)
       fldName = WHO(grp, fidNdx)
       RemoveFieldPrefix(fldName)
 
+      !- find field rules
+      FindFieldRule(fldName, fldRules)
+
       DO AssignGroup
 
       item &= item.next
@@ -2088,9 +2113,6 @@ AssignGroup                   ROUTINE
   DATA
 fldValue    ANY
   CODE
-  !- find field rules
-  FindFieldRule(fldName, fldRules)
-
   IF NOT fldRules.Ignore
     IF item.IsString()
       fldValue = item.valuestring
@@ -2277,6 +2299,42 @@ buffer                          LIKE(TParseBuffer)
   
   RETURN item
   
+cJSONFactory.ToGroup          PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
+object                          &cJSON
+ret                             BOOL(FALSE)
+  CODE
+  object &= SELF.Parse(json)
+  IF NOT object &= NULL
+    ret = object.ToGroup(grp, matchByFieldNumber, options)
+    object.Delete()
+  END
+  
+  RETURN ret
+  
+cJSONFactory.ToQueue          PROCEDURE(STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
+object                          &cJSON
+ret                             BOOL(FALSE)
+  CODE
+  object &= SELF.Parse(json)
+  IF NOT object &= NULL
+    ret = object.ToQueue(que, matchByFieldNumber, options)
+    object.Delete()
+  END
+  
+  RETURN ret
+  
+cJSONFactory.ToFile           PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>)
+object                          &cJSON
+ret                             BOOL(FALSE)
+  CODE
+  object &= SELF.Parse(json)
+  IF NOT object &= NULL
+    ret = object.ToFile(pFile, matchByFieldNumber, options)
+    object.Delete()
+  END
+  
+  RETURN ret
+
 cJSONFactory.GetError         PROCEDURE()
   CODE
   RETURN CLIP(SELF.parseErrorString)

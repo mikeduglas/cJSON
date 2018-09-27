@@ -28,15 +28,15 @@ root                            &cJSON
   
   !we want following json:
   !UserName: as is
-  !Password: do not include in json,        option1 = {{"name":"Password", "ignore":true}
-  !Balance: with currency symbol,           option2 = {{"name":"Balance", "format":"@N$9.2"}
-  !LastVisitDate: localized date string,    option3 = {{"name":"LastVisitDate", "format":"@d17"}
-  !LastVisitTime: localized time string,    option4 = {{"name":"LastVisitTime", "format":"@t8"}
+  !Password: do not include in json,                          option1 = {{"name":"Password", "ignore":true}
+  !Balance: with currency symbol,                             option2 = {{"name":"Balance", "format":"@N$9.2"}
+  !LastVisitDate: localized date string, name = "date",       option3 = {{"name":"LastVisitDate", "format":"@d17"}
+  !LastVisitTime: localized time string, name = "time",       option4 = {{"name":"LastVisitTime", "format":"@t8"}
   !
   !Pass an array [option1, option2, option3, option4], each optionN describes one group field.
   !Do not forget to put 2 left curly braces.
   
-  root &= json::CreateObject(Account, TRUE, '[{{"name":"Password", "ignore":true}, {{"name":"Balance", "format":"@N$9.2"}, {{"name":"LastVisitDate", "format":"@d17"}, {{"name":"LastVisitTime", "format":"@t8"}]')
+  root &= json::CreateObject(Account, TRUE, '[{{"name":"Password", "ignore":true}, {{"name":"Balance", "format":"@N$9.2"}, {{"name":"LastVisitDate", "jsonname":"date", "format":"@d17"}, {{"name":"LastVisitTime", "jsonname":"time", "format":"@t8"}]')
   MESSAGE(root.ToString(TRUE))
   
   !dispose all cJSON objects at once
