@@ -21,7 +21,7 @@ Free
 ## Version history
 v1.03 (27.09.2018)
 - FIX: the bug in parse_number function.
-- NEW: "jsonname" parameter for "options" (this allows to git rid of NAME attribute on entity fields):
+- NEW: "jsonname" parameter for "options" (this allows to get rid of NAME attribute on entity fields):
 ```
 '{{"name":"Description", "jsonname":"error_description"}' means that entity field 'Description' corresponds to json field 'error_description'.  
 ```
