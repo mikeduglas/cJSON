@@ -1,11 +1,11 @@
-##The goal of these tests
+## The goal of these tests
 The goal is to see what time taken to load (in other words parse) big json file.
 
 I downloaded 'citylots.json' (~190 MB) [from this site](https://github.com/zemirco/sf-city-lots-json),  
 (you need to press Download button to get zip file, then extract citylots.json to project folder).
 
-##Test results
-###cJSON v1.03
+## Test results
+### cJSON v1.03
 the code in \performance tests\cJSON_PerfTest.clw.  
 cJSONfactory.Parse(json) results (I ran it 3 times), the values are Clarion time (in hundredths of second):  
 ```
@@ -14,7 +14,7 @@ cJSONfactory.Parse(json) results (I ran it 3 times), the values are Clarion time
 [15176] [cJSON] cJSON Parse time: 6449
 ```
 
-###jFiles v1.67
+### jFiles v1.67
 the code in \performance tests\jFiles_App_PerfTest.app (the app was created in C10).  
 JSONClass.LoadString(json) result:
 ```
@@ -34,5 +34,5 @@ Call Stack:
 77DC305A
 ```
 
-###Clarion 10
+### Clarion 10
 JSONDataClass has no method to fully parse entire json, or I can't find it.

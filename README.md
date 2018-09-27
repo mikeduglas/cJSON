@@ -27,7 +27,7 @@ v1.03 (27.09.2018)
 ```
 see OptionsTest.clw for details.  
 
-- [Performance tests]("https://github.com/mikeduglas/cJSON/blob/master/performancetests/performancetests.md")
+- [Performance tests](https://github.com/mikeduglas/cJSON/blob/master/performancetests/PerformanceTests.md)
 
 
 v1.02 (26.09.2018)
