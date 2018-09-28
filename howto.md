@@ -95,7 +95,7 @@ then child objects:
   !"days of week" array
   dow &= json::CreateStringArray(strings)
 ```
-and finally add childrens to the root:
+and finally add children to the root:
 ```
   !add "name": "Jack (\"Bee\") Nimble" to root
   root.AddItemToObject('name', json::CreateString('Jack ("Bee") Nimble'))
