@@ -181,6 +181,12 @@ ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = 
 !matchByFieldNumber = false saves by field number.
 !pFile must allow ADD(). Any ADD() errors are logged in debugview.
 ToFile                          PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+
+!recursively finds an item with passed name.
+FindObjectItem                  PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), *cJSON
+
+!recursively finds an array with passed name, and returns an element with passed index.
+FindArrayItem                   PROCEDURE(STRING arrayName, LONG itemIndex, BOOL caseSensitive = FALSE), *cJSON
                               END
 
 

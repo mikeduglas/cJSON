@@ -2188,7 +2188,38 @@ item                            &cJSON
   END
 
   RETURN TRUE
+             
+cJSON.FindObjectItem          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
+item                            &cJSON
+current_element                 &cJSON
+  CODE
+  item &= SELF.GetObjectItem(itemName, caseSensitive)
+  IF NOT item &= NULL
+    RETURN item
+  END
+  
+  current_element &= SELF.child
+  LOOP WHILE (NOT current_element &= NULL)
+    item &= current_element.FindObjectItem(itemName, caseSensitive)
+    IF NOT item &= NULL
+      RETURN item
+    END
 
+    current_element &= current_element.next
+  END
+
+  RETURN NULL
+
+cJSON.FindArrayItem           PROCEDURE(STRING arrayName, LONG itemIndex, BOOL caseSensitive = FALSE)
+array                           &cJSON
+  CODE
+  array &= SELF.FindObjectItem(arrayName, caseSensitive)
+  IF NOT array &= NULL
+    RETURN array.GetArrayItem(itemIndex)
+  END
+  
+  RETURN NULL
+  
 !!!endregion
   
 !!!region cJSONFactory

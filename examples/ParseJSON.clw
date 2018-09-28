@@ -69,30 +69,26 @@ item                            &cJSON
     RETURN
   END
   
+  json::DebugInfo(root.ToString(TRUE)) !formatted outpur
+
   !find {"value": "Create"} item and change "Create" to "New"
   
-  !first, find "menu" object
-  item &= root.GetObjectItem('menu')
+  !find 1st element (object) in "menuitem" array
+  item &= root.FindArrayItem('menuitem', 1)
   IF NOT item &= NULL
-    !then, find "popup" object
-    item &= item.GetObjectItem('popup')
+    !now item points to the object {"value": "Create", "onclick": "CreateNewDoc()"}
+    !get "value" item
+    item &= item.GetObjectItem('value')
     IF NOT item &= NULL
-      !then, find "menuitem" array of objects
-      item &= item.GetObjectItem('menuitem')
-      IF NOT item &= NULL
-        !then, find 1st array element (object)
-        item &= item.GetArrayItem(1)
-        IF NOT item &= NULL
-          !find "value": "Create" string
-          item &= item.GetObjectItem('value')
-          IF NOT item &= NULL
-            !change string value
-            item.SetStringValue('New')
-          END
-        END
-      END
+      !change item value from "Create" to "New"
+      item.SetStringValue('New')
     END
   END
+  
+  !same code, no error checking
+!  item &= root.FindArrayItem('menuitem', 1)
+!  item &= item.GetObjectItem('value')
+!  item.SetStringValue('New')
   
   !see the resulting json
 !  MESSAGE(root.ToString(FALSE)) !unformatted outpur

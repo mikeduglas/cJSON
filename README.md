@@ -11,6 +11,10 @@ Now unzip cJSON-master.zip into a temporary folder somewhere.
 Copy the contents of "libsrc" folder into %ClarionRoot%\Accessory\libsrc\win  
 where %ClarionRoot% is the folder into which you installed Clarion.
 
+## How to use
+The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/master/howto.md)
+
+
 ## Contacts
 - <mikeduglas@yandex.ru>
 - <mikeduglas66@gmail.com>
@@ -19,6 +23,11 @@ where %ClarionRoot% is the folder into which you installed Clarion.
 Free
 
 ## Version history
+v1.04 (28.09.2018)
+- NEW: FindObjectItem method recursively finds an item with passed name.
+- NEW: FindArrayItem method recursively finds an array with passed name, and returns an element with passed index.
+- NEW: The documentation [How-To](https://github.com/mikeduglas/cJSON/blob/master/howto.md)
+
 v1.03 (27.09.2018)
 - FIX: the bug in parse_number function.
 - NEW: "jsonname" parameter for "options" (this allows to get rid of NAME attribute on entity fields):
