@@ -435,8 +435,8 @@ reference                       &cJSON
   END
   
   reference &= NEW cJSON
-!  winapi::memcpy(ADDRESS(reference), ADDRESS(item), SIZE(item))
-  reference :=: item
+!  reference :=: item  !doesn't work for classes
+  winapi::memcpy(ADDRESS(reference), ADDRESS(item), SIZE(cJSON))
   reference.prev &= NULL
   reference.next &= NULL
   reference.name &= NULL
@@ -1608,14 +1608,17 @@ next                            &cJSON
     IF (NOT BAND(item.type, cJSON_IsReference)) AND (NOT item.child &= NULL)
       item.child.Delete()
     END
+
     IF (NOT BAND(item.type, cJSON_IsReference)) AND (NOT item.valuestring &= NULL)
       DISPOSE(item.valuestring)
-      item.valuestring &= NULL
     END
+    item.valuestring &= NULL
+
     IF (NOT BAND(item.type, cJSON_StringIsConst)) AND (NOT item.name &= NULL)
       DISPOSE(item.name)
-      item.name &= NULL
     END
+    item.name &= NULL
+
     DISPOSE(item)
     item &= next
   END
@@ -1711,22 +1714,22 @@ cJSON.AddItemToArray          PROCEDURE(cJSON item)
   CODE
   add_item_to_array(SELF, item)
   
-cJSON.AddItemToObject         PROCEDURE(STRING str, cJSON item)
+cJSON.AddItemToObject         PROCEDURE(STRING itemName, cJSON item)
   CODE
-  add_item_to_object(SELF, str, item, FALSE)
+  add_item_to_object(SELF, itemName, item, FALSE)
 
 !Add an item to an object with constant string as key
-cJSON.AddItemToObjectCS       PROCEDURE(STRING str, cJSON item)
+cJSON.AddItemToObjectCS       PROCEDURE(*STRING itemName, cJSON item)
   CODE
-  add_item_to_object(SELF, str, item, TRUE)
+  add_item_to_object(SELF, itemName, item, TRUE)
   
 cJSON.AddItemReferenceToArray PROCEDURE(*cJSON item)
   CODE
   add_item_to_array(SELF, create_reference(item))
 
-cJSON.AddItemReferenceToObject    PROCEDURE(STRING str, *cJSON item)
+cJSON.AddItemReferenceToObject    PROCEDURE(STRING itemName, *cJSON item)
   CODE
-  add_item_to_object(SELF, str, create_reference(item), FALSE)
+  add_item_to_object(SELF, itemName, create_reference(item), FALSE)
   
 cJSON.DetachItemViaPointer    PROCEDURE(*cJSON item)
   CODE

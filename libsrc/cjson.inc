@@ -123,16 +123,16 @@ IsRaw                           PROCEDURE(), BOOL
 
 !Append item to the specified array/object.
 AddItemToArray                  PROCEDURE(cJSON item)
-AddItemToObject                 PROCEDURE(STRING string, cJSON item)
+AddItemToObject                 PROCEDURE(STRING itemName, cJSON item)
 
 !Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object. 
-!WARNING: When this function was used, make sure to always check that (item->type & cJSON_StringIsConst) is zero before 
-!writing to `item->string`
-AddItemToObjectCS               PROCEDURE(STRING string, cJSON item)
+!WARNING: When this function was used, make sure to always check that BAND(item.type, cJSON_StringIsConst) is zero before 
+!writing to `item.name`
+AddItemToObjectCS               PROCEDURE(*STRING itemName, cJSON item)
 
 !Append reference to item to the specified array/object. Use this when you want to add an existing cJSON to a new cJSON, but don't want to corrupt your existing cJSON.
 AddItemReferenceToArray         PROCEDURE(*cJSON item)
-AddItemReferenceToObject        PROCEDURE(STRING str, *cJSON item)
+AddItemReferenceToObject        PROCEDURE(STRING itemName, *cJSON item)
 
 !Remove/Detatch items from Arrays/Objects.
 DetachItemViaPointer            PROCEDURE(*cJSON item), *cJSON
@@ -145,7 +145,7 @@ DeleteItemFromObject            PROCEDURE(STRING itemName, BOOL caseSensitive = 
 InsertItemInArray               PROCEDURE(LONG which, cJSON newitem) !Shifts pre-existing items to the right.
 ReplaceItemViaPointer           PROCEDURE(*cJSON item, *cJSON replacement), BOOL, PROC
 ReplaceItemInArray              PROCEDURE(LONG which, *cJSON newitem)
-ReplaceItemInObject             PROCEDURE(STRING str, *cJSON newitem, BOOL caseSensitive = FALSE)
+ReplaceItemInObject             PROCEDURE(STRING itemName, *cJSON newitem, BOOL caseSensitive = FALSE)
 
 !Duplicate a cJSON item.
 !Duplicate will create a new, identical cJSON item to the one you pass, in new memory that will 

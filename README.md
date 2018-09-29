@@ -23,10 +23,16 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.05 (29.09.2018)
+- FIX: the methods AddItemToObjectCS, AddItemReferenceToArray, AddItemReferenceToObject now work as expected.  
+- CHG: ToDo document was removed as it is completed.  
+- NEW: HowTo.htm
+
 v1.04 (28.09.2018)
 - NEW: FindObjectItem method recursively finds an item with passed name.
 - NEW: FindArrayItem method recursively finds an array with passed name, and returns an element with passed index.
 - NEW: The documentation [How-To](https://github.com/mikeduglas/cJSON/blob/master/howto.md)
+  
 
 v1.03 (27.09.2018)
 - FIX: the bug in parse_number function.

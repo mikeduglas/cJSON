@@ -1,0 +1,169 @@
+<h2><a id="Create_json_arrays_0"></a>Create json arrays</h2>
+<p>To create json array of strings like this</p>
+<blockquote>
+<p>[“Monday”, “Tuesday”, “Wednesday”, “Thursday”, “Friday”, “Saturday”, “Sunday”]</p>
+</blockquote>
+<pre><code>ArrayTest                     PROCEDURE()
+dows                            &amp;cJSON
+strings                         STRING(9), DIM(7)
+  CODE
+  strings[1] = 'Monday'
+  strings[2] = 'Tuesday'
+  strings[3] = 'Wednesday'
+  strings[4] = 'Thursday'
+  strings[5] = 'Friday'
+  strings[6] = 'Saturday'
+  strings[7] = 'Sunday'
+  
+  dows &amp;= json::CreateStringArray(strings)
+  
+  !dispose all cJSON objects at once
+  dows.Delete()
+</code></pre>
+<p>For numeric arrays use json::CreateIntArray() or json::CreateDoubleArray().</p>
+<h2><a id="Create_json_objects_23"></a>Create json objects</h2>
+<p>To create json object like this</p>
+<blockquote>
+<p>{“username”:“LuckyGamer5371”,“balance”:&quot;$1,250.22&quot;,“date”:“28.09.2018”,“time”:“19:44:38”}</p>
+</blockquote>
+<p>declare a group and pass it to json::CreateObject(). To tweak resulting json use “options” parameter:</p>
+<pre><code>OptionsTest                   PROCEDURE
+Account                         GROUP, PRE(ACC)
+UserName                          STRING(20)
+Password                          STRING(20)  !do not include in json
+Balance                           REAL        !format as @N$9.2
+LastVisitDate                     LONG        !format as @d17, item name in json must be &quot;date&quot;
+LastVisitTime                     LONG        !format as @t8, item name in json must be &quot;time&quot;
+                                END
+
+object                          &amp;cJSON
+  CODE
+  Account.UserName = 'LuckyGamer5371'
+  Account.Password = '08AX08$tgeN'
+  Account.Balance  = 1250.22
+  Account.LastVisitDate = TODAY()
+  Account.LastVisitTime = CLOCK()
+  
+  !we want following json:
+  !UserName: as is
+  !Password: do not include in json,                          option1 = {{&quot;name&quot;:&quot;Password&quot;, &quot;ignore&quot;:true}
+  !Balance: with currency symbol,                             option2 = {{&quot;name&quot;:&quot;Balance&quot;, &quot;format&quot;:&quot;@N$9.2&quot;}
+  !LastVisitDate: localized date string, name = &quot;date&quot;,       option3 = {{&quot;name&quot;:&quot;LastVisitDate&quot;, &quot;format&quot;:&quot;@d17&quot;}
+  !LastVisitTime: localized time string, name = &quot;time&quot;,       option4 = {{&quot;name&quot;:&quot;LastVisitTime&quot;, &quot;format&quot;:&quot;@t8&quot;}
+  !
+  !Pass an array [option1, option2, option3, option4], each optionN describes one group field.
+  !Do not forget to put 2 left curly braces.
+  
+  object &amp;= json::CreateObject(Account, TRUE, '[{{&quot;name&quot;:&quot;Password&quot;, &quot;ignore&quot;:true}, {{&quot;name&quot;:&quot;Balance&quot;, &quot;format&quot;:&quot;@N$9.2&quot;}, {{&quot;name&quot;:&quot;LastVisitDate&quot;, &quot;jsonname&quot;:&quot;date&quot;, &quot;format&quot;:&quot;@d17&quot;}, {{&quot;name&quot;:&quot;LastVisitTime&quot;, &quot;jsonname&quot;:&quot;time&quot;, &quot;format&quot;:&quot;@t8&quot;}]')
+  json::DebugInfo(object.ToString(FALSE))
+  MESSAGE(object.ToString(TRUE))
+  
+  !dispose all cJSON objects at once
+  object.Delete()
+</code></pre>
+<h2><a id="Create_complex_json_objects_not_using_GROUPQUEUEFILE_64"></a>Create complex json objects (not using GROUP/QUEUE/FILE)</h2>
+<p>To create json objects like this</p>
+<pre><code>{ 
+ &quot;name&quot;: &quot;Jack (\&quot;Bee\&quot;) Nimble&quot;, 
+ &quot;format&quot;: { 
+  &quot;type&quot;: &quot;rect&quot;, 
+  &quot;width&quot;: 1920, 
+  &quot;height&quot;: 1080, 
+  &quot;interlace&quot;: false, 
+  &quot;frame rate&quot;: 24 
+ }, 
+ &quot;days of week&quot;: [&quot;Monday&quot;,  &quot;Tuesday&quot;,  &quot;Wednesday&quot;,  &quot;Thursday&quot;,  &quot;Friday&quot;,  &quot;Saturday&quot;,  &quot;Sunday&quot;] 
+}
+</code></pre>
+<p>first create empty root object:</p>
+<pre><code>  root &amp;= json::CreateObject()
+</code></pre>
+<p>then child objects:</p>
+<pre><code>  !&quot;format&quot; object
+  fmt &amp;= json::CreateObject()
+  fmt.AddStringToObject('type', 'rect')
+  fmt.AddNumberToObject('width', 1920)  
+  fmt.AddNumberToObject('height', 1080)  
+  fmt.AddFalseToObject('interlace')
+  fmt.AddNumberToObject('frame rate', 24)
+
+  !&quot;days of week&quot; array
+  dow &amp;= json::CreateStringArray(strings)
+</code></pre>
+<p>and finally add children to the root:</p>
+<pre><code>  !add &quot;name&quot;: &quot;Jack (\&quot;Bee\&quot;) Nimble&quot; to root
+  root.AddItemToObject('name', json::CreateString('Jack (&quot;Bee&quot;) Nimble'))
+  
+  !add format object to root
+  root.AddItemToObject('format', fmt)
+
+  !add days array to root
+  root.AddItemToObject('days of week', dow)
+</code></pre>
+<h2><a id="Create_array_of_objects_109"></a>Create array of objects</h2>
+<p>To create json array of object like this</p>
+<blockquote>
+<p>[{“username”:“LuckyGamer5371”,“balance”:&quot;$1,250.22&quot;,“date”:“28.09.2018”,“time”:“19:44:38”},<br>
+{“username”:“LuckyGamer7244”,“balance”:&quot;$2,000.00&quot;,“date”:“27.09.2018”,“time”:“11:20:16”}]</p>
+</blockquote>
+<p>declare a queue and pass it to json::CreateArray(). To tweak resulting json use “options” parameter:</p>
+<pre><code>  options = '[{{&quot;name&quot;:&quot;Password&quot;, &quot;ignore&quot;:true}, {{&quot;name&quot;:&quot;Balance&quot;, &quot;format&quot;:&quot;@N$9.2&quot;}, {{&quot;name&quot;:&quot;LastVisitDate&quot;, &quot;jsonname&quot;:&quot;date&quot;, &quot;format&quot;:&quot;@d17&quot;}, {{&quot;name&quot;:&quot;LastVisitTime&quot;, &quot;jsonname&quot;:&quot;time&quot;, &quot;format&quot;:&quot;@t8&quot;}]'
+  root &amp;= json::CreateArray(accounts, true, options)
+</code></pre>
+<p>You can pass a FILE to json::CreateArray as well.</p>
+<h2><a id="Parse_json_string_121"></a>Parse json string</h2>
+<p>Declare an instance of cJSONFactory class and call its Parse method:</p>
+<pre><code>jsonFactory                     cJSONFactory
+root                            &amp;cJSON
+
+  root &amp;= jsonFactory.Parse(pJsonString)
+</code></pre>
+<h2><a id="Get_and_Find_objects_130"></a>Get and Find objects</h2>
+<ol>
+<li>To get child object by name call GetObjectItem(childName):</li>
+</ol>
+<blockquote>
+<p>{“username”:“LuckyGamer5371”,“balance”:1250.22,“date”:“28.09.2018”,“time”:“19:44:38”}</p>
+</blockquote>
+<pre><code>item &amp;= object.GetObjectItem('balance')
+!display 1250.22
+MESSAGE('Balance = '&amp; item.GetNumberValue())
+</code></pre>
+<ol start="2">
+<li>To get array element by index call GetArrayItem(index):</li>
+</ol>
+<blockquote>
+<p>[“Monday”, “Tuesday”, “Wednesday”, “Thursday”, “Friday”, “Saturday”, “Sunday”]</p>
+</blockquote>
+<pre><code>item &amp;= array.GetArrayItem(2)
+!display 'Tuesday'
+MESSAGE('Day 2 = '&amp; item.GetStringValue())
+</code></pre>
+<ol start="3">
+<li>To find a child deep inside the object</li>
+</ol>
+<pre><code>{ 
+ &quot;menu&quot;: { 
+  &quot;id&quot;: &quot;file&quot;, 
+  &quot;value&quot;: &quot;File&quot;, 
+  &quot;popup&quot;: { 
+   &quot;menuitem&quot;: [{ 
+     &quot;value&quot;: &quot;New&quot;, 
+     &quot;onclick&quot;: &quot;CreateNewDoc()&quot; 
+    },  { 
+     &quot;value&quot;: &quot;Open&quot;, 
+     &quot;onclick&quot;: &quot;OpenDoc()&quot; 
+    },  { 
+     &quot;value&quot;: &quot;Close&quot;, 
+     &quot;onclick&quot;: &quot;CloseDoc()&quot; 
+    }]}}}
+</code></pre>
+<p>call FindObjectItem(childName), below we find “popup” child:</p>
+<pre><code>  popup &amp;= object.FindObjectItem('popup')
+</code></pre>
+<ol start="4">
+<li>To find an array element deep inside the object call FindArrayItem(arrayName, index):</li>
+</ol>
+<pre><code>   item &amp;= object.FindArrayItem('menuitem', 2)
+   !item contains 2nd element of &quot;menuitem&quot; array {&quot;value&quot;: &quot;Open&quot;, &quot;onclick&quot;: &quot;OpenDoc()&quot;}
+</code></pre>
