@@ -23,10 +23,17 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.06 (02.10.2018)
+- NEW: the method GetValue recursively finds an item and returns its value.
+- CHG: Removed deprecated methods from cJSONFactory.
+- CHG: xml comments.
+
+
 v1.05 (29.09.2018)
 - FIX: the methods AddItemToObjectCS, AddItemReferenceToArray, AddItemReferenceToObject now work as expected.  
 - CHG: ToDo document was removed as it is completed.  
 - NEW: HowTo.htm
+
 
 v1.04 (28.09.2018)
 - NEW: FindObjectItem method recursively finds an item with passed name.

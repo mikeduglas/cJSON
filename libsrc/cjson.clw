@@ -1710,16 +1710,16 @@ cJSON.IsRaw                   PROCEDURE()
   CODE
   RETURN CHOOSE(BAND(SELF.type, 0FFh) = cJSON_Raw)
   
-cJSON.AddItemToArray          PROCEDURE(cJSON item)
+cJSON.AddItemToArray          PROCEDURE(*cJSON item)
   CODE
   add_item_to_array(SELF, item)
   
-cJSON.AddItemToObject         PROCEDURE(STRING itemName, cJSON item)
+cJSON.AddItemToObject         PROCEDURE(STRING itemName, *cJSON item)
   CODE
   add_item_to_object(SELF, itemName, item, FALSE)
 
 !Add an item to an object with constant string as key
-cJSON.AddItemToObjectCS       PROCEDURE(*STRING itemName, cJSON item)
+cJSON.AddItemToObjectCS       PROCEDURE(*STRING itemName, *cJSON item)
   CODE
   add_item_to_object(SELF, itemName, item, TRUE)
   
@@ -1915,10 +1915,9 @@ Fail                          ROUTINE
   RETURN NULL
   
 cJSON.AddNullToObject         PROCEDURE(STRING name)
-factory                         cJSONFactory
 null_item                       &cJSON
   CODE
-  null_item &= factory.CreateNull()
+  null_item &= json::CreateNull()
   IF add_item_to_object(SELF, name, null_item, FALSE)
     RETURN null_item
   END
@@ -1927,10 +1926,9 @@ null_item                       &cJSON
   RETURN NULL
   
 cJSON.AddTrueToObject         PROCEDURE(STRING name)
-factory                         cJSONFactory
 true_item                       &cJSON
   CODE
-  true_item &= factory.CreateTrue()
+  true_item &= json::CreateTrue()
   IF add_item_to_object(SELF, name, true_item, FALSE)
     RETURN true_item
   END
@@ -1939,10 +1937,9 @@ true_item                       &cJSON
   RETURN NULL
   
 cJSON.AddFalseToObject        PROCEDURE(STRING name)
-factory                         cJSONFactory
 false_item                      &cJSON
   CODE
-  false_item &= factory.CreateFalse()
+  false_item &= json::CreateFalse()
   IF add_item_to_object(SELF, name, false_item, FALSE)
     RETURN false_item
   END
@@ -1951,10 +1948,9 @@ false_item                      &cJSON
   RETURN NULL
   
 cJSON.AddBoolToObject         PROCEDURE(STRING name, BOOL boolean)
-factory                         cJSONFactory
 bool_item                       &cJSON
   CODE
-  bool_item &= factory.CreateBool(boolean)
+  bool_item &= json::CreateBool(boolean)
   IF add_item_to_object(SELF, name, bool_item, FALSE)
     RETURN bool_item
   END
@@ -1963,10 +1959,9 @@ bool_item                       &cJSON
   RETURN NULL
   
 cJSON.AddNumberToObject       PROCEDURE(STRING name, REAL number)
-factory                         cJSONFactory
 number_item                     &cJSON
   CODE
-  number_item &= factory.CreateNumber(number)
+  number_item &= json::CreateNumber(number)
   IF add_item_to_object(SELF, name, number_item, FALSE)
     RETURN number_item
   END
@@ -1975,10 +1970,9 @@ number_item                     &cJSON
   RETURN NULL
   
 cJSON.AddStringToObject       PROCEDURE(STRING name, STRING value)
-factory                         cJSONFactory
 string_item                     &cJSON
   CODE
-  string_item &= factory.CreateString(value)
+  string_item &= json::CreateString(value)
   IF add_item_to_object(SELF, name, string_item, FALSE)
     RETURN string_item
   END
@@ -1987,10 +1981,9 @@ string_item                     &cJSON
   RETURN NULL
   
 cJSON.AddRawToObject          PROCEDURE(STRING name, STRING raw)
-factory                         cJSONFactory
 raw_item                        &cJSON
   CODE
-  raw_item &= factory.CreateRaw(raw)
+  raw_item &= json::CreateRaw(raw)
   IF add_item_to_object(SELF, name, raw_item, FALSE)
     RETURN raw_item
   END
@@ -1999,10 +1992,9 @@ raw_item                        &cJSON
   RETURN NULL
   
 cJSON.AddObjectToObject       PROCEDURE(STRING name)
-factory                         cJSONFactory
 object_item                     &cJSON
   CODE
-  object_item &= factory.CreateObject()
+  object_item &= json::CreateObject()
   IF add_item_to_object(SELF, name, object_item, FALSE)
     RETURN object_item
   END
@@ -2011,10 +2003,9 @@ object_item                     &cJSON
   RETURN NULL
   
 cJSON.AddArrayToObject        PROCEDURE(STRING name)
-factory                         cJSONFactory
 array                           &cJSON
   CODE
-  array &= factory.CreateArray()
+  array &= json::CreateArray()
   IF add_item_to_object(SELF, name, array, FALSE)
     RETURN array
   END
@@ -2223,81 +2214,27 @@ array                           &cJSON
   
   RETURN NULL
   
+cJSON.GetValue                PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
+item                            &cJSON
+  CODE
+  item &= SELF.FindObjectItem(itemName, caseSensitive)
+  IF item &= NULL
+    RETURN ''
+  END
+  
+  IF item.IsArray() OR item.IsInvalid() OR item.IsNull() OR item.IsObject() OR item.IsRaw()
+    RETURN ''
+  END
+
+  IF item.IsString()
+    RETURN item.GetStringValue()
+  ELSE
+    RETURN item.GetNumberValue()
+  END
+
 !!!endregion
   
 !!!region cJSONFactory
-cJSONFactory.CreateNull       PROCEDURE()
-  CODE
-  RETURN json::CreateNull()
-  
-cJSONFactory.CreateTrue       PROCEDURE()
-  CODE
-  RETURN json::CreateTrue()
-  
-cJSONFactory.CreateFalse      PROCEDURE()
-  CODE
-  RETURN json::CreateFalse()
-  
-cJSONFactory.CreateBool       PROCEDURE(BOOL b)
-  CODE
-  RETURN json::CreateBool(b)
-  
-cJSONFactory.CreateNumber     PROCEDURE(REAL num)
-  CODE
-  RETURN json::CreateNumber(num)
-  
-cJSONFactory.CreateString     PROCEDURE(STRING str)
-  CODE
-  RETURN json::CreateString(str)
-  
-cJSONFactory.CreateRaw        PROCEDURE(STRING rawJson)
-  CODE
-  RETURN json::CreateRaw(rawJson)
-  
-cJSONFactory.CreateArray      PROCEDURE()
-  CODE
-  RETURN json::CreateArray()
-  
-cJSONFactory.CreateObject     PROCEDURE()
-  CODE
-  RETURN json::CreateObject()
-  
-cJSONFactory.CreateStringReference    PROCEDURE(*STRING str)
-  CODE
-  RETURN json::CreateStringReference(str)
-
-cJSONFactory.CreateObjectReference    PROCEDURE(*cJSON child)
-  CODE
-  RETURN json::CreateObjectReference(child)
-  
-cJSONFactory.CreateArrayReference PROCEDURE(*cJSON child)
-  CODE
-  RETURN json::CreateArrayReference(child)
-  
-cJSONFactory.CreateIntArray   PROCEDURE(LONG[] numbers)
-  CODE
-  RETURN json::CreateIntArray(numbers)
-
-cJSONFactory.CreateDoubleArray    PROCEDURE(REAL[] numbers)
-  CODE
-  RETURN json::CreateDoubleArray(numbers)
-  
-cJSONFactory.CreateStringArray    PROCEDURE(STRING[] strings)
-  CODE
-  RETURN json::CreateStringArray(strings)
-
-cJSONFactory.CreateObject     PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>)
-  CODE
-  RETURN json::CreateObject(grp, pNamesInLowerCase, options)
-  
-cJSONFactory.CreateArray      PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
-  CODE
-  RETURN json::CreateArray(que, pNamesInLowerCase, options)
-  
-cJSONFactory.CreateArray      PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
-  CODE
-  RETURN json::CreateArray(pFile, pNamesInLowerCase, options)
-
 cJSONFactory.Parse            PROCEDURE(STRING value)
 item                            &cJSON
 buffer                          LIKE(TParseBuffer)
