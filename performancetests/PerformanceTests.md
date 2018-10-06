@@ -34,5 +34,15 @@ Call Stack:
 77DC305A
 ```
 
+
+This is not a surprise for me. Let's calculate the size of each JSONClass instance, created for each json object:
+- JSONClass fields (variables) occupy 490 bytes;
+- in every JSONClass.Construct() some dynamic queues and one StringTheory object are NEWed - 371 bytes;
+- So 490 + 371 = 861 bytes. Every object! **23 times more than cJSON.**  
+Consider json "[{1,2,3},{4,5,6},{7,8,9}]" produced from a queue with 3 records and 3 byte fields per record. We have here 13 json objects, or 13 * 861 = 11193 bytes.  
+cJson for same string: 13 * 36 = 468 bytes.  
+So, when I try to parse very big json file (hundredths of thousands objects), the program jFiles_App_PerfTest.app crashes.
+
+
 ### Clarion 10
 JSONDataClass has no method to fully parse entire json, or I can't find it.
