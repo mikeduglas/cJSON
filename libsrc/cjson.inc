@@ -61,13 +61,13 @@ json::CreateDoubleArray   PROCEDURE(REAL[] numbers), *cJSON
 !!!<summary>Create an Array of STRINGs.</summary>
 json::CreateStringArray   PROCEDURE(STRING[] strings), *cJSON
 
-!!!<summary>Create an object from simple GROUP (no nested GROUPS etc...), string and numeric arrays are allowed.</summary>
+!!!<summary>Create an object from GROUP.</summary>
 json::CreateObject    PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
-!!!<summary>Create an array from simple QUEUE (no nested GROUPS etc...), string and numeric arrays are allowed.</summary>
+!!!<summary>Create an array from QUEUE.</summary>
 json::CreateArray PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
-!!!<summary>Create an array from simple FILE's RECORD (no nested GROUPS etc...),
+!!!<summary>Create an array from FILE's RECORD (not supported blobs and memos),
 !!! string and numeric arrays are allowed; Blobs and Memos aren't.
 !!! File must be OPENed and SET before calling this method.</summary>
 json::CreateArray PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
@@ -150,7 +150,7 @@ ToString                        PROCEDURE(BOOL pFormat = FALSE), STRING
 Delete                          PROCEDURE()
 
 !!!<returns>the number of items in an array (or object).</returns>
-GetArraySize                    PROCEDURE(), LONG
+GetArraySize                    PROCEDURE(BOOL recurse = FALSE), LONG
 
 !!!<summary>Retrieve an array element.</summary>
 !!!<param name="index">an index in the array.</param>
@@ -332,7 +332,7 @@ AddObjectToObject               PROCEDURE(STRING name), *cJSON  !, PROC
 !!!<returns>a reference to added array or NULL on failure.</returns>
 AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
 
-!!!<summary>save json object to a simple GROUP (only string and numeric fields, no arrays, no nested groups etc...).</summary>
+!!!<summary>save json object to a GROUP.</summary>
 !!!<param name="grp">receiver</param>
 !!!<param name="matchByFieldNumber">if true then group fields are assigned by their position</param>
 !!!<param name="options">json string which defines field converting options.
@@ -346,14 +346,14 @@ AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
 !!!<returns>true on success, false otherwise</returns>
 ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
-!!!<summary>save json array to a simple QUEUE (only string and numeric fields, no arrays, no nested groups etc...).</summary>
+!!!<summary>save json array to a QUEUE.</summary>
 !!!<param name="que">receiver</param>
 !!!<param name="matchByFieldNumber">if true then queue fields are assigned by their position</param>
 !!!<param name="options">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
-!!!<summary>save json array to a simple FILE's RECORD (only string and numeric fields, no arrays, no nested groups etc...).
+!!!<summary>save json array to a FILE's RECORD.
 !!! pFile must allow ADD(). Any ADD() errors are logged in debugview.
 !!!</summary>
 !!!<param name="pFile">receiver</param>

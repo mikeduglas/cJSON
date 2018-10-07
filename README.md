@@ -23,6 +23,30 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.07 (07.10.2018)
+- CHG: GetArraySize method now can return total number of children.
+- CHG: Support for nested GROUPs:
+```
+person                          GROUP
+Name                              STRING(20)
+Address                           GROUP
+Line1                               STRING(20)
+Line2                               STRING(20)
+                                  END
+Contact                           GROUP
+email                               STRING(64)
+web                                 STRING(64)
+Phone                               GROUP
+Home                                  STRING(20)
+Mobile                                STRING(20)
+                                    END
+                                  END
+Gender                            STRING(1)
+                                END
+```
+- NEW: NestedGroupTest example added.
+
+
 v1.06 (02.10.2018)
 - NEW: the method GetValue recursively finds an item and returns its value.
 - CHG: Removed deprecated methods from cJSONFactory.

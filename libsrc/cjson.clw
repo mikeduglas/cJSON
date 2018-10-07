@@ -1385,6 +1385,8 @@ fldRules                        QUEUE(TFieldRules)
                                 END
 fldValue                        ANY
 jsonName                        &STRING
+nestedGrpRef                    &GROUP
+nestedItem                      &cJSON
   CODE
   !- field convertion rules
   ParseFieldRules(options, fldRules)
@@ -1428,7 +1430,13 @@ jsonName                        &STRING
         !- apply field rules
         fldValue = ApplyFieldRules(fldRef, fldRules)
 
-        IF ISSTRING(fldValue)
+        IF ISGROUP(grp, ndx)
+          !- recursively add nested group as json object
+          nestedGrpRef &= GETGROUP(grp, ndx)
+          nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
+          item.AddItemToObject(jsonName, nestedItem)
+          ndx += nestedItem.GetArraySize(TRUE)
+        ELSIF ISSTRING(fldValue)
           item.AddStringToObject(jsonName, fldValue)
         ELSIF NUMERIC(fldValue)
           item.AddNumberToObject(jsonName, fldValue)
@@ -1623,13 +1631,17 @@ next                            &cJSON
     item &= next
   END
     
-cJSON.GetArraySize            PROCEDURE()
+cJSON.GetArraySize            PROCEDURE(BOOL recurse = FALSE)
 child                           &cJSON
 sz                              LONG(0)
   CODE
   child &= SELF.child
   LOOP WHILE (NOT child &= NULL)
     sz += 1
+    IF recurse
+      sz += child.GetArraySize(recurse)
+    END
+    
     child &= child.next
   END
   
@@ -2022,6 +2034,7 @@ fidNdx                          LONG, AUTO
 fldRules                        QUEUE(TFieldRules)
                                 END
 jsonName                        &STRING
+nestedGrpRef                    &GROUP
   CODE
   IF NOT SELF.IsObject()
     !not an object
@@ -2066,9 +2079,16 @@ jsonName                        &STRING
           END
 
           IF LOWER(jsonName) = LOWER(item.name)
-            !found group field, assign the value
-            DO AssignGroup
-    
+            
+            IF item.IsObject() AND ISGROUP(grp, fidNdx)
+              !- child item is of object type, and it matches a nested group
+              nestedGrpRef &= GETGROUP(grp, fidNdx)
+              item.ToGroup(nestedGrpRef, matchByFieldNumber, options)
+            ELSE
+              !found group field, assign the value
+              DO AssignGroup
+            END
+            
             !go to next element
             BREAK
           END
