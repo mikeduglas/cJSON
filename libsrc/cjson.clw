@@ -1435,7 +1435,7 @@ nestedItem                      &cJSON
           nestedGrpRef &= GETGROUP(grp, ndx)
           nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
           item.AddItemToObject(jsonName, nestedItem)
-          ndx += nestedItem.GetArraySize(TRUE)
+          ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
         ELSIF ISSTRING(fldValue)
           item.AddStringToObject(jsonName, fldValue)
         ELSIF NUMERIC(fldValue)
