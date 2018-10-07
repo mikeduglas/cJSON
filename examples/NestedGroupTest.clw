@@ -32,7 +32,7 @@ root                            &cJSON
   person.Name = 'Mike Duglas'
   person.Gender = 'M'
   person.Address.Line1 = 'Main st.'
-  person.Address.Line2 = 'Park av.'
+  person.Address.Line2 = 'Park ave.'
   person.Contact.email = 'mikeduglas@yandex.ru'
   person.Contact.web = 'https://github.com/mikeduglas/cJSON'
   person.Contact.Phone.Home = '(499) 123-45-67'

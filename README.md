@@ -23,7 +23,7 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
-v1.07 (07.10.2018)
+v1.07 (08.10.2018)
 - CHG: GetArraySize method now can return total number of children.
 - CHG: Support for nested GROUPs:
 ```
