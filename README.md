@@ -23,6 +23,10 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.08 (24.10.2018)
+- FIX: Parse method could miss invalid input. For example, input string '400 Bad request' transformed into numeric json with value 400.
+
+
 v1.07 (08.10.2018)
 - CHG: GetArraySize method now can return total number of children.
 - CHG: Support for nested GROUPs:

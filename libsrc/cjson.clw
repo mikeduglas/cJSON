@@ -731,6 +731,7 @@ digitPos                        LONG AUTO
     RETURN FALSE
   END
   
+  !copy the number into a temporary buffer
 !  decimal_point = get_decimal_point()
   decimal_point = '.'
   digitPos = 0
@@ -753,6 +754,10 @@ digitPos                        LONG AUTO
       i -= 1
       BREAK !end of loop
     END
+  END
+  
+  IF NOT NUMERIC(number_c_string)
+    RETURN FALSE
   END
   
   item.valuedouble = number_c_string
@@ -2258,6 +2263,7 @@ item                            &cJSON
 cJSONFactory.Parse            PROCEDURE(STRING value)
 item                            &cJSON
 buffer                          LIKE(TParseBuffer)
+minival                         &STRING
   CODE
   CLEAR(SELF.parseErrorString)
   CLEAR(SELF.parseErrorPos)
@@ -2286,6 +2292,36 @@ buffer                          LIKE(TParseBuffer)
     END
     
     SELF.parseErrorString = SUB(value, SELF.parseErrorPos, LEN(SELF.parseErrorString))
+  ELSE
+    !- success
+    
+    !- post-processing
+    !- check single json item
+    IF item.IsNull() OR item.IsFalse() OR item.IsTrue() OR item.IsNumber()
+      !- remove whitespaces and comments
+      minival &= NEW STRING(LEN(CLIP(value)))
+      minival = value
+      json::Minify(minival)
+      
+      !- check for atomic value (null|false|true|number)
+      !- for example, at this point the string '400 Bad Request' will be parsed into numeric json with value of 400.
+      
+      IF (item.IsNull() AND minival <> 'null') |
+        OR (item.IsFalse() AND minival <> 'false') |
+        OR (item.IsTrue() AND minival <> 'true') |
+        OR (item.IsNumber() AND NOT NUMERIC(minival))
+
+        !parse failure.
+        item.Delete()
+        item &= NULL
+  
+        SELF.parseErrorPos = 1
+        SELF.parseErrorString = SUB(value, SELF.parseErrorPos, LEN(SELF.parseErrorString))
+
+      END
+      
+      DISPOSE(minival)
+    END
   END
   
   RETURN item
