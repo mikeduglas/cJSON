@@ -13,6 +13,7 @@ DynStr.Construct    PROCEDURE()
   
 DynStr.Destruct     PROCEDURE()
   CODE
+  SELF.Kill()
   DisposeDynStr(SELF.ds)
   
 DynStr.Str          PROCEDURE()
