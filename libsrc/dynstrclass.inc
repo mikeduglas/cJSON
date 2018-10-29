@@ -1,5 +1,5 @@
 DynStr              CLASS, TYPE, MODULE('dynstrclass.CLW'), LINK('dynstrclass.CLW')
-ds                    &IDynStr, PROTECTED
+ds                    &IDynStr, PROTECTED  
 
 Construct             PROCEDURE()
 Destruct              PROCEDURE()

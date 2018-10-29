@@ -2,7 +2,7 @@
 !** 29.10.2018
 !** mikeduglas66@yandex.com
 
-
+  
   MEMBER
   
   PRAGMA('compile(CWUTIL.CLW)')

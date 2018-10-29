@@ -23,7 +23,7 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
-v1.09 (29.10.2018)
+v1.09 (29.10.2018)  
 - NEW: encoding functions:
 ```
 !- Converts input string from one encoding to another.

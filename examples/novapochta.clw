@@ -1,4 +1,4 @@
-  PROGRAM
+  PROGRAM  
 
   PRAGMA('project(#pragma link(libcurl.lib))')
 

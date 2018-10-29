@@ -1,7 +1,7 @@
   MEMBER
   MAP
   END
-
+  
   INCLUDE('dynstr.inc'), ONCE
   INCLUDE('dynstrclass.inc'), ONCE
 

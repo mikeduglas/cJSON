@@ -26,4 +26,4 @@
     <Compile Include="novapochta.clw" />
   </ItemGroup>
   <Import Project="$(ClarionBinPath)\SoftVelocity.Build.Clarion.targets" />
-</Project>
+</Project>  
