@@ -16,6 +16,10 @@ DynStr.Destruct     PROCEDURE()
   SELF.Kill()
   DisposeDynStr(SELF.ds)
   
+DynStr.GetInterface           PROCEDURE()
+  CODE
+  RETURN SELF.ds
+  
 DynStr.Str          PROCEDURE()
   CODE
   RETURN SELF.ds.Str()

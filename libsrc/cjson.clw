@@ -1,14 +1,19 @@
+!** cJSON for Clarion v1.09
+!** 29.10.2018
+!** mikeduglas66@yandex.com
+
+
   MEMBER
   
   PRAGMA('compile(CWUTIL.CLW)')
 
-  INCLUDE('dynstrclass.inc'), ONCE
   INCLUDE('cjson.inc'), ONCE
 
 TPrintBuffer                  GROUP, TYPE
 printed                         &DynStr
 depth                           LONG  !current nesting depth (for formatted printing)
 format                          BOOL  !is this print a formatted print
+codePage                        LONG  !original code page to convert to utf 8; -1 - don't convert
                               END
 
 TParseBuffer                  GROUP, TYPE
@@ -16,16 +21,17 @@ content                         &STRING
 len                             LONG
 pos                             LONG  !1..len(clip(input))
 depth                           LONG  !How deeply nested (in arrays/objects) is the input at the current offset.
+codePage                        LONG  !code page to convert from utf 8; -1 - don't convert
                               END
 
 
 !ToGroup/ToQueue/ToFILE modifiers
 TFieldRule                    GROUP, TYPE
-Name                            STRING(64)  !field name w/o prefix
+Name                            STRING(64)  !field name w/o prefix, or '*' for any field
 JsonName                        STRING(64)  !json name
 Format                          STRING(32)  !call fld = FORMAT(value, picture)
 Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
-Ignore                          BOOL        !ignore the field
+Ignore                          BOOL        !do not process the field
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -34,6 +40,14 @@ TFieldRules                   QUEUE(TFieldRule), TYPE
     MODULE('win api')
       winapi::memcpy(LONG lpDest,LONG lpSource,LONG nCount),LONG,PROC,NAME('_memcpy')
       winapi::OutputDebugString(*CSTRING lpOutputString), PASCAL, RAW, NAME('OutputDebugStringA')
+   
+      winapi::MultiByteToWideChar(UNSIGNED Codepage, ULONG dwFlags, ULONG LpMultuByteStr, |
+        LONG cbMultiByte, ULONG LpWideCharStr, LONG cchWideChar), RAW, ULONG, PASCAL, PROC, NAME('MultiByteToWideChar')
+
+      winapi::WideCharToMultiByte(UNSIGNED Codepage, ULONG dwFlags, ULONG LpWideCharStr, LONG cchWideChar, |
+        ULONG lpMultuByteStr, LONG cbMultiByte, ULONG LpDefalutChar, ULONG lpUsedDefalutChar), RAW, ULONG, PASCAL, NAME('WideCharToMultiByte')
+ 
+      winapi::GetLastError(),lONG,PASCAL,NAME('GetLastError')
     END
 
     INCLUDE('CWUTIL.inc'), ONCE
@@ -124,7 +138,7 @@ qIndex          LONG, AUTO
   CODE
   LOOP qIndex = 1 TO RECORDS(rules)
     GET(rules, qIndex)
-    IF LOWER(rules.Name) = LOWER(fldName)
+    IF LOWER(rules.Name) = LOWER(fldName) OR rules.Name = '*'
       !- found field rules
       RETURN
     END
@@ -527,7 +541,13 @@ output                          &STRING
 
   !no characters have to be escaped
   IF escape_characters = 0
-    buffer.printed.Cat('"'& input &'"')
+    IF buffer.codePage = -1
+      buffer.printed.Cat('"'& input &'"')
+    ELSE
+      !convert to utf8
+      buffer.printed.Cat('"'& json::ToUtf8(input, buffer.codePage) &'"')
+    END
+    
     RETURN TRUE
   END
   
@@ -566,7 +586,13 @@ output                          &STRING
     END
   END
   
-  buffer.printed.Cat('"'& output &'"')
+  IF buffer.codePage = -1
+    buffer.printed.Cat('"'& output &'"')
+  ELSE
+    !convert to utf8
+    buffer.printed.Cat('"'& json::ToUtf8(output, buffer.codePage) &'"')
+  END
+  
   DISPOSE(output)
   
   RETURN TRUE
@@ -782,6 +808,7 @@ cur_char                        STRING(1)
 next_char                       STRING(1)
 skipped_bytes                   LONG(0)
 output                          DynStr
+decoded                         DynStr
 input_pos                       LONG, AUTO
 input_end                       LONG, AUTO
 sequence_length                 LONG, AUTO
@@ -858,9 +885,17 @@ sequence_length                 LONG, AUTO
   END
   
   item.type = cJSON_String
-  item.valuestring &= NEW STRING(output.StrLen())
-  item.valuestring = output.Str()
-
+  
+  IF buffer.codePage = -1
+    item.valuestring &= NEW STRING(output.StrLen())
+    item.valuestring = output.Str()
+  ELSE
+    !- convert utf8 to another code page
+    decoded.Cat(json::FromUtf8(output.Str(), buffer.codePage))
+    item.valuestring &= NEW STRING(decoded.StrLen())
+    item.valuestring = decoded.Str()
+  END
+  
   buffer.pos = input_end + 1
   RETURN TRUE
   
@@ -1189,6 +1224,57 @@ i                               LONG, AUTO
     buffer.pos -= 1
   END
 
+json::ConvertEncoding         PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage)
+UnicodeText                     CSTRING(LEN(pInput)*2+2)
+DecodedText                     CSTRING(LEN(pInput)*2+2)
+Len                             LONG
+  CODE
+  IF NOT pInput
+    RETURN ''
+  END
+  
+  Len = LEN(pInput)*2 + 2
+  IF winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(pInput), LEN(pInput), ADDRESS(UnicodeText), Len) = 0
+    json::DebugInfo('MultiByteToWideChar failed, error '& winapi::GetLastError())
+    RETURN ''
+  END
+  UnicodeText[Len-1 : Len] = '<0><0>'
+  Len = winapi::WideCharToMultiByte(pOutputCodePage, 0, ADDRESS(UnicodeText), -1, ADDRESS(DecodedText), Len, 0, 0)
+  LOOP WHILE Len > 0 AND DecodedText[Len] = '<0>'
+    Len -= 1
+  END
+  IF Len > 0
+    RETURN DecodedText[1 : Len]
+  ELSE
+    RETURN ''
+  END
+
+json::FromUtf8                PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP)
+  CODE
+  RETURN json::ConvertEncoding(pInput, CP_UTF8, pCodepage)
+  
+json::ToUtf8                  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP)
+  CODE
+  RETURN json::ConvertEncoding(pInput, pCodepage, CP_UTF8)
+
+json::StringToULiterals       PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP)
+AChar                           STRING(1)
+WChar                           STRING(2)
+UnicodeText                     STRING(LEN(pInput) * 6) !\uXXXX
+cIndex                          LONG
+  CODE
+  IF NOT pInput
+    RETURN ''
+  END
+  
+  LOOP cIndex = 1 TO LEN(pInput)
+    AChar = pInput[cIndex]
+    winapi::MultiByteToWideChar(pInputCodepage, 0, ADDRESS(AChar), 1, ADDRESS(WChar), 2)
+    UnicodeText[(cIndex-1)*6+1 : cIndex*6] = '\u' & ByteToHex(VAL(WChar[2]), 1) & ByteToHex(VAL(WChar[1]), 1)
+  END
+  
+  RETURN UnicodeText
+  
 !!!endregion
 
 !!!region shortcuts
@@ -1608,6 +1694,17 @@ printed                         DynStr
   CODE
   buffer.printed &= printed
   buffer.format = pFormat
+  buffer.codepage = -1
+  print_value(SELF, buffer)
+  RETURN buffer.printed.Str()
+
+cJSON.ToUtf8                  PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage)
+buffer                          LIKE(TPrintBuffer)
+printed                         DynStr
+  CODE
+  buffer.printed &= printed
+  buffer.format = pFormat
+  buffer.codepage = pCodepage
   print_value(SELF, buffer)
   RETURN buffer.printed.Str()
 
@@ -2260,6 +2357,10 @@ item                            &cJSON
 !!!endregion
   
 !!!region cJSONFactory
+cJSONFactory.Construct        PROCEDURE()
+  CODE
+  SELF.codePage = -1  !- disable utf8->ascii conversion
+  
 cJSONFactory.Parse            PROCEDURE(STRING value)
 item                            &cJSON
 buffer                          LIKE(TParseBuffer)
@@ -2278,6 +2379,7 @@ minival                         &STRING
   buffer.len = LEN(CLIP(value))
   buffer.pos = 1
   buffer.depth = 0
+  buffer.codePage = SELF.codePage
   skip_utf8_bom(buffer)
   
   IF NOT parse_value(item, buffer)

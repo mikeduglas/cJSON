@@ -1,3 +1,11 @@
+!** cJSON for Clarion v1.09
+!** 29.10.2018
+!** mikeduglas66@yandex.com
+
+
+  INCLUDE('svapi.inc'), ONCE
+  INCLUDE('dynstrclass.inc'), ONCE
+
   MAP
     MODULE('cjson')
 
@@ -71,10 +79,20 @@ json::CreateArray PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING o
 !!! string and numeric arrays are allowed; Blobs and Memos aren't.
 !!! File must be OPENed and SET before calling this method.</summary>
 json::CreateArray PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+
+!!!<summary>Converts input string from one encoding to another.</summary>
+json::ConvertEncoding PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
+!!!<summary>Converts input string from utf-8.</summary>
+json::FromUtf8    PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+!!!<summary>Converts input string to utf-8.</summary>
+json::ToUtf8  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+
+!!!<summary>Returns a string where each character in form of \uXXXX.</summary>
+json::StringToULiterals   PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
     END
   END
 
-  !cJSON Types
+!cJSON Types
 cJSON_Type                    EQUATE(LONG)
 cJSON_Invalid                 EQUATE(0000000000b)   !0
 cJSON_False                   EQUATE(0000000001b)   !1
@@ -145,6 +163,12 @@ SetType                         PROCEDURE(cJSON_Type pType)
 !!!param name="pFormat">true to format an output.>/param>
 !!!<returns>a string representation of the object.</returns>
 ToString                        PROCEDURE(BOOL pFormat = FALSE), STRING
+
+!!!<summary>Render a cJSON entity to text for transfer or storage. All strings will be converted to utf-8.</summary>
+!!!param name="pFormat">true to format an output.>/param>
+!!!param name="pCodepage">Original code page.>/param>
+!!!<returns>a string representation of the object.</returns>
+ToUtf8                          PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage), STRING
 
 !!!<summary>Delete a cJSON entity and all subentities.</summary>
 Delete                          PROCEDURE()
@@ -306,13 +330,13 @@ AddBoolToObject                 PROCEDURE(STRING name, BOOL boolean), *cJSON, PR
 
 !!!<summary>Adds numeric item.</summary>
 !!!<param name="name">item name</param>
-!!!<param name="boolean">item value</param>
+!!!<param name="number">item value</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddNumberToObject               PROCEDURE(STRING name, REAL number), *cJSON, PROC
 
 !!!<summary>Adds string item.</summary>
 !!!<param name="name">item name</param>
-!!!<param name="boolean">item value</param>
+!!!<param name="value">item value</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddStringToObject               PROCEDURE(STRING name, STRING value), *cJSON, PROC
 
@@ -386,6 +410,10 @@ GetValue                        PROCEDURE(STRING itemName, BOOL caseSensitive = 
 cJSONFactory                  CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
 parseErrorString                STRING(20), PRIVATE
 parseErrorPos                   LONG, PRIVATE
+
+codePage                        LONG  ! -1 by default. Set it to CP_ACP prior Parse call to convert all strings from utf8 to ascii
+
+Construct                       PROCEDURE()
 
 !!!<summary>Parse an object - create a new root, and populate.</summary>
 !!!<param name="json">json string</param>

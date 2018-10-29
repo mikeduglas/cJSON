@@ -4,22 +4,24 @@ ds                    &IDynStr, PROTECTED
 Construct             PROCEDURE()
 Destruct              PROCEDURE()
 
+GetInterface          PROCEDURE(), *IDynStr
+
 !IDynStr implementation
 
 Str                   PROCEDURE(),STRING
 CStr                  PROCEDURE(),*CSTRING
-Kill                  PROCEDURE()
-Cat                   PROCEDURE(STRING)
-Cat                   PROCEDURE(*STRING)
-Cat                   PROCEDURE(*DECIMAL)
-Cat                   PROCEDURE(*CSTRING)
-CatNum                PROCEDURE(LONG,USHORT Base=10)
-CatChr                PROCEDURE(BYTE chr)
-Clip                  PROCEDURE()
-Trunc                 PROCEDURE(LONG newlen)
+Kill                  PROCEDURE()                       ! Disposes an underlying buffer
+Cat                   PROCEDURE(STRING)                 ! Concatenates a string
+Cat                   PROCEDURE(*STRING)                ! Concatenates a string
+Cat                   PROCEDURE(*DECIMAL)               ! Concatenates a decimal
+Cat                   PROCEDURE(*CSTRING)               ! Concatenates a cstring
+CatNum                PROCEDURE(LONG,USHORT Base=10)    ! Concatenates an integer
+CatChr                PROCEDURE(BYTE chr)               ! Concatenates a character
+Clip                  PROCEDURE()                       ! CLIP()
+Trunc                 PROCEDURE(LONG newlen)            ! Truncates a string
 StrLen                PROCEDURE(),LONG
-BinaryToText          PROCEDURE(STRING)          ! Expand ' to '' etc.
-TextToBinary          PROCEDURE(STRING,LONG pos=1),LONG  ! Lex a string (return 0 if failed)
+BinaryToText          PROCEDURE(STRING)                 ! Expand ' to '' etc.
+TextToBinary          PROCEDURE(STRING,LONG pos=1),LONG ! Lex a string (return 0 if failed)
 PadTo                 PROCEDURE(LONG)
 CopyTo                PROCEDURE(*STRING,LONG limit=-1)
 CopyTo                PROCEDURE(*CSTRING,LONG limit=-1)

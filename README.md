@@ -23,9 +23,28 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.09 (29.10.2018)
+- NEW: encoding functions:
+```
+!- Converts input string from one encoding to another.
+json::ConvertEncoding PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
+
+!- Converts input string from utf-8.
+json::FromUtf8    PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+
+!- Converts input string to utf-8.
+json::ToUtf8  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+```
+- NEW: static function to convert string value to a sequence of unicode literals (i.e. \uXXXX\uYYYY):
+```
+json::StringToULiterals   PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
+```
+- NEW: cJSON.ToUtf8(format, codepage) method, similar to ToString(), but all strings are converted to utf-8.
+- NEW: "novapochta" example demonstrates how to use encoding features.
+
+
 v1.08 (24.10.2018)
 - FIX: Parse method could miss invalid input. For example, input string '400 Bad request' transformed into numeric json with value 400.
-
 
 v1.07 (08.10.2018)
 - CHG: GetArraySize method now can return total number of children.
