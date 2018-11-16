@@ -1,8 +1,8 @@
-!** cJSON for Clarion v1.09
-!** 29.10.2018
-!** mikeduglas66@yandex.com
+!** cJSON for Clarion v1.10
+!** 16.11.2018
+!** mikeduglas@yandex.com
 
-  
+
   MEMBER
   
   PRAGMA('compile(CWUTIL.CLW)')
@@ -45,7 +45,7 @@ TFieldRules                   QUEUE(TFieldRule), TYPE
         LONG cbMultiByte, ULONG LpWideCharStr, LONG cchWideChar), RAW, ULONG, PASCAL, PROC, NAME('MultiByteToWideChar')
 
       winapi::WideCharToMultiByte(UNSIGNED Codepage, ULONG dwFlags, ULONG LpWideCharStr, LONG cchWideChar, |
-        ULONG lpMultuByteStr, LONG cbMultiByte, ULONG LpDefalutChar, ULONG lpUsedDefalutChar), RAW, ULONG, PASCAL, NAME('WideCharToMultiByte')
+        ULONG lpMultuByteStr, LONG cbMultiByte, ULONG LpDefalutChar, ULONG lpUsedDefalutChar), RAW, ULONG, PASCAL, PROC, NAME('WideCharToMultiByte')
  
       winapi::GetLastError(),lONG,PASCAL,NAME('GetLastError')
     END
@@ -1225,29 +1225,33 @@ i                               LONG, AUTO
   END
 
 json::ConvertEncoding         PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage)
+szInput                         CSTRING(LEN(pInput) + 1)
 UnicodeText                     CSTRING(LEN(pInput)*2+2)
 DecodedText                     CSTRING(LEN(pInput)*2+2)
-Len                             LONG
+Len                             LONG, AUTO
   CODE
   IF NOT pInput
     RETURN ''
   END
   
-  Len = LEN(pInput)*2 + 2
-  IF winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(pInput), LEN(pInput), ADDRESS(UnicodeText), Len) = 0
+  szInput = pInput
+  !- get length of UnicodeText in characters
+  Len = winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, 0, 0)
+  IF Len = 0
     json::DebugInfo('MultiByteToWideChar failed, error '& winapi::GetLastError())
     RETURN ''
   END
-  UnicodeText[Len-1 : Len] = '<0><0>'
-  Len = winapi::WideCharToMultiByte(pOutputCodePage, 0, ADDRESS(UnicodeText), -1, ADDRESS(DecodedText), Len, 0, 0)
-  LOOP WHILE Len > 0 AND DecodedText[Len] = '<0>'
-    Len -= 1
-  END
-  IF Len > 0
-    RETURN DecodedText[1 : Len]
-  ELSE
+  !- get UnicodeText terminated by <0,0>
+  winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, ADDRESS(UnicodeText), Len)
+  
+  !- get length of DecodedText in bytes
+  Len = winapi::WideCharToMultiByte(pOutputCodePage, 0, ADDRESS(UnicodeText), -1, 0, 0, 0, 0)
+  IF Len = 0
+    json::DebugInfo('WideCharToMultiByte failed, error '& winapi::GetLastError())
     RETURN ''
   END
+  winapi::WideCharToMultiByte(pOutputCodePage, 0, ADDRESS(UnicodeText), -1, ADDRESS(DecodedText), Len, 0, 0)
+  RETURN DecodedText
 
 json::FromUtf8                PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP)
   CODE

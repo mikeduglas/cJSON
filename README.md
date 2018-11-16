@@ -23,6 +23,10 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.10 (16.11.2018)
+- FIX: json::ConvertEncoding could return string of wrong size.
+
+
 v1.09 (29.10.2018)  
 - NEW: encoding functions:
 ```

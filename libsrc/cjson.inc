@@ -1,7 +1,7 @@
-!** cJSON for Clarion v1.09
+!** cJSON for Clarion v1.10
 !** 29.10.2018
 !** mikeduglas66@yandex.com
-  
+
 
   INCLUDE('svapi.inc'), ONCE
   INCLUDE('dynstrclass.inc'), ONCE
