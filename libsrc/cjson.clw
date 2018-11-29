@@ -32,6 +32,7 @@ JsonName                        STRING(64)  !json name
 Format                          STRING(32)  !call fld = FORMAT(value, picture)
 Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
 Ignore                          BOOL        !do not process the field
+Instance                        LONG        !INSTANCE(queue)
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -110,7 +111,7 @@ first_colon_pos                 LONG, AUTO
   CODE
   first_colon_pos = INSTRING(':', fldName, 1, 1)
   IF first_colon_pos
-    fldName = SUB(fldName, first_colon_pos + 1, LEN(fldName))
+    fldName = fldName[first_colon_pos + 1 : LEN(fldName)]
   END
 
 ParseFieldRules               PROCEDURE(STRING json, *TFieldRules rules)
@@ -1556,6 +1557,93 @@ nestedItem                      &cJSON
   END
   
   RETURN item
+!json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+!ndx                             LONG, AUTO
+!fldRef                          ANY
+!fldName                         STRING(256), AUTO
+!fldDim                          LONG, AUTO
+!item                            &cJSON
+!fldRules                        QUEUE(TFieldRules)
+!                                END
+!fldValue                        ANY
+!jsonName                        &STRING
+!nestedGrpRef                    &GROUP
+!nestedItem                      &cJSON
+!  CODE
+!  !- field convertion rules
+!!  ParseFieldRules(options, fldRules)
+!
+!  item &= json::CreateObject()
+!  
+!  LOOP ndx = 1 TO 99999
+!    fldRef &= WHAT(grp, ndx)
+!    IF fldRef &= NULL
+!      !end of group
+!      BREAK
+!    END
+!    
+!    fldName = WHO(grp, ndx)
+!    IF NOT fldName
+!      !skip fields with blank names
+!      CYCLE
+!    END
+!    
+!    RemoveFieldPrefix(fldName)
+!    
+!    IF pNamesInLowerCase
+!      fldName = LOWER(fldName)
+!    END
+!    
+!    !- find field rules
+!!    FindFieldRule(fldName, fldRules)
+!    
+!    !- map Field name to Json name
+!    IF fldRules.JsonName
+!      jsonName &= fldRules.JsonName
+!    ELSE
+!      jsonName &= fldName
+!    END
+!    
+!    IF NOT fldRules.Ignore
+!      fldDim = HOWMANY(grp, ndx)
+!      IF fldDim = 1
+!        !not arrays
+!
+!        !- apply field rules
+!!        fldValue = ApplyFieldRules(fldRef, fldRules)
+!        fldValue = fldRef
+!
+!        IF ISGROUP(grp, ndx)
+!          !- recursively add nested group as json object
+!          nestedGrpRef &= GETGROUP(grp, ndx)
+!          nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
+!          item.AddItemToObject(jsonName, nestedItem)
+!          ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
+!        ELSIF ISSTRING(fldValue)
+!          item.AddStringToObject(jsonName, fldValue)
+!        ELSIF NUMERIC(fldValue)
+!          item.AddNumberToObject(jsonName, fldValue)
+!        ELSE
+!          !neither STRING nor NUMERIC
+!          item.AddStringToObject(jsonName, fldValue)
+!        END
+!      
+!      ELSE
+!        !arrays
+!      
+!        IF ISSTRING(fldRef)
+!          !string array
+!          DO CreateStringArray
+!        
+!          !ELSIF NUMERIC(fldRef)  - this line throws runtime error
+!        ELSE  !assume this is numeric array
+!          DO CreateNumericArray
+!        END
+!      END
+!    END
+!  END
+!  
+!  RETURN item
 
 CreateStringArray             ROUTINE
   DATA
@@ -1601,7 +1689,20 @@ json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TR
 array                           &cJSON
 ferr                            LONG, AUTO
 grp                             &GROUP
+doCloseFile                     BOOL(FALSE)
   CODE
+  IF STATUS(pFile) = 0
+    OPEN(pFile, 40h)  !- Read Only/Deny None
+    IF ERRORCODE()
+      RETURN NULL
+    END
+    
+    doCloseFile = TRUE
+    SET(pFile)  !- sort by physical order
+  END
+
+  grp &= pFile{PROP:Record}
+
   array &= json::CreateArray()
   LOOP
     NEXT(pFile)
@@ -1614,10 +1715,13 @@ grp                             &GROUP
       BREAK
     END
     
-    grp &= pFile{PROP:Record}
     array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
   END
   
+  IF doCloseFile
+    CLOSE(pFile)
+  END
+
   RETURN array
 !!!endregion
   
@@ -2141,6 +2245,7 @@ fldRules                        QUEUE(TFieldRules)
                                 END
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
+nestedQueRef                    &QUEUE
   CODE
   IF NOT SELF.IsObject()
     !not an object
@@ -2190,6 +2295,10 @@ nestedGrpRef                    &GROUP
               !- child item is of object type, and it matches a nested group
               nestedGrpRef &= GETGROUP(grp, fidNdx)
               item.ToGroup(nestedGrpRef, matchByFieldNumber, options)
+            ELSIF item.IsArray() AND fldRules.Instance
+              !- child item is an array, so load it into a queue
+              nestedQueRef &= (fldRules.Instance)
+              item.ToQueue(nestedQueRef, matchByFieldNumber, options)
             ELSE
               !found group field, assign the value
               DO AssignGroup
@@ -2253,6 +2362,8 @@ fldValue    ANY
 cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
 grp                             &GROUP
 item                            &cJSON
+fldRef                          ANY
+fldValue                        ANY
   CODE
   IF NOT SELF.IsArray()
     !not an array
@@ -2268,8 +2379,30 @@ item                            &cJSON
   !go thru array elements
   LOOP WHILE NOT item &= NULL
     grp &= que
-    IF item.ToGroup(grp, matchByFieldNumber, options)
-      !add a record
+    
+    IF item.IsObject()
+      !- array of objects
+      IF item.ToGroup(grp, matchByFieldNumber, options)
+        !add a record
+        ADD(que)
+      END
+    ELSE
+      !- array of constants
+     
+      fldRef &= WHAT(grp, 1)
+      IF item.IsString()
+        fldRef = item.valuestring
+      ELSIF item.IsNumber()
+        fldRef = item.valuedouble
+      ELSIF item.IsBool()
+        fldRef = item.valueint
+      ELSIF item.IsFalse()
+        fldRef = 0
+      ELSIF item.IsTrue()
+        fldRef = 1
+      ELSE
+        fldRef = ''
+      END
       ADD(que)
     END
     

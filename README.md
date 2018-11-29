@@ -23,6 +23,12 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.11 (29.11.2018)
+- NEW: new parser option 'instance' which allows to load arrays into nested queues:
+```
+option = '{"name":"Phones", "instance":'& INSTANCE(PhoneQ) &'}'  !- group field 'Phones' is a reference to PhonesQ queue
+```
+
 v1.10 (16.11.2018)
 - FIX: json::ConvertEncoding could return string of wrong size.
 
