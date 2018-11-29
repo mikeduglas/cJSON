@@ -26,7 +26,7 @@ Free
 v1.11 (29.11.2018)
 - NEW: new parser option 'instance' which allows to load arrays into nested queues:
 ```
-option = '{"name":"Phones", "instance":'& INSTANCE(PhoneQ) &'}'  !- group field 'Phones' is a reference to PhonesQ queue
+option = '{{"name":"Phones", "instance":'& INSTANCE(PhoneQ) &'}'  !- group field 'Phones' is a reference to PhonesQ queue
 ```
 
 v1.10 (16.11.2018)
