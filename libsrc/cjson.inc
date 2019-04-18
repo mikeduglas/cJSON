@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.10
-!** 29.10.2018
+!** cJSON for Clarion v1.12
+!** 18.04.2019
 !** mikeduglas66@yandex.com
 
 
@@ -75,10 +75,10 @@ json::CreateObject    PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRI
 !!!<summary>Create an array from QUEUE.</summary>
 json::CreateArray PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
-!!!<summary>Create an array from FILE's RECORD (not supported blobs and memos),
+!!!<summary>Create an array from FILE's RECORD and optionally blobs and memos),
 !!! string and numeric arrays are allowed; Blobs and Memos aren't.
 !!! File must be OPENed and SET before calling this method.</summary>
-json::CreateArray PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+json::CreateArray PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE), *cJSON
 
 !!!<summary>Converts input string from one encoding to another.</summary>
 json::ConvertEncoding PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
@@ -89,6 +89,12 @@ json::ToUtf8  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
 
 !!!<summary>Returns a string where each character in form of \uXXXX.</summary>
 json::StringToULiterals   PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
+ 
+!!!<summary>Reads data from the specified file.</summary>
+json::LoadFile    PROCEDURE(STRING pFilename), *STRING
+
+!!!<summary>Writes data to the specified file.</summary>
+json::SaveFile    PROCEDURE(STRING pFilename, STRING pData), BOOL, PROC
     END
   END
 
@@ -377,14 +383,14 @@ ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = 
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
-!!!<summary>save json array to a FILE's RECORD.
+!!!<summary>save json array to a FILE's RECORD and optionally in blobs/memos.
 !!! pFile must allow ADD(). Any ADD() errors are logged in debugview.
 !!!</summary>
 !!!<param name="pFile">receiver</param>
 !!!<param name="matchByFieldNumber">if true then FILE fields are assigned by their position</param>
 !!!<param name="options">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
-ToFile                          PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToFile                          PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>recursively finds an item with passed name.</summary>
 !!!<param name="itemName">the name of json object</param>

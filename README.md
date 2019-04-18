@@ -23,15 +23,19 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.12 (18.04.2019)
+- NEW: json::LoadFile and json::SaveFile static functions;
+- CHG: json::CreateArray(FILE) and cJSON.ToFile() now have "pWithBlobs" parameter to process BLOBs and MEMOs;
+- CHG: MinifyTest and FileTest have been changed to demonstrate new features.
+
 v1.11 (29.11.2018)
 - NEW: new parser option 'instance' which allows to load arrays into nested queues:
 ```
-option = '{{"name":"Phones", "instance":'& INSTANCE(PhoneQ) &'}'  !- group field 'Phones' is a reference to PhonesQ queue
+option = '{{"name":"Phones", "instance":'& INSTANCE(PhoneQ) &'}'  !- group field 'Phones' is a reference to PhoneQ queue
 ```
 
 v1.10 (16.11.2018)
 - FIX: json::ConvertEncoding could return string of wrong size.
-
 
 v1.09 (29.10.2018)  
 - NEW: encoding functions:

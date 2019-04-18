@@ -1,6 +1,6 @@
-!** cJSON for Clarion v1.10
-!** 16.11.2018
-!** mikeduglas@yandex.com
+!** cJSON for Clarion v1.12
+!** 18.04.2019
+!** mikeduglas66@yandex.com
 
 
   MEMBER
@@ -49,6 +49,12 @@ TFieldRules                   QUEUE(TFieldRule), TYPE
         ULONG lpMultuByteStr, LONG cbMultiByte, ULONG LpDefalutChar, ULONG lpUsedDefalutChar), RAW, ULONG, PASCAL, PROC, NAME('WideCharToMultiByte')
  
       winapi::GetLastError(),lONG,PASCAL,NAME('GetLastError')
+   
+      winapi::CreateFile(*CSTRING,ULONG,ULONG,LONG,ULONG,ULONG,UNSIGNED=0),UNSIGNED,RAW,PASCAL,NAME('CreateFileA')
+      winapi::CloseHandle(UNSIGNED),BOOL,PASCAL,PROC,NAME('CloseHandle')
+      winapi::WriteFile(LONG, *STRING, LONG, *LONG, LONG),LONG,RAW,PASCAL,NAME('WriteFile')
+      winapi::GetFileSize(HANDLE hFile, *LONG FileSizeHigh),LONG,RAW,PASCAL,NAME('GetFileSize')
+      winapi::ReadFile(HANDLE hFile, LONG lpBuffer, LONG dwBytes, *LONG dwBytesRead, LONG lpOverlapped),BOOL,RAW,PASCAL,NAME('ReadFile')
     END
 
     INCLUDE('CWUTIL.inc'), ONCE
@@ -91,6 +97,9 @@ TFieldRules                   QUEUE(TFieldRule), TYPE
     ParseFieldRules(STRING json, *TFieldRules rules), PRIVATE
     FindFieldRule(STRING fldName, *TFieldRules rules), PRIVATE
     ApplyFieldRules(? value, TFieldRule rule), ?, PRIVATE
+
+    json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
+    json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
@@ -104,6 +113,8 @@ _FF_                          EQUATE('<0Ch>')     !\f
 _CR_                          EQUATE('<0Dh>')     !\r
 _CRLF_                        EQUATE('<0Dh,0Ah>') !\r\n
 
+!- json::LoadFile/json::SaveFile
+OS_INVALID_HANDLE_VALUE       EQUATE(-1)
   
 !!!region public functions
 RemoveFieldPrefix             PROCEDURE(*STRING fldName)
@@ -1280,6 +1291,51 @@ cIndex                          LONG
   
   RETURN UnicodeText
   
+json::LoadFile                PROCEDURE(STRING pFile)
+szFile                          CSTRING(LEN(pFile) + 1)
+sData                           &STRING
+hFile                           HANDLE
+dwFileSize                      LONG
+lpFileSizeHigh                  LONG
+pvData                          LONG
+dwBytesRead                     LONG
+bRead                           BOOL
+  CODE
+  szFile=CLIP(pFile)
+  hFile = winapi::CreateFile(szFile,GENERIC_READ,0,0,OPEN_EXISTING,0,0)
+  IF hFile <> OS_INVALID_HANDLE_VALUE
+    dwFileSize = winapi::GetFileSize(hFile,lpFileSizeHigh)
+    IF dwFileSize > 0
+      sData &= NEW STRING(dwFileSize)
+      bRead = winapi::ReadFile(hFile,ADDRESS(sData),dwFileSize,dwBytesRead,0)
+    END
+    winapi::CloseHandle(hFile)
+  END
+
+  RETURN sData
+
+json::SaveFile                PROCEDURE(STRING pFilename, STRING pData)
+szFile                          CSTRING(256)
+hFile                           HANDLE
+dwBytesWritten                  LONG
+bRC                             LONG, AUTO
+  CODE
+  szFile=CLIP(pFilename)
+  hFile = winapi::CreateFile(szFile,GENERIC_WRITE,0,0,CREATE_ALWAYS,0,0)
+  IF hFile = OS_INVALID_HANDLE_VALUE
+    RETURN FALSE
+  END
+  
+  bRC = winapi::WriteFile(hFile, pData, LEN(pData), dwBytesWritten, 0)
+  winapi::CloseHandle(hFile)
+
+  IF NOT bRC
+    !-- error
+    json::DebugInfo('WriteFile failed with Win error code '& winapi::GetLastError())
+  END
+  
+  RETURN bRC
+
 !!!endregion
 
 !!!region shortcuts
@@ -1685,8 +1741,9 @@ ndx                             LONG, AUTO
   
   RETURN array
 
-json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE)
 array                           &cJSON
+item                            &cJSON
 ferr                            LONG, AUTO
 grp                             &GROUP
 doCloseFile                     BOOL(FALSE)
@@ -1715,7 +1772,13 @@ doCloseFile                     BOOL(FALSE)
       BREAK
     END
     
-    array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
+    item &= json::CreateObject(grp, pNamesInLowerCase, options)
+    
+    IF pWithBlobs
+      json::BlobsToObject(item, pFile, pNamesInLowerCase, options)
+    END
+    
+    array.AddItemToArray(item)
   END
   
   IF doCloseFile
@@ -1723,6 +1786,131 @@ doCloseFile                     BOOL(FALSE)
   END
 
   RETURN array
+  
+json::BlobsToObject           PROCEDURE(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+fldRules                        QUEUE(TFieldRules)
+                                END
+cIndex                          BYTE, AUTO
+fldName                         STRING(256), AUTO
+fldValue                        ANY
+jsonName                        &STRING
+  CODE
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+
+  LOOP cIndex = 1 TO pFile{PROP:Memos} + pFile{PROP:Blobs}
+    fldName = pFile{PROP:Label, -cIndex}
+    IF NOT fldName
+      !skip fields with blank names
+      CYCLE
+    END
+    
+    RemoveFieldPrefix(fldName)
+    
+    IF pNamesInLowerCase
+      fldName = LOWER(fldName)
+    END
+    
+    !- find field rules
+    FindFieldRule(fldName, fldRules)
+    
+    !- map Field name to Json name
+    IF fldRules.JsonName
+      jsonName &= fldRules.JsonName
+    ELSE
+      jsonName &= fldName
+    END
+    
+    IF NOT fldRules.Ignore
+      !- apply field rules
+      fldValue = ApplyFieldRules(pFile{PROP:Value, -cIndex}, fldRules)
+      pItem.AddStringToObject(jsonName, fldValue)
+    END
+  END
+  
+json::ObjectToBlobs           PROCEDURE(*cJSON pObject, *FILE pFile, <STRING options>)
+item                            &cJSON
+fldName                         STRING(256), AUTO
+fldRules                        QUEUE(TFieldRules)
+                                END
+cIndex                          BYTE, AUTO
+jsonName                        &STRING
+  CODE
+  IF NOT pObject.IsObject()
+    !not an object
+  END
+  
+  item &= pObject.child
+  IF item &= NULL
+    !empty object
+  END
+
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+  
+  !by field names
+  LOOP WHILE NOT item &= NULL
+    IF NOT item.name &= NULL AND item.name <> ''
+      LOOP cIndex = 1 TO pFile{PROP:Memos} + pFile{PROP:Blobs}
+        fldName = pFile{PROP:Label, -cIndex}
+        IF NOT fldName
+          !skip fields with blank names
+          CYCLE
+        END
+    
+        RemoveFieldPrefix(fldName)
+        
+        !- find field rules
+        FindFieldRule(fldName, fldRules)
+        
+        !- map Field name to Json name
+        IF fldRules.JsonName
+          jsonName &= fldRules.JsonName
+        ELSE
+          jsonName &= fldName
+        END
+    
+        IF LOWER(jsonName) = LOWER(item.name)
+            
+          IF item.IsObject() !AND ISGROUP(grp, fidNdx)
+            !- skip
+          ELSIF item.IsArray() !AND fldRules.Instance
+            !- skip
+          ELSE
+            !found group field, assign the value
+            DO AssignGroup
+          END
+            
+          !go to next element
+          BREAK
+        END
+      END
+    END
+      
+    item &= item.next
+  END
+
+AssignGroup                   ROUTINE
+  DATA
+fldValue    ANY
+  CODE
+  IF NOT fldRules.Ignore
+    IF item.IsString()
+      fldValue = item.valuestring
+    ELSIF item.IsNumber()
+      fldValue = item.valuedouble
+    ELSIF item.IsBool()
+      fldValue = item.valueint
+    ELSIF item.IsFalse()
+      fldValue = 0
+    ELSIF item.IsTrue()
+      fldValue = 1
+    END
+
+    !- apply field rule, if exists
+    pFile{PROP:Value, -cIndex} = ApplyFieldRules(fldValue, fldRules)
+  END
+  
 !!!endregion
   
 !!!region cJSON
@@ -2237,7 +2425,6 @@ array                           &cJSON
 
 cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
 item                            &cJSON
-factory                         cJSONFactory
 fldRef                          ANY
 fldName                         STRING(256), AUTO
 fidNdx                          LONG, AUTO
@@ -2411,7 +2598,7 @@ fldValue                        ANY
 
   RETURN TRUE
 
-cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
 grp                             &GROUP
 item                            &cJSON
   CODE
@@ -2430,6 +2617,11 @@ item                            &cJSON
   LOOP WHILE NOT item &= NULL
     grp &= pFile{PROP:Record}
     IF item.ToGroup(grp, matchByFieldNumber, options)
+      
+      IF pWithBlobs
+        json::ObjectToBlobs(item, pFile, options)
+      END
+      
       !add a record
       ADD(pFile)
       IF ERRORCODE()
