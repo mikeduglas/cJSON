@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.12
-!** 18.04.2019
+!** cJSON for Clarion v1.12.1
+!** 19.04.2019
 !** mikeduglas66@yandex.com
 
 
@@ -2781,13 +2781,13 @@ ret                             BOOL(FALSE)
   
   RETURN ret
   
-cJSONFactory.ToFile           PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSONFactory.ToFile           PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
 object                          &cJSON
 ret                             BOOL(FALSE)
   CODE
   object &= SELF.Parse(json)
   IF NOT object &= NULL
-    ret = object.ToFile(pFile, matchByFieldNumber, options)
+    ret = object.ToFile(pFile, matchByFieldNumber, options, pWithBlobs)
     object.Delete()
   END
   

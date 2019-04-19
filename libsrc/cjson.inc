@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.12
-!** 18.04.2019
+!** cJSON for Clarion v1.12.1
+!** 19.04.2019
 !** mikeduglas66@yandex.com
 
 
@@ -447,8 +447,9 @@ ToQueue                         PROCEDURE(STRING json, *QUEUE que, BOOL matchByF
 !!!<param name="pFile">receiver</param>
 !!!<param name="matchByFieldNumber">if true then FILE fields are assigned by their position</param>
 !!!<param name="options">json string which defines field converting options</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
 !!!<returns>true on success, false otherwise</returns>
-ToFile                          PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToFile                          PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it. </summary>
 !!!<returns>a part of json string where parse error happened.</returns>

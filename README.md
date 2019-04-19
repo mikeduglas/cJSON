@@ -23,6 +23,9 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.12.1 (19.04.2019)
+- CHG: cJSONFactory.ToFile() now has "pWithBlobs" parameter as well.
+
 v1.12 (18.04.2019)
 - NEW: json::LoadFile and json::SaveFile static functions;
 - CHG: json::CreateArray(FILE) and cJSON.ToFile() now have "pWithBlobs" parameter to process BLOBs and MEMOs;
