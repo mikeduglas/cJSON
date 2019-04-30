@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.12.1
-!** 19.04.2019
+!** cJSON for Clarion v1.13
+!** 30.04.2019
 !** mikeduglas66@yandex.com
 
 
@@ -81,6 +81,9 @@ json::CreateArray PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING o
 json::CreateArray PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE), *cJSON
 
 !!!<summary>Converts input string from one encoding to another.</summary>
+!!!<param name="pInput">Input string.</param>
+!!!<param name="pInputCodepage">Input code page, like CP_ACP, CP_UTF8.</param>
+!!!<param name="pOutputCodepage">Output code page; pass -1 to convert to UTF16.</param>
 json::ConvertEncoding PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
 !!!<summary>Converts input string from utf-8.</summary>
 json::FromUtf8    PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING

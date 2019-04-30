@@ -23,6 +23,9 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.13 (30.04.2019)
+- CHG: json::ConvertEncoding converts to UTF-16, if you pass pOutputCodepage=1.
+
 v1.12.1 (19.04.2019)
 - CHG: cJSONFactory.ToFile() now has "pWithBlobs" parameter as well.
 

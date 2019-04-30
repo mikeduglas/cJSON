@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.12.1
-!** 19.04.2019
+!** cJSON for Clarion v1.13
+!** 30.04.2019
 !** mikeduglas66@yandex.com
 
 
@@ -1241,6 +1241,9 @@ szInput                         CSTRING(LEN(pInput) + 1)
 UnicodeText                     CSTRING(LEN(pInput)*2+2)
 DecodedText                     CSTRING(LEN(pInput)*2+2)
 Len                             LONG, AUTO
+
+CP_UTF16                        EQUATE(-1)
+
   CODE
   IF NOT pInput
     RETURN ''
@@ -1255,6 +1258,10 @@ Len                             LONG, AUTO
   END
   !- get UnicodeText terminated by <0,0>
   winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, ADDRESS(UnicodeText), Len)
+  
+  IF pOutputCodepage = CP_UTF16
+    RETURN UnicodeText[1 : Len * 2]
+  END
   
   !- get length of DecodedText in bytes
   Len = winapi::WideCharToMultiByte(pOutputCodePage, 0, ADDRESS(UnicodeText), -1, 0, 0, 0, 0)
