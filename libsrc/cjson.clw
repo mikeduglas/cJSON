@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.13
-!** 30.04.2019
+!** cJSON for Clarion v1.14
+!** 02.12.2019
 !** mikeduglas66@yandex.com
 
 
@@ -2686,6 +2686,10 @@ item                            &cJSON
 
   IF item.IsString()
     RETURN item.GetStringValue()
+  ELSIF item.IsFalse()
+    RETURN FALSE
+  ELSIF item.IsTrue()
+    RETURN TRUE
   ELSE
     RETURN item.GetNumberValue()
   END

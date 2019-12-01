@@ -23,6 +23,9 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.14 (02.12.2019)
+- FIX: cJSON.GetValue() always returned 0 for booleans
+
 v1.13 (30.04.2019)
 - CHG: json::ConvertEncoding converts to UTF-16, if you pass pOutputCodepage=1.
 
