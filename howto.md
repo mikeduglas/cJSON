@@ -118,6 +118,37 @@ declare a queue and pass it to json::CreateArray(). To tweak resulting json use 
   root &= json::CreateArray(accounts, true, options)
 ```
 You can pass a FILE to json::CreateArray as well.
+  
+## Create array of arrays (see ComplexQueueTest.clw)
+- You can use arrays of groups inside a queue:
+```
+persons                         QUEUE
+!- list of emails as an array, up to 2 items
+EmailsGroup                       GROUP,DIM(2),NAME('Emails')
+EmailGroup                          GROUP,NAME('Email')
+EmailAddress                          STRING(256),NAME('Address')
+EmailType                             STRING(10),NAME('Type')
+                                    END
+                                  END
+                                END
+```
+  
+- You can use dynamic queues, but this method requires extra coding. First, declare 2 sequential fields:
+```
+persons                         QUEUE
+PhonesQueue                       &PhonesQueueType  !- dynamic queue
+PhonesQueueInstance               LONG              !- the address of dynamic queue instance
+                                END
+```
+in code, create an instance of dynamic queue and save its address:
+```
+  persons.PhonesQueue &= NEW PhonesQueueType
+  persons.PhonesQueueInstance = INSTANCE(persons.PhonesQueue,THREAD())
+```
+finally, call json::CreateArray() with "IsQueue" option:
+```
+root &= json::CreateArray(persons,FALSE,'[{{"name":"PhonesQueue", "isQueue":true}]')
+```
 
 ## Parse json string
 Declare an instance of cJSONFactory class and call its Parse method:

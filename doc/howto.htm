@@ -1,9 +1,9 @@
-<h2><a id="Create_json_arrays_0"></a>Create json arrays</h2>
-<p>To create json array of strings like this</p>
+<h2 class="code-line" data-line-start=0 data-line-end=1 ><a id="Create_json_arrays_0"></a>Create json arrays</h2>
+<p class="has-line-data" data-line-start="1" data-line-end="2">To create json array of strings like this</p>
 <blockquote>
-<p>[“Monday”, “Tuesday”, “Wednesday”, “Thursday”, “Friday”, “Saturday”, “Sunday”]</p>
+<p class="has-line-data" data-line-start="2" data-line-end="3">[“Monday”, “Tuesday”, “Wednesday”, “Thursday”, “Friday”, “Saturday”, “Sunday”]</p>
 </blockquote>
-<pre><code>ArrayTest                     PROCEDURE()
+<pre><code class="has-line-data" data-line-start="4" data-line-end="21">ArrayTest                     PROCEDURE()
 dows                            &amp;cJSON
 strings                         STRING(9), DIM(7)
   CODE
@@ -20,14 +20,14 @@ strings                         STRING(9), DIM(7)
   !dispose all cJSON objects at once
   dows.Delete()
 </code></pre>
-<p>For numeric arrays use json::CreateIntArray() or json::CreateDoubleArray().</p>
-<h2><a id="Create_json_objects_23"></a>Create json objects</h2>
-<p>To create json object like this</p>
+<p class="has-line-data" data-line-start="21" data-line-end="22">For numeric arrays use json::CreateIntArray() or json::CreateDoubleArray().</p>
+<h2 class="code-line" data-line-start=23 data-line-end=24 ><a id="Create_json_objects_23"></a>Create json objects</h2>
+<p class="has-line-data" data-line-start="24" data-line-end="25">To create json object like this</p>
 <blockquote>
-<p>{“username”:“LuckyGamer5371”,“balance”:&quot;$1,250.22&quot;,“date”:“28.09.2018”,“time”:“19:44:38”}</p>
+<p class="has-line-data" data-line-start="25" data-line-end="26">{“username”:“LuckyGamer5371”,“balance”:&quot;$1,250.22&quot;,“date”:“28.09.2018”,“time”:“19:44:38”}</p>
 </blockquote>
-<p>declare a group and pass it to json::CreateObject(). To tweak resulting json use “options” parameter:</p>
-<pre><code>OptionsTest                   PROCEDURE
+<p class="has-line-data" data-line-start="27" data-line-end="28">declare a group and pass it to json::CreateObject(). To tweak resulting json use “options” parameter:</p>
+<pre><code class="has-line-data" data-line-start="29" data-line-end="63">OptionsTest                   PROCEDURE
 Account                         GROUP, PRE(ACC)
 UserName                          STRING(20)
 Password                          STRING(20)  !do not include in json
@@ -61,9 +61,9 @@ object                          &amp;cJSON
   !dispose all cJSON objects at once
   object.Delete()
 </code></pre>
-<h2><a id="Create_complex_json_objects_not_using_GROUPQUEUEFILE_64"></a>Create complex json objects (not using GROUP/QUEUE/FILE)</h2>
-<p>To create json objects like this</p>
-<pre><code>{ 
+<h2 class="code-line" data-line-start=64 data-line-end=65 ><a id="Create_complex_json_objects_not_using_GROUPQUEUEFILE_64"></a>Create complex json objects (not using GROUP/QUEUE/FILE)</h2>
+<p class="has-line-data" data-line-start="65" data-line-end="66">To create json objects like this</p>
+<pre><code class="has-line-data" data-line-start="67" data-line-end="79">{ 
  &quot;name&quot;: &quot;Jack (\&quot;Bee\&quot;) Nimble&quot;, 
  &quot;format&quot;: { 
   &quot;type&quot;: &quot;rect&quot;, 
@@ -75,11 +75,11 @@ object                          &amp;cJSON
  &quot;days of week&quot;: [&quot;Monday&quot;,  &quot;Tuesday&quot;,  &quot;Wednesday&quot;,  &quot;Thursday&quot;,  &quot;Friday&quot;,  &quot;Saturday&quot;,  &quot;Sunday&quot;] 
 }
 </code></pre>
-<p>first create empty root object:</p>
-<pre><code>  root &amp;= json::CreateObject()
+<p class="has-line-data" data-line-start="80" data-line-end="81">first create empty root object:</p>
+<pre><code class="has-line-data" data-line-start="82" data-line-end="84">  root &amp;= json::CreateObject()
 </code></pre>
-<p>then child objects:</p>
-<pre><code>  !&quot;format&quot; object
+<p class="has-line-data" data-line-start="84" data-line-end="85">then child objects:</p>
+<pre><code class="has-line-data" data-line-start="86" data-line-end="97">  !&quot;format&quot; object
   fmt &amp;= json::CreateObject()
   fmt.AddStringToObject('type', 'rect')
   fmt.AddNumberToObject('width', 1920)  
@@ -90,8 +90,8 @@ object                          &amp;cJSON
   !&quot;days of week&quot; array
   dow &amp;= json::CreateStringArray(strings)
 </code></pre>
-<p>and finally add children to the root:</p>
-<pre><code>  !add &quot;name&quot;: &quot;Jack (\&quot;Bee\&quot;) Nimble&quot; to root
+<p class="has-line-data" data-line-start="97" data-line-end="98">and finally add children to the root:</p>
+<pre><code class="has-line-data" data-line-start="99" data-line-end="108">  !add &quot;name&quot;: &quot;Jack (\&quot;Bee\&quot;) Nimble&quot; to root
   root.AddItemToObject('name', json::CreateString('Jack (&quot;Bee&quot;) Nimble'))
   
   !add format object to root
@@ -100,49 +100,78 @@ object                          &amp;cJSON
   !add days array to root
   root.AddItemToObject('days of week', dow)
 </code></pre>
-<h2><a id="Create_array_of_objects_109"></a>Create array of objects</h2>
-<p>To create json array of object like this</p>
+<h2 class="code-line" data-line-start=109 data-line-end=110 ><a id="Create_array_of_objects_109"></a>Create array of objects</h2>
+<p class="has-line-data" data-line-start="110" data-line-end="111">To create json array of object like this</p>
 <blockquote>
-<p>[{“username”:“LuckyGamer5371”,“balance”:&quot;$1,250.22&quot;,“date”:“28.09.2018”,“time”:“19:44:38”},<br>
+<p class="has-line-data" data-line-start="111" data-line-end="113">[{“username”:“LuckyGamer5371”,“balance”:&quot;$1,250.22&quot;,“date”:“28.09.2018”,“time”:“19:44:38”},<br>
 {“username”:“LuckyGamer7244”,“balance”:&quot;$2,000.00&quot;,“date”:“27.09.2018”,“time”:“11:20:16”}]</p>
 </blockquote>
-<p>declare a queue and pass it to json::CreateArray(). To tweak resulting json use “options” parameter:</p>
-<pre><code>  options = '[{{&quot;name&quot;:&quot;Password&quot;, &quot;ignore&quot;:true}, {{&quot;name&quot;:&quot;Balance&quot;, &quot;format&quot;:&quot;@N$9.2&quot;}, {{&quot;name&quot;:&quot;LastVisitDate&quot;, &quot;jsonname&quot;:&quot;date&quot;, &quot;format&quot;:&quot;@d17&quot;}, {{&quot;name&quot;:&quot;LastVisitTime&quot;, &quot;jsonname&quot;:&quot;time&quot;, &quot;format&quot;:&quot;@t8&quot;}]'
+<p class="has-line-data" data-line-start="114" data-line-end="115">declare a queue and pass it to json::CreateArray(). To tweak resulting json use “options” parameter:</p>
+<pre><code class="has-line-data" data-line-start="116" data-line-end="119">  options = '[{{&quot;name&quot;:&quot;Password&quot;, &quot;ignore&quot;:true}, {{&quot;name&quot;:&quot;Balance&quot;, &quot;format&quot;:&quot;@N$9.2&quot;}, {{&quot;name&quot;:&quot;LastVisitDate&quot;, &quot;jsonname&quot;:&quot;date&quot;, &quot;format&quot;:&quot;@d17&quot;}, {{&quot;name&quot;:&quot;LastVisitTime&quot;, &quot;jsonname&quot;:&quot;time&quot;, &quot;format&quot;:&quot;@t8&quot;}]'
   root &amp;= json::CreateArray(accounts, true, options)
 </code></pre>
-<p>You can pass a FILE to json::CreateArray as well.</p>
-<h2><a id="Parse_json_string_121"></a>Parse json string</h2>
-<p>Declare an instance of cJSONFactory class and call its Parse method:</p>
-<pre><code>jsonFactory                     cJSONFactory
+<p class="has-line-data" data-line-start="119" data-line-end="120">You can pass a FILE to json::CreateArray as well.</p>
+<h2 class="code-line" data-line-start=121 data-line-end=122 ><a id="Create_array_of_arrays_see_ComplexQueueTestclw_121"></a>Create array of arrays (see ComplexQueueTest.clw)</h2>
+<ul>
+<li class="has-line-data" data-line-start="122" data-line-end="123">You can use arrays of groups inside a queue:</li>
+</ul>
+<pre><code class="has-line-data" data-line-start="124" data-line-end="134">persons                         QUEUE
+!- list of emails as an array, up to 2 items
+EmailsGroup                       GROUP,DIM(2),NAME('Emails')
+EmailGroup                          GROUP,NAME('Email')
+EmailAddress                          STRING(256),NAME('Address')
+EmailType                             STRING(10),NAME('Type')
+                                    END
+                                  END
+                                END
+</code></pre>
+<ul>
+<li class="has-line-data" data-line-start="135" data-line-end="136">You can use dynamic queues, but this method requires extra coding. First, declare 2 sequential fields:</li>
+</ul>
+<pre><code class="has-line-data" data-line-start="137" data-line-end="142">persons                         QUEUE
+PhonesQueue                       &amp;PhonesQueueType  !- dynamic queue
+PhonesQueueInstance               LONG              !- the address of dynamic queue instance
+                                END
+</code></pre>
+<p class="has-line-data" data-line-start="142" data-line-end="143">in code, create an instance of dynamic queue and save its address:</p>
+<pre><code class="has-line-data" data-line-start="144" data-line-end="147">  persons.PhonesQueue &amp;= NEW PhonesQueueType
+  persons.PhonesQueueInstance = INSTANCE(persons.PhonesQueue,THREAD())
+</code></pre>
+<p class="has-line-data" data-line-start="147" data-line-end="148">finally, call json::CreateArray() with “IsQueue” option:</p>
+<pre><code class="has-line-data" data-line-start="149" data-line-end="151">root &amp;= json::CreateArray(persons,FALSE,'[{{&quot;name&quot;:&quot;PhonesQueue&quot;, &quot;isQueue&quot;:true}]')
+</code></pre>
+<h2 class="code-line" data-line-start=152 data-line-end=153 ><a id="Parse_json_string_152"></a>Parse json string</h2>
+<p class="has-line-data" data-line-start="153" data-line-end="154">Declare an instance of cJSONFactory class and call its Parse method:</p>
+<pre><code class="has-line-data" data-line-start="155" data-line-end="160">jsonFactory                     cJSONFactory
 root                            &amp;cJSON
 
   root &amp;= jsonFactory.Parse(pJsonString)
 </code></pre>
-<h2><a id="Get_and_Find_objects_130"></a>Get and Find objects</h2>
+<h2 class="code-line" data-line-start=161 data-line-end=162 ><a id="Get_and_Find_objects_161"></a>Get and Find objects</h2>
 <ol>
-<li>To get child object by name call GetObjectItem(childName):</li>
+<li class="has-line-data" data-line-start="162" data-line-end="163">To get child object by name call GetObjectItem(childName):</li>
 </ol>
 <blockquote>
-<p>{“username”:“LuckyGamer5371”,“balance”:1250.22,“date”:“28.09.2018”,“time”:“19:44:38”}</p>
+<p class="has-line-data" data-line-start="163" data-line-end="164">{“username”:“LuckyGamer5371”,“balance”:1250.22,“date”:“28.09.2018”,“time”:“19:44:38”}</p>
 </blockquote>
-<pre><code>item &amp;= object.GetObjectItem('balance')
+<pre><code class="has-line-data" data-line-start="165" data-line-end="169">item &amp;= object.GetObjectItem('balance')
 !display 1250.22
 MESSAGE('Balance = '&amp; item.GetNumberValue())
 </code></pre>
 <ol start="2">
-<li>To get array element by index call GetArrayItem(index):</li>
+<li class="has-line-data" data-line-start="170" data-line-end="171">To get array element by index call GetArrayItem(index):</li>
 </ol>
 <blockquote>
-<p>[“Monday”, “Tuesday”, “Wednesday”, “Thursday”, “Friday”, “Saturday”, “Sunday”]</p>
+<p class="has-line-data" data-line-start="171" data-line-end="172">[“Monday”, “Tuesday”, “Wednesday”, “Thursday”, “Friday”, “Saturday”, “Sunday”]</p>
 </blockquote>
-<pre><code>item &amp;= array.GetArrayItem(2)
+<pre><code class="has-line-data" data-line-start="173" data-line-end="177">item &amp;= array.GetArrayItem(2)
 !display 'Tuesday'
 MESSAGE('Day 2 = '&amp; item.GetStringValue())
 </code></pre>
 <ol start="3">
-<li>To find a child deep inside the object</li>
+<li class="has-line-data" data-line-start="178" data-line-end="179">To find a child deep inside the object</li>
 </ol>
-<pre><code>{ 
+<pre><code class="has-line-data" data-line-start="180" data-line-end="196">{ 
  &quot;menu&quot;: { 
   &quot;id&quot;: &quot;file&quot;, 
   &quot;value&quot;: &quot;File&quot;, 
@@ -158,12 +187,12 @@ MESSAGE('Day 2 = '&amp; item.GetStringValue())
      &quot;onclick&quot;: &quot;CloseDoc()&quot; 
     }]}}}
 </code></pre>
-<p>call FindObjectItem(childName), below we find “popup” child:</p>
-<pre><code>  popup &amp;= object.FindObjectItem('popup')
+<p class="has-line-data" data-line-start="197" data-line-end="198">call FindObjectItem(childName), below we find “popup” child:</p>
+<pre><code class="has-line-data" data-line-start="199" data-line-end="201">  popup &amp;= object.FindObjectItem('popup')
 </code></pre>
 <ol start="4">
-<li>To find an array element deep inside the object call FindArrayItem(arrayName, index):</li>
+<li class="has-line-data" data-line-start="202" data-line-end="203">To find an array element deep inside the object call FindArrayItem(arrayName, index):</li>
 </ol>
-<pre><code>   item &amp;= object.FindArrayItem('menuitem', 2)
+<pre><code class="has-line-data" data-line-start="204" data-line-end="207">   item &amp;= object.FindArrayItem('menuitem', 2)
    !item contains 2nd element of &quot;menuitem&quot; array {&quot;value&quot;: &quot;Open&quot;, &quot;onclick&quot;: &quot;OpenDoc()&quot;}
 </code></pre>

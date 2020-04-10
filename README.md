@@ -23,6 +23,12 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.15 (10.04.2020)
+- NEW: support for DIMed groups inside a group (thanks to Carlos Gutiérrez);
+- NEW: parser option 'isqueue' for dynamic queues inside a queue (thanks to Carlos Gutiérrez);
+- NEW: ComplexQueueTest example demonstrates new features.
+- NEW: "Create array of arrays" topic in [How-To](https://github.com/mikeduglas/cJSON/blob/master/howto.md)
+
 v1.14 (02.12.2019)
 - FIX: cJSON.GetValue() always returned 0 for booleans
 
@@ -38,7 +44,7 @@ v1.12 (18.04.2019)
 - CHG: MinifyTest and FileTest have been changed to demonstrate new features.
 
 v1.11 (29.11.2018)
-- NEW: new parser option 'instance' which allows to load arrays into nested queues:
+- NEW: parser option 'instance' which allows to load arrays into nested queues:
 ```
 option = '{{"name":"Phones", "instance":'& INSTANCE(PhoneQ) &'}'  !- group field 'Phones' is a reference to PhoneQ queue
 ```

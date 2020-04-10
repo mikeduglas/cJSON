@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.14
-!** 02.12.2019
+!** cJSON for Clarion v1.15
+!** 10.04.2020
 !** mikeduglas66@yandex.com
 
 
@@ -33,6 +33,7 @@ Format                          STRING(32)  !call fld = FORMAT(value, picture)
 Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
 Ignore                          BOOL        !do not process the field
 Instance                        LONG        !INSTANCE(queue)
+IsQueue                         BOOL
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -145,8 +146,8 @@ object                          &cJSON
     END
   END
   
-FindFieldRule PROCEDURE(STRING fldName, *TFieldRules rules)
-qIndex          LONG, AUTO
+FindFieldRule                 PROCEDURE(STRING fldName, *TFieldRules rules)
+qIndex                          LONG, AUTO
   CODE
   LOOP qIndex = 1 TO RECORDS(rules)
     GET(rules, qIndex)
@@ -1585,33 +1586,37 @@ nestedItem                      &cJSON
       fldDim = HOWMANY(grp, ndx)
       IF fldDim = 1
         !not arrays
-
-        !- apply field rules
-        fldValue = ApplyFieldRules(fldRef, fldRules)
-
-        IF ISGROUP(grp, ndx)
-          !- recursively add nested group as json object
-          nestedGrpRef &= GETGROUP(grp, ndx)
-          nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
-          item.AddItemToObject(jsonName, nestedItem)
-          ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
-        ELSIF ISSTRING(fldValue)
-          item.AddStringToObject(jsonName, fldValue)
-        ELSIF NUMERIC(fldValue)
-          item.AddNumberToObject(jsonName, fldValue)
+        
+        IF fldRules.IsQueue
+          DO CreateQueueArray          
         ELSE
-          !neither STRING nor NUMERIC
-          item.AddStringToObject(jsonName, fldValue)
+          !- apply field rules
+          fldValue = ApplyFieldRules(fldRef, fldRules)
+
+          IF ISGROUP(grp, ndx)
+            !- recursively add nested group as json object
+            nestedGrpRef &= GETGROUP(grp, ndx)
+            nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
+            item.AddItemToObject(jsonName, nestedItem)
+            ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
+          ELSIF ISSTRING(fldValue)
+            item.AddStringToObject(jsonName, fldValue)
+          ELSIF NUMERIC(fldValue)
+            item.AddNumberToObject(jsonName, fldValue)
+          ELSE
+            !neither STRING nor NUMERIC
+            item.AddStringToObject(jsonName, fldValue)
+          END
         END
-      
       ELSE
         !arrays
-      
-        IF ISSTRING(fldRef)
+        IF ISGROUP(grp,ndx)
+          DO CreateGroupArray
+        ELSIF ISSTRING(fldRef)
           !string array
           DO CreateStringArray
         
-          !ELSIF NUMERIC(fldRef)  - this line throws runtime error
+        !ELSIF NUMERIC(fldRef)  - this line throws runtime error
         ELSE  !assume this is numeric array
           DO CreateNumericArray
         END
@@ -1620,99 +1625,12 @@ nestedItem                      &cJSON
   END
   
   RETURN item
-!json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>)
-!ndx                             LONG, AUTO
-!fldRef                          ANY
-!fldName                         STRING(256), AUTO
-!fldDim                          LONG, AUTO
-!item                            &cJSON
-!fldRules                        QUEUE(TFieldRules)
-!                                END
-!fldValue                        ANY
-!jsonName                        &STRING
-!nestedGrpRef                    &GROUP
-!nestedItem                      &cJSON
-!  CODE
-!  !- field convertion rules
-!!  ParseFieldRules(options, fldRules)
-!
-!  item &= json::CreateObject()
-!  
-!  LOOP ndx = 1 TO 99999
-!    fldRef &= WHAT(grp, ndx)
-!    IF fldRef &= NULL
-!      !end of group
-!      BREAK
-!    END
-!    
-!    fldName = WHO(grp, ndx)
-!    IF NOT fldName
-!      !skip fields with blank names
-!      CYCLE
-!    END
-!    
-!    RemoveFieldPrefix(fldName)
-!    
-!    IF pNamesInLowerCase
-!      fldName = LOWER(fldName)
-!    END
-!    
-!    !- find field rules
-!!    FindFieldRule(fldName, fldRules)
-!    
-!    !- map Field name to Json name
-!    IF fldRules.JsonName
-!      jsonName &= fldRules.JsonName
-!    ELSE
-!      jsonName &= fldName
-!    END
-!    
-!    IF NOT fldRules.Ignore
-!      fldDim = HOWMANY(grp, ndx)
-!      IF fldDim = 1
-!        !not arrays
-!
-!        !- apply field rules
-!!        fldValue = ApplyFieldRules(fldRef, fldRules)
-!        fldValue = fldRef
-!
-!        IF ISGROUP(grp, ndx)
-!          !- recursively add nested group as json object
-!          nestedGrpRef &= GETGROUP(grp, ndx)
-!          nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
-!          item.AddItemToObject(jsonName, nestedItem)
-!          ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
-!        ELSIF ISSTRING(fldValue)
-!          item.AddStringToObject(jsonName, fldValue)
-!        ELSIF NUMERIC(fldValue)
-!          item.AddNumberToObject(jsonName, fldValue)
-!        ELSE
-!          !neither STRING nor NUMERIC
-!          item.AddStringToObject(jsonName, fldValue)
-!        END
-!      
-!      ELSE
-!        !arrays
-!      
-!        IF ISSTRING(fldRef)
-!          !string array
-!          DO CreateStringArray
-!        
-!          !ELSIF NUMERIC(fldRef)  - this line throws runtime error
-!        ELSE  !assume this is numeric array
-!          DO CreateNumericArray
-!        END
-!      END
-!    END
-!  END
-!  
-!  RETURN item
 
 CreateStringArray             ROUTINE
   DATA
-strings                       STRING(256), DIM(fldDim)
-elemRef                       ANY
-elemNdx                       LONG, AUTO
+strings STRING(256), DIM(fldDim)
+elemRef ANY
+elemNdx LONG, AUTO
   CODE
   !copy array
   LOOP elemNdx = 1 TO fldDim
@@ -1723,9 +1641,9 @@ elemNdx                       LONG, AUTO
 
 CreateNumericArray            ROUTINE
   DATA
-numbers                       REAL, DIM(fldDim)
-elemRef                       ANY
-elemNdx                       LONG, AUTO
+numbers REAL, DIM(fldDim)
+elemRef ANY
+elemNdx LONG, AUTO
   CODE
   !copy array
   LOOP elemNdx = 1 TO fldDim
@@ -1733,7 +1651,35 @@ elemNdx                       LONG, AUTO
     numbers[elemNdx] = ApplyFieldRules(elemRef, fldRules)
   END
   item.AddItemToObject(jsonName, json::CreateDoubleArray(numbers))
-
+  
+CreateGroupArray              ROUTINE
+  DATA
+grpRef      &GROUP
+grpArray    &cJSON
+grpItem     &cJSON
+elemNdx     LONG, AUTO
+  CODE
+  grpArray &= json::CreateArray()
+  LOOP elemNdx = 1 TO fldDim
+    grpRef &= GETGROUP(grp,ndx,elemNdx)
+    grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, options)
+    grpArray.AddItemToObject(jsonName, grpItem)
+  END
+  item.AddItemToObject(jsonName, grpArray)
+  ndx += grpItem.GetArraySize(TRUE)
+  
+CreateQueueArray              ROUTINE
+  DATA
+fla       ANY
+queRef    &QUEUE
+queArray  &cJSON
+  CODE
+  ndx += 1  !- we assume that next field is INSTANCE of queue.
+  fla &= WHAT(grp,ndx)
+  queRef &= (fla)
+  queArray &= json::CreateArray(queRef, pNamesInLowerCase, options)
+  item.AddItemToObject(jsonName, queArray)
+  
 json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
 array                           &cJSON
 grp                             &GROUP
