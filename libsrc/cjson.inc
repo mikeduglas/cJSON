@@ -1,6 +1,7 @@
-!** cJSON for Clarion v1.15
-!** 10.04.2020
-!** mikeduglas66@yandex.com
+!** cJSON for Clarion v1.16
+!** 15.04.2020
+!** mikeduglas@yandex.com
+!** mikeduglas66@gmail.com
 
 
   INCLUDE('svapi.inc'), ONCE

@@ -1,6 +1,7 @@
-!** cJSON for Clarion v1.15
-!** 10.04.2020
-!** mikeduglas66@yandex.com
+!** cJSON for Clarion v1.16
+!** 15.04.2020
+!** mikeduglas@yandex.com
+!** mikeduglas66@gmail.com
 
 
   MEMBER
@@ -1242,26 +1243,29 @@ szInput                         CSTRING(LEN(pInput) + 1)
 UnicodeText                     CSTRING(LEN(pInput)*2+2)
 DecodedText                     CSTRING(LEN(pInput)*2+2)
 Len                             LONG, AUTO
-
 CP_UTF16                        EQUATE(-1)
-
   CODE
   IF NOT pInput
     RETURN ''
   END
   
-  szInput = pInput
-  !- get length of UnicodeText in characters
-  Len = winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, 0, 0)
-  IF Len = 0
-    json::DebugInfo('MultiByteToWideChar failed, error '& winapi::GetLastError())
-    RETURN ''
+  IF pInputCodepage <> CP_UTF16
+    szInput = pInput
+    !- get length of UnicodeText in characters
+    Len = winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, 0, 0)
+    IF Len = 0
+      json::DebugInfo('MultiByteToWideChar failed, error '& winapi::GetLastError())
+      RETURN ''
+    END
+    !- get UnicodeText terminated by <0,0>
+    winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, ADDRESS(UnicodeText), Len)
+  ELSE
+    Len = LEN(pInput) / 2
+    UnicodeText = pInput & '<0,0>'
   END
-  !- get UnicodeText terminated by <0,0>
-  winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, ADDRESS(UnicodeText), Len)
   
   IF pOutputCodepage = CP_UTF16
-    RETURN UnicodeText[1 : Len * 2]
+    RETURN UnicodeText[1 : Len*2]
   END
   
   !- get length of DecodedText in bytes

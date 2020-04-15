@@ -23,6 +23,9 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.16 (15.04.2020)
+- FIX: convertion from UTF-16 didn't work.
+
 v1.15 (10.04.2020)
 - NEW: support for DIMed groups inside a group (thanks to Carlos Gutiérrez);
 - NEW: parser option 'isqueue' for dynamic queues inside a queue (thanks to Carlos Gutiérrez);
