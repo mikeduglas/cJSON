@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.16
-!** 15.04.2020
+!** cJSON for Clarion v1.17
+!** 15.07.2021
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -2716,6 +2716,15 @@ minival                         &STRING
     END
   END
   
+  RETURN item
+  
+cJSONFactory.ParseFile        PROCEDURE(STRING pFileName)
+jsData                          &STRING
+item                            &cJSON
+  CODE
+  jsData &= json::LoadFile(pFileName)
+  item &= SELF.Parse(jsData)
+  DISPOSE(jsData)
   RETURN item
   
 cJSONFactory.ToGroup          PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)

@@ -23,6 +23,9 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.17 (15.07.2021)
+- NEW: cJSONFactory.ParseFile method.
+
 v1.16 (15.04.2020)
 - FIX: convertion from UTF-16 didn't work.
 

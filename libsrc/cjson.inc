@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.16
-!** 15.04.2020
+!** cJSON for Clarion v1.17
+!** 15.07.2021
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -429,6 +429,11 @@ Construct                       PROCEDURE()
 !!!<param name="json">json string</param>
 !!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
 Parse                           PROCEDURE(STRING json), *cJSON
+
+!!!<summary>Parse an object - create a new root, and populate.</summary>
+!!!<param name="pFileName">json file</param>
+!!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
+ParseFile                       PROCEDURE(STRING pFileName), *cJSON
 
 !!!<summary>Writes json into a group.</summary>
 !!!<param name="json">json string</param>
