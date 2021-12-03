@@ -23,6 +23,13 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.18 (04.12.2021)
+- NEW: field rule "ArraySize" allows to limit an array size:
+```
+!- this will create "labels" array with 1 element, even labels filed is declared as DIM(3)
+jitem &= json::CreateArray(Item,, '{{"name":"labels", "arraysize":1}')
+```
+
 v1.17 (15.07.2021)
 - NEW: cJSONFactory.ParseFile method.
 

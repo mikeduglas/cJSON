@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.17
-!** 15.07.2021
+!** cJSON for Clarion v1.18
+!** 04.12.2021
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -35,6 +35,7 @@ Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
 Ignore                          BOOL        !do not process the field
 Instance                        LONG        !INSTANCE(queue)
 IsQueue                         BOOL
+ArraySize                       LONG        !DIM(1) issue fix
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -1551,6 +1552,7 @@ fldValue                        ANY
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
 nestedItem                      &cJSON
+arrSize                         LONG, AUTO
   CODE
   !- field convertion rules
   ParseFieldRules(options, fldRules)
@@ -1588,8 +1590,9 @@ nestedItem                      &cJSON
     
     IF NOT fldRules.Ignore
       fldDim = HOWMANY(grp, ndx)
+!      json::DebugInfo('Field '& CLIP(fldName) &'; dimensions '& fldDim)
       IF fldDim = 1
-        !not arrays
+        !not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
         
         IF fldRules.IsQueue
           DO CreateQueueArray          
@@ -1614,6 +1617,8 @@ nestedItem                      &cJSON
         END
       ELSE
         !arrays
+        arrSize = CHOOSE(fldRules.ArraySize > 0 AND fldRules.ArraySize < fldDim, fldRules.ArraySize, fldDim)
+  
         IF ISGROUP(grp,ndx)
           DO CreateGroupArray
         ELSIF ISSTRING(fldRef)
@@ -1632,12 +1637,12 @@ nestedItem                      &cJSON
 
 CreateStringArray             ROUTINE
   DATA
-strings STRING(256), DIM(fldDim)
+strings STRING(256), DIM(arrSize)
 elemRef ANY
 elemNdx LONG, AUTO
   CODE
   !copy array
-  LOOP elemNdx = 1 TO fldDim
+  LOOP elemNdx = 1 TO arrSize
     elemRef &= WHAT(grp, ndx, elemNdx)
     strings[elemNdx] = ApplyFieldRules(elemRef, fldRules)
   END
@@ -1645,12 +1650,12 @@ elemNdx LONG, AUTO
 
 CreateNumericArray            ROUTINE
   DATA
-numbers REAL, DIM(fldDim)
+numbers REAL, DIM(arrSize)
 elemRef ANY
 elemNdx LONG, AUTO
   CODE
   !copy array
-  LOOP elemNdx = 1 TO fldDim
+  LOOP elemNdx = 1 TO arrSize
     elemRef &= WHAT(grp, ndx, elemNdx)
     numbers[elemNdx] = ApplyFieldRules(elemRef, fldRules)
   END
@@ -1664,7 +1669,7 @@ grpItem     &cJSON
 elemNdx     LONG, AUTO
   CODE
   grpArray &= json::CreateArray()
-  LOOP elemNdx = 1 TO fldDim
+  LOOP elemNdx = 1 TO arrSize
     grpRef &= GETGROUP(grp,ndx,elemNdx)
     grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, options)
     grpArray.AddItemToObject(jsonName, grpItem)
