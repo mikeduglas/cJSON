@@ -24,10 +24,11 @@ Free
 
 ## Version history
 v1.19 (09.12.2021)
-- NEW: field rule "EmptyString" applies to strings and string arrays.  
+- NEW: field rule "EmptyString" applies to strings and string arrays:
   - "null": null objects will be created for empty strings or array elements.
   - "ignore": empty strings and array elements will be ignored.
-
+- CHG: json::CreateStringArray now accepts optional parameter "pIfEmpty", 
+which controls how empty array elements will be processed. Availale values are "null" and "ignore".
 
 v1.18 (04.12.2021)
 - NEW: field rule "ArraySize" allows to limit an array size:
