@@ -23,6 +23,12 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.19 (09.12.2021)
+- NEW: field rule "EmptyString" applies to strings and string arrays.  
+  - "null": null objects will be created for empty strings or array elements.
+  - "ignore": empty strings and array elements will be ignored.
+
+
 v1.18 (04.12.2021)
 - NEW: field rule "ArraySize" allows to limit an array size:
 ```

@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.18
-!** 04.12.2021
+!** cJSON for Clarion v1.19
+!** 09.12.2021
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -68,7 +68,11 @@ json::CreateIntArray  PROCEDURE(LONG[] numbers), *cJSON
 json::CreateDoubleArray   PROCEDURE(REAL[] numbers), *cJSON
 
 !!!<summary>Create an Array of STRINGs.</summary>
-json::CreateStringArray   PROCEDURE(STRING[] strings), *cJSON
+!!!<param name="strings">string array.</param>
+!!!<param name="pIfEmpty">If it is "null", then null objects will be created for empty elements; 
+!!!if it is "ignore", then empty elements will not be created; 
+!!!otherwise empty string elements will be created.</param>
+json::CreateStringArray   PROCEDURE(STRING[] strings, <STRING pIfEmpty>), *cJSON
 
 !!!<summary>Create an object from GROUP.</summary>
 json::CreateObject    PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON

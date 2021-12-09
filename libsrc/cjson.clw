@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.18
-!** 04.12.2021
+!** cJSON for Clarion v1.19
+!** 09.12.2021
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -36,6 +36,7 @@ Ignore                          BOOL        !do not process the field
 Instance                        LONG        !INSTANCE(queue)
 IsQueue                         BOOL
 ArraySize                       LONG        !DIM(1) issue fix
+EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -1512,23 +1513,38 @@ a                               &cJSON
   
   RETURN a
 
-json::CreateStringArray       PROCEDURE(STRING[] strings)
+json::CreateStringArray       PROCEDURE(STRING[] strings, <STRING pIfEmpty>)
 i                               LONG, AUTO
+j                               LONG, AUTO
 n                               &cJSON
 p                               &cJSON
 a                               &cJSON
   CODE
   a &= json::CreateArray()
   
+  j = 0
   LOOP i = 1 TO MAXIMUM(strings, 1)
     IF NOT a &= NULL
-      n &= json::CreateString(strings[i])
+      IF CLIP(strings[i])
+        n &= json::CreateString(strings[i])
+      ELSE
+        CASE pIfEmpty
+        OF 'null'
+          n &= json::CreateNull()
+        OF 'ignore'
+          CYCLE
+        ELSE
+          n &= json::CreateString(strings[i])
+        END
+      END
+      
       IF n &= NULL
         a.Delete()
         RETURN NULL
       END
       
-      IF i = 1
+      j += 1
+      IF j = 1
         a.child &= n
       ELSE
         suffix_object(p, n)
@@ -1607,12 +1623,12 @@ arrSize                         LONG, AUTO
             item.AddItemToObject(jsonName, nestedItem)
             ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
           ELSIF ISSTRING(fldValue)
-            item.AddStringToObject(jsonName, fldValue)
+            DO CreateString
           ELSIF NUMERIC(fldValue)
             item.AddNumberToObject(jsonName, fldValue)
           ELSE
-            !neither STRING nor NUMERIC
-            item.AddStringToObject(jsonName, fldValue)
+            !neither STRING nor NUMERIC: process as a STRING
+            DO CreateString
           END
         END
       ELSE
@@ -1635,6 +1651,22 @@ arrSize                         LONG, AUTO
   
   RETURN item
 
+CreateString                  ROUTINE
+  IF CLIP(fldValue) <> ''
+    !- not empty string
+    item.AddStringToObject(jsonName, fldValue)
+  ELSE
+    !- empty string
+    CASE fldRules.EmptyString
+    OF 'null'
+      item.AddNullToObject(jsonName)
+    OF 'ignore'
+      ! do nothing
+    ELSE
+      item.AddStringToObject(jsonName, fldValue)
+    END
+  END
+
 CreateStringArray             ROUTINE
   DATA
 strings STRING(256), DIM(arrSize)
@@ -1646,7 +1678,7 @@ elemNdx LONG, AUTO
     elemRef &= WHAT(grp, ndx, elemNdx)
     strings[elemNdx] = ApplyFieldRules(elemRef, fldRules)
   END
-  item.AddItemToObject(jsonName, json::CreateStringArray(strings))
+  item.AddItemToObject(jsonName, json::CreateStringArray(strings, fldRules.EmptyString))
 
 CreateNumericArray            ROUTINE
   DATA
