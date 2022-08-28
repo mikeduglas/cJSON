@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.19
-!** 09.12.2021
+!** cJSON for Clarion v1.20
+!** 28.08.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -37,6 +37,7 @@ Instance                        LONG        !INSTANCE(queue)
 IsQueue                         BOOL
 ArraySize                       LONG        !DIM(1) issue fix
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
+IsStringRef                     BOOL        !field is &STRING
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -146,6 +147,8 @@ object                          &cJSON
       END
 
       object.Delete()
+    ELSE
+      json::DebugInfo('Syntax error near "'& factory.GetError() &'" at position '& factory.GetErrorPosition())
     END
   END
   
@@ -163,13 +166,33 @@ qIndex                          LONG, AUTO
   CLEAR(rules)
 
 ApplyFieldRules               PROCEDURE(? value, TFieldRule rule)
+fldValue                        ANY
+vGrp                            GROUP
+adr                               LONG
+len                               LONG
+                                END
+sValue                          STRING(8), OVER(vGrp)
+sRefValue                       &STRING, AUTO
+
   CODE
-  IF rule.Format
-    RETURN FORMAT(value, rule.Format)
-  ELSIF rule.Deformat
-    RETURN DEFORMAT(value, rule.Deformat)
+  IF rule.IsStringRef
+    !- Passed value is &STRING.
+    !- Assigning to sValue we get an address of underlying string and its length, 
+    sValue = value
+    !- Getting a reference to underlying string.
+    sRefValue &= (vGrp.adr) &':'& vGrp.len
+    !- Get actual string value.
+    fldValue = sRefValue
   ELSE
-    RETURN value
+    fldValue = value
+  END
+  
+  IF rule.Format
+    RETURN FORMAT(fldValue, rule.Format)
+  ELSIF rule.Deformat
+    RETURN DEFORMAT(fldValue, rule.Deformat)
+  ELSE
+    RETURN fldValue
   END
   
 json::DebugInfo               PROCEDURE(STRING pMsg)

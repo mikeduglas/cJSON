@@ -23,6 +23,19 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.20 (28.08.2022)
+- NEW: field rule "IsStringRef" applies to &STRING fields.
+```
+TestGroup                       GROUP
+SomeFileData                      &STRING
+                                END
+jitem                           &cJSON
+  CODE
+  TestGroup.SomeFileData &= NEW(STRING(LEN('Some File Data')))
+  TestGroup.SomeFileData = 'Some File Data'
+  jitem &= json::CreateObject(TestGroup, , '{{"name":"SomeFileData", "IsStringRef":true}')
+```
+
 v1.19 (09.12.2021)
 - NEW: field rule "EmptyString" applies to strings and string arrays:
   - "null": null objects will be created for empty strings or array elements.
