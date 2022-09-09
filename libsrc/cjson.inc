@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.20
-!** 28.08.2022
+!** cJSON for Clarion v1.21
+!** 09.09..2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -268,27 +268,27 @@ AddItemReferenceToArray         PROCEDURE(*cJSON item)
 !!!<param name="item">item to append</param>
 AddItemReferenceToObject        PROCEDURE(STRING itemName, *cJSON item)
 
-!!!<summary>Detatch an item from Arrays/Objects.<summary>
+!!!<summary>Detatch an item from Arrays/Objects.</summary>
 !!!<param name="item">an item to detach.</param>
 !!!>returns>detached item</returns>
 DetachItemViaPointer            PROCEDURE(*cJSON item), *cJSON
 
-!!!<summary>Detatch an item from array.<summary>
+!!!<summary>Detatch an item from array.</summary>
 !!!<param name="which">an item index to detach.</param>
 !!!>returns>detached item</returns>
 DetachItemFromArray             PROCEDURE(LONG which), *cJSON
 
-!!!<summary>Remove an item from array.<summary>
+!!!<summary>Remove an item from array.</summary>
 !!!<param name="which">an item index to remove.</param>
 DeleteItemFromArray             PROCEDURE(LONG which)
 
-!!!<summary>Detach an item from object.<summary>
+!!!<summary>Detach an item from object.</summary>
 !!!<param name="itemName">an item name to detach.</param>
 !!!<param name="caseSensitive">comparison rule</param>
 !!!>returns>detached item</returns>
 DetachItemFromObject            PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), *cJSON
 
-!!!<summary>Remove an item from object.<summary>
+!!!<summary>Remove an item from object.</summary>
 !!!<param name="itemName">an item name to remove.</param>
 !!!<param name="caseSensitive">comparison rule</param>
 DeleteItemFromObject            PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
@@ -418,6 +418,12 @@ FindArrayItem                   PROCEDURE(STRING arrayName, LONG itemIndex, BOOL
 !!!<param name="caseSensitive">comparison rule</param>
 !!!<returns>item value, or blank string !if the item not found, or its type is not numeric, boolean or string.</returns>
 GetValue                        PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), ?
+
+!!!<summary>Get a reference to a string item value.</summary>
+GetStringRef                    PROCEDURE(), *?
+
+!!!<summary>Get size of a string item value.</summary>
+GetStringSize                   PROCEDURE(), LONG
                               END
 
 

@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.20
-!** 28.08.2022
+!** cJSON for Clarion v1.21
+!** 09.09..2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -1936,18 +1936,13 @@ cJSON.Construct               PROCEDURE()
   
 cJSON.Destruct                PROCEDURE()
   CODE
-!  json::DebugInfo('Destruct, type = '& SELF.type)
-  IF SELF.name &= NULL
-!    json::DebugInfo('Destruct, name = '& 'NULL')
-  ELSE
-!    json::DebugInfo('Destruct, name = '& SELF.name)
+  IF NOT SELF.name &= NULL
     DISPOSE(SELF.name)
+    SELF.name &= NULL
   END
-  IF SELF.valuestring &= NULL
-!    json::DebugInfo('Destruct, valuestring = '& 'NULL')
-  ELSE
-!    json::DebugInfo('Destruct, valuestring = '& SELF.valuestring)
+  IF NOT SELF.valuestring &= NULL
     DISPOSE(SELF.valuestring)
+    SELF.valuestring &= NULL
   END
 
 cJSON.GetPrevious             PROCEDURE()
@@ -2704,6 +2699,17 @@ item                            &cJSON
     RETURN item.GetNumberValue()
   END
 
+cJSON.GetStringRef            PROCEDURE()
+  CODE
+  RETURN SELF.valuestring
+  
+cJSON.GetStringSize           PROCEDURE()
+  CODE
+  IF NOT SELF.valuestring &= NULL
+    RETURN SIZE(SELF.valuestring)
+  ELSE
+    RETURN 0
+  END
 !!!endregion
   
 !!!region cJSONFactory

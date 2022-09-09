@@ -23,6 +23,10 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.21 (09.09.2022)
+- NEW: cJSON.GetStringRef returns a reference to a string item value.
+- NEW: cJSON.GetStringSize returns a size of a string item value.
+
 v1.20 (28.08.2022)
 - NEW: field rule "IsStringRef" applies to &STRING fields.
 ```
