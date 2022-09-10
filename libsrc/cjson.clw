@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.21
-!** 09.09..2022
+!** cJSON for Clarion v1.22
+!** 10.09.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -2006,7 +2006,7 @@ printed                         DynStr
   print_value(SELF, buffer)
   RETURN buffer.printed.Str()
 
-cJSON.ToUtf8                  PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage)
+cJSON.ToUtf8                  PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage=CP_ACP)
 buffer                          LIKE(TPrintBuffer)
 printed                         DynStr
   CODE
@@ -2783,7 +2783,12 @@ minival                         &STRING
   END
   
   RETURN item
-  
+    
+cJSONFactory.Parse            PROCEDURE(STRING value, LONG pCodePage)
+  CODE
+  SELF.codePage = pCodePage
+  RETURN SELF.Parse(value)
+
 cJSONFactory.ParseFile        PROCEDURE(STRING pFileName)
 jsData                          &STRING
 item                            &cJSON
@@ -2793,6 +2798,11 @@ item                            &cJSON
   DISPOSE(jsData)
   RETURN item
   
+cJSONFactory.ParseFile        PROCEDURE(STRING pFileName, LONG pCodePage)
+  CODE
+  SELF.codePage = pCodePage
+  RETURN SELF.ParseFile(pFileName)
+
 cJSONFactory.ToGroup          PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
 object                          &cJSON
 ret                             BOOL(FALSE)

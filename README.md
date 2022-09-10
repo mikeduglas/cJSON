@@ -23,6 +23,10 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.22 (10.09.2022)
+- CHG: cJSON.ToUtf8 now accepts optional codepage argument.
+- CHG: cJSONFactory.Parse and cJSONFactory.ParseFile now accept optional codepage argument.
+
 v1.21 (09.09.2022)
 - NEW: cJSON.GetStringRef returns a reference to a string item value.
 - NEW: cJSON.GetStringSize returns a size of a string item value.

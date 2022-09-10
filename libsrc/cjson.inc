@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.21
-!** 09.09..2022
+!** cJSON for Clarion v1.22
+!** 10.09.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -182,7 +182,7 @@ ToString                        PROCEDURE(BOOL pFormat = FALSE), STRING
 !!!param name="pFormat">true to format an output.>/param>
 !!!param name="pCodepage">Original code page.>/param>
 !!!<returns>a string representation of the object.</returns>
-ToUtf8                          PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage), STRING
+ToUtf8                          PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage=CP_ACP), STRING
 
 !!!<summary>Delete a cJSON entity and all subentities.</summary>
 Delete                          PROCEDURE()
@@ -441,9 +441,21 @@ Construct                       PROCEDURE()
 Parse                           PROCEDURE(STRING json), *cJSON
 
 !!!<summary>Parse an object - create a new root, and populate.</summary>
+!!!<param name="json">json string</param>
+!!!<param name="pCodePage">Code page</param>
+!!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
+Parse                           PROCEDURE(STRING json, LONG pCodePage), *cJSON
+
+!!!<summary>Parse an object - create a new root, and populate.</summary>
 !!!<param name="pFileName">json file</param>
 !!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
 ParseFile                       PROCEDURE(STRING pFileName), *cJSON
+
+!!!<summary>Parse an object - create a new root, and populate.</summary>
+!!!<param name="pFileName">json file</param>
+!!!<param name="pCodePage">Code page</param>
+!!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
+ParseFile                       PROCEDURE(STRING pFileName, LONG pCodePage), *cJSON
 
 !!!<summary>Writes json into a group.</summary>
 !!!<param name="json">json string</param>
