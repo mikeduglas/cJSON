@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.22
-!** 10.09.2022
+!** cJSON for Clarion v1.23
+!** 17.11.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -38,6 +38,7 @@ IsQueue                         BOOL
 ArraySize                       LONG        !DIM(1) issue fix
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
 IsStringRef                     BOOL        !field is &STRING
+IsBool                          BOOL        !field is BOOLEAN
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -1645,6 +1646,8 @@ arrSize                         LONG, AUTO
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
             item.AddItemToObject(jsonName, nestedItem)
             ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
+          ELSIF fldRules.IsBool
+            item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
           ELSIF ISSTRING(fldValue)
             DO CreateString
           ELSIF NUMERIC(fldValue)

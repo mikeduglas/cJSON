@@ -23,6 +23,20 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.23 (17.11.2022)
+- NEW: field rule "IsBool" forces a bool item to be created.
+```
+Users                         GROUP
+Login                           STRING('Igor')
+FlagClose                       BYTE(FALSE)
+                              END
+jParam                        &cJSON
+  CODE
+  jParam &= json::CreateObject(Users,,'{"name":"FlagClose","isBool":true}')
+  !- jParam.ToString():  {"login":"Igor","flagclose":false}
+  jParam.Delete()
+```
+
 v1.22 (10.09.2022)
 - CHG: cJSON.ToUtf8 now accepts optional codepage argument.
 - CHG: cJSONFactory.Parse and cJSONFactory.ParseFile now accept optional codepage argument.
