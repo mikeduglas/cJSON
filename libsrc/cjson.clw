@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.23
-!** 17.11.2022
+!** cJSON for Clarion v1.24
+!** 20.11.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -34,7 +34,7 @@ Format                          STRING(32)  !call fld = FORMAT(value, picture)
 Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
 Ignore                          BOOL        !do not process the field
 Instance                        LONG        !INSTANCE(queue)
-IsQueue                         BOOL
+IsQueue                         BOOL        !field is a queue: create a json array
 ArraySize                       LONG        !DIM(1) issue fix
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
 IsStringRef                     BOOL        !field is &STRING
@@ -156,14 +156,23 @@ object                          &cJSON
 FindFieldRule                 PROCEDURE(STRING fldName, *TFieldRules rules)
 qIndex                          LONG, AUTO
   CODE
+  !- search for field rule
   LOOP qIndex = 1 TO RECORDS(rules)
     GET(rules, qIndex)
-    IF LOWER(rules.Name) = LOWER(fldName) OR rules.Name = '*'
-      !- found field rules
+    IF LOWER(rules.Name) = LOWER(fldName)
+      !- found field rule
       RETURN
     END
   END
-  !- not found field rules
+  
+  !- if a generic rule exists, apply it
+  rules.Name = '*'
+  GET(rules, 'Name')
+  IF NOT ERRORCODE()
+    RETURN
+  END
+  
+  !- no rule found, use default behavior
   CLEAR(rules)
 
 ApplyFieldRules               PROCEDURE(? value, TFieldRule rule)
