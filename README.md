@@ -23,6 +23,9 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.25 (22.11.2022)
+- FIX: Ignored field ("ignore":true) could cause next field appearing 2 times in json.
+
 v1.24 (20.11.2022)
 - CHG: Field rules behavior has been changed. Now, the general rule applies only to those fields for which there is no explicit rule.  
 In the example below only "Expired" field will be saved in json, because the "ignore" attribute will be applied to all other fields.

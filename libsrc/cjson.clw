@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.24
-!** 20.11.2022
+!** cJSON for Clarion v1.25
+!** 22.11.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -103,6 +103,7 @@ TFieldRules                   QUEUE(TFieldRule), TYPE
     ParseFieldRules(STRING json, *TFieldRules rules), PRIVATE
     FindFieldRule(STRING fldName, *TFieldRules rules), PRIVATE
     ApplyFieldRules(? value, TFieldRule rule), ?, PRIVATE
+    FieldCount(*GROUP pGrp), LONG, PRIVATE          !- returns a number of fields in the group
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
@@ -205,6 +206,30 @@ sRefValue                       &STRING, AUTO
     RETURN fldValue
   END
   
+FieldCount                    PROCEDURE(*GROUP pGrp)
+fldNdx                          LONG, AUTO
+fldRef                          ANY
+nestedGrp                       &GROUP
+nFields                         LONG(0)
+  CODE
+  LOOP fldNdx = 1 TO 9999
+    fldRef &= WHAT(pGrp, fldNdx)
+    IF fldRef &= NULL
+      !end of group
+      BREAK
+    END
+  
+    IF ISGROUP(pGrp, fldNdx)
+      !- recursively get number of fields from nested group
+      nestedGrp &= GETGROUP(pGrp, fldNdx)
+      nFields += FieldCount(nestedGrp)
+    ELSE
+      nFields += HOWMANY(pGrp, fldNdx)
+    END
+  END
+
+  RETURN nFields
+
 json::DebugInfo               PROCEDURE(STRING pMsg)
 cs                              CSTRING(LEN('cJSON') + LEN(pMsg) + 3 + 1)
   CODE
@@ -1620,7 +1645,7 @@ arrSize                         LONG, AUTO
       !skip fields with blank names
       CYCLE
     END
-    
+
     RemoveFieldPrefix(fldName)
     
     IF pNamesInLowerCase
@@ -1639,7 +1664,6 @@ arrSize                         LONG, AUTO
     
     IF NOT fldRules.Ignore
       fldDim = HOWMANY(grp, ndx)
-!      json::DebugInfo('Field '& CLIP(fldName) &'; dimensions '& fldDim)
       IF fldDim = 1
         !not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
         
@@ -1654,7 +1678,7 @@ arrSize                         LONG, AUTO
             nestedGrpRef &= GETGROUP(grp, ndx)
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
             item.AddItemToObject(jsonName, nestedItem)
-            ndx += nestedItem.GetArraySize(TRUE)  !- skip fields from nested groups
+            ndx += FieldCount(nestedGrpRef)  !- skip fields from nested groups
           ELSIF fldRules.IsBool
             item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
           ELSIF ISSTRING(fldValue)
@@ -1742,7 +1766,7 @@ elemNdx     LONG, AUTO
     grpArray.AddItemToObject(jsonName, grpItem)
   END
   item.AddItemToObject(jsonName, grpArray)
-  ndx += grpItem.GetArraySize(TRUE)
+  ndx += FieldCount(grp)
   
 CreateQueueArray              ROUTINE
   DATA
