@@ -23,6 +23,14 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.26 (23.11.2022)
+- CHG: "Instance" option is now supported for QUEUE referencies in json::CreateObject(*GROUP,BOOL,STRING) and similar functions.
+```
+jPerson &= json::CreateObject(PersonGrp,, '[{{"name":"Phones", "instance":'& Phones::Inst &'},{{"name":"Addresses", "instance":'& Addr::Inst &'}]')
+```
+- NEW: field rule "IsRaw" saves a field value in json "as is".
+
+
 v1.25 (22.11.2022)
 - FIX: Ignored field ("ignore":true) could cause next field appearing 2 times in json.
 

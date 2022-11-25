@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.25
-!** 22.11.2022
+!** cJSON for Clarion v1.26
+!** 23.11.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -39,6 +39,7 @@ ArraySize                       LONG        !DIM(1) issue fix
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
 IsStringRef                     BOOL        !field is &STRING
 IsBool                          BOOL        !field is BOOLEAN
+IsRaw                           BOOL        !field is raw json string
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
@@ -1625,6 +1626,7 @@ fldRules                        QUEUE(TFieldRules)
 fldValue                        ANY
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
+nestedQueRef                    &QUEUE
 nestedItem                      &cJSON
 arrSize                         LONG, AUTO
   CODE
@@ -1666,9 +1668,9 @@ arrSize                         LONG, AUTO
       fldDim = HOWMANY(grp, ndx)
       IF fldDim = 1
         !not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
-        
+       
         IF fldRules.IsQueue
-          DO CreateQueueArray          
+          DO CreateQueueArray
         ELSE
           !- apply field rules
           fldValue = ApplyFieldRules(fldRef, fldRules)
@@ -1679,8 +1681,15 @@ arrSize                         LONG, AUTO
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
             item.AddItemToObject(jsonName, nestedItem)
             ndx += FieldCount(nestedGrpRef)  !- skip fields from nested groups
+          ELSIF fldRules.Instance
+            !- fldRules.Instance is an address of a queue, so create json array
+            nestedQueRef &= (fldRules.Instance)
+            nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, options)
+            item.AddItemToObject(jsonName, nestedItem)
           ELSIF fldRules.IsBool
             item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
+          ELSIF fldRules.IsRaw
+            item.AddRawToObject(jsonName, fldValue)   !- raw json
           ELSIF ISSTRING(fldValue)
             DO CreateString
           ELSIF NUMERIC(fldValue)
