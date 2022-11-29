@@ -23,6 +23,11 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.27 (29.11.2022)
+- NEW: field rules "IgnoreZero" and "IgnoreFalse".
+- CHG: significantly increased the speed of ToString/ToUtf8.
+- NEW: cJSONPath class (beta, experimental).
+
 v1.26 (23.11.2022)
 - CHG: "Instance" option is now supported for QUEUE referencies in json::CreateObject(*GROUP,BOOL,STRING) and similar functions.
 ```

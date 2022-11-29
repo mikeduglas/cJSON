@@ -1,12 +1,27 @@
+!** Dynamic string support.
+!** 29.11.2022
+!** mikeduglas@yandex.com
+!** mikeduglas66@gmail.com
+
+
   MEMBER
-  MAP
-  END
-  
+
   INCLUDE('dynstr.inc'), ONCE
   INCLUDE('dynstrclass.inc'), ONCE
 
-!region IDynStr
+  MAP
+    MODULE('CW runtime')
+      _malloc(LONG pSize), LONG, NAME('_malloc')
+      _realloc(LONG pMemBlock, LONG pSize), LONG, NAME('_realloc')
+      _memcpy(LONG pDest, LONG pSrc, LONG pCount), LONG, NAME('_memcpy'), PROC
+      _free(LONG pMemBlock),NAME('_free')
+    END
+    MODULE('cjson')
+      json::DebugInfo(STRING pMsg)
+    END
+  END
 
+!!!region IDynStr
 DynStr.Construct    PROCEDURE()
   CODE
   SELF.ds &= NewDynStr()
@@ -103,10 +118,6 @@ DynStr.CDynStrRef   PROCEDURE()
 DynStr.Release      PROCEDURE()
   CODE
   SELF.ds.Release()
-
-!endregion IDynStr
-
-!region new stuff
   
 DynStr.Replace      PROCEDURE(STRING pPattern, STRING pReplacement)
 tmp                   DynStr
@@ -145,5 +156,88 @@ patternLen            LONG, AUTO
   SELF.Cat(tmp.Str())
   
   RETURN SELF.Str()
+!!!endregion IDynStr
 
-!endregion new stuff
+!!!region TStringBuilder
+TStringBuilder.Construct      PROCEDURE()
+  CODE
+  SELF.memBlock = 0
+  SELF.blockSize = 0
+  SELF.dataSize = 0
+  SELF.extraSize = 256
+  
+TStringBuilder.Destruct       PROCEDURE()
+  CODE
+  SELF.Kill()
+  
+TStringBuilder.Init           PROCEDURE(LONG pStrLen)
+  CODE
+  IF SELF.memBlock = 0
+    SELF.memBlock = _malloc(pStrLen)
+    IF SELF.memBlock
+      SELF.blockSize = pStrLen
+    ELSE
+      !- _malloc failed
+      json::DebugInfo('[TStringBuilder.Init] _malloc failed.')
+    END
+  ELSE
+    !- already allocated
+    json::DebugInfo('[TStringBuilder.Init] already allocated.')
+  END
+  
+TStringBuilder.Kill           PROCEDURE()
+  CODE
+  IF SELF.memBlock
+    _free(SELF.memBlock)
+    SELF.memBlock = 0
+  END
+  SELF.blockSize = 0
+  SELF.dataSize = 0
+  
+TStringBuilder.Str            PROCEDURE()
+strRef                          &STRING, AUTO
+  CODE
+  IF SELF.memBlock AND SELF.dataSize
+    strRef &= (SELF.memBlock) &':'& SELF.dataSize
+    RETURN strRef
+  ELSE
+    RETURN ''
+  END
+  
+TStringBuilder.Cat            PROCEDURE(STRING pStr)
+  CODE
+  SELF.Cat(pStr)
+
+TStringBuilder.Cat            PROCEDURE(*STRING pStr)
+newMemBlock                     LONG, AUTO
+newBlockSize                    LONG, AUTO
+newDataSize                     LONG, AUTO
+  CODE
+  IF SIZE(pStr) = 0
+    RETURN
+  END
+  
+  IF SELF.memBlock
+    newDataSize = SELF.dataSize + SIZE(pStr)
+    IF newDataSize > SELF.blockSize
+      newMemBlock = _realloc(SELF.memBlock, newDataSize+SELF.extraSize)
+      IF newMemBlock
+        SELF.memBlock = newMemBlock
+        SELF.blockSize = newDataSize+SELF.extraSize
+      ELSE
+        !- _realloc failed
+        json::DebugInfo('[TStringBuilder.Cat] _realloc failed.')
+        RETURN
+      END
+    END
+    _memcpy(SELF.memBlock + SELF.dataSize, ADDRESS(pStr), SIZE(pStr))
+    SELF.dataSize = newDataSize
+  ELSE
+    !- not allocated yet
+    json::DebugInfo('[TStringBuilder.Cat] buffer not allocated yet.')
+  END
+  
+TStringBuilder.StrLen         PROCEDURE()
+  CODE
+  RETURN SELF.dataSize
+!!!endregion

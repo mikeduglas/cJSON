@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.26
-!** 23.11.2022
+!** cJSON for Clarion v1.27
+!** 29.11.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -11,7 +11,7 @@
   INCLUDE('cjson.inc'), ONCE
 
 TPrintBuffer                  GROUP, TYPE
-printed                         &DynStr
+printed                         &TStringBuilder
 depth                           LONG  !current nesting depth (for formatted printing)
 format                          BOOL  !is this print a formatted print
 codePage                        LONG  !original code page to convert to utf 8; -1 - don't convert
@@ -28,21 +28,35 @@ codePage                        LONG  !code page to convert from utf 8; -1 - don
 
 !ToGroup/ToQueue/ToFILE modifiers
 TFieldRule                    GROUP, TYPE
-Name                            STRING(64)  !field name w/o prefix, or '*' for any field
-JsonName                        STRING(64)  !json name
-Format                          STRING(32)  !call fld = FORMAT(value, picture)
-Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture)
-Ignore                          BOOL        !do not process the field
-Instance                        LONG        !INSTANCE(queue)
-IsQueue                         BOOL        !field is a queue: create a json array
-ArraySize                       LONG        !DIM(1) issue fix
+Name                            STRING(64)  !field name w/o prefix, or '*' for any field.
+JsonName                        STRING(64)  !json name.
+Format                          STRING(32)  !call fld = FORMAT(value, picture).
+Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture).
+Ignore                          BOOL        !do not process the field.
+Instance                        LONG        !INSTANCE(queue).
+IsQueue                         BOOL        !field is a queue: create a json array.
+ArraySize                       LONG        !DIM(1) issue fix.
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
-IsStringRef                     BOOL        !field is &STRING
-IsBool                          BOOL        !field is BOOLEAN
-IsRaw                           BOOL        !field is raw json string
+IgnoreFalse                     BOOL        !do not create bool object with 'false' value.
+IgnoreZero                      BOOL        !do not create numeric object with 0 value.
+IsStringRef                     BOOL        !field is &STRING.
+IsBool                          BOOL        !field is BOOLEAN.
+IsRaw                           BOOL        !field is raw json string.
                               END
 TFieldRules                   QUEUE(TFieldRule), TYPE
                               END
+
+!jPath
+typJsonItem                   GROUP, TYPE
+item                            &cJSON
+                              END
+typJsonItems                  QUEUE(typJsonItem), TYPE.
+
+typJPathConditions            GROUP, TYPE
+itemName                        STRING(256)
+filterExpr                      STRING(256)
+                              END
+
 
   MAP
     MODULE('win api')
@@ -108,6 +122,11 @@ TFieldRules                   QUEUE(TFieldRule), TYPE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
+
+    GetMin(LONG p1, LONG p2), LONG, PRIVATE
+    GetMax(LONG p1, LONG p2), LONG, PRIVATE
+
+    jpath::SplitJPath(STRING pJPath, *typJPathConditions pConditions), PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
@@ -1687,13 +1706,17 @@ arrSize                         LONG, AUTO
             nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, options)
             item.AddItemToObject(jsonName, nestedItem)
           ELSIF fldRules.IsBool
-            item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
+            IF NOT (fldRules.IgnoreFalse AND fldValue = 0)
+              item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
+            END
           ELSIF fldRules.IsRaw
             item.AddRawToObject(jsonName, fldValue)   !- raw json
           ELSIF ISSTRING(fldValue)
             DO CreateString
           ELSIF NUMERIC(fldValue)
-            item.AddNumberToObject(jsonName, fldValue)
+            IF NOT (fldRules.IgnoreZero AND fldValue = 0)
+              item.AddNumberToObject(jsonName, fldValue)
+            END
           ELSE
             !neither STRING nor NUMERIC: process as a STRING
             DO CreateString
@@ -1972,9 +1995,48 @@ fldValue    ANY
     !- apply field rule, if exists
     pFile{PROP:Value, -cIndex} = ApplyFieldRules(fldValue, fldRules)
   END
-  
 !!!endregion
   
+!!!region JPath
+GetMin                        PROCEDURE(LONG p1, LONG p2)
+  CODE
+  RETURN CHOOSE(p1 <= p2, p1, p2)
+
+GetMax                        PROCEDURE(LONG p1, LONG p2)
+  CODE
+  RETURN CHOOSE(p1 >= p2, p1, p2)
+
+jpath::SplitJPath             PROCEDURE(STRING pJPath, *typJPathConditions pConditions)
+pathLen                         LONG, AUTO
+squareBracketPos1               LONG, AUTO    !- '['
+squareBracketPos2               LONG, AUTO    !- ']'
+nameEndPos                      LONG, AUTO
+  CODE
+  !- valid jpaths:
+  !- * (any name)
+  !- itemName (exact name)
+  !- itemName[2] (array element)
+  
+  CLEAR(pConditions)
+  pathLen = LEN(CLIP(pJPath))
+  IF pathLen=0
+    RETURN
+  END
+  
+  squareBracketPos1 = INSTRING('[', pJPath, 1, 1)
+  squareBracketPos2 = INSTRING(']', pJPath, -1, pathLen)
+  
+  nameEndPos = pathLen+1
+  IF squareBracketPos1
+    nameEndPos = GetMin(nameEndPos, squareBracketPos1)
+  END
+  pConditions.itemName = LEFT(pJPath[1 : nameEndPos-1])
+  
+  IF squareBracketPos1 AND squareBracketPos1 < squareBracketPos2
+    pConditions.filterExpr = LEFT(pJPath[squareBracketPos1+1 : squareBracketPos2-1])
+  END
+
+!!!endregion
 !!!region cJSON
 cJSON.Construct               PROCEDURE()
   CODE
@@ -2042,19 +2104,22 @@ cJSON.SetNumberValue          PROCEDURE(REAL pNewValue)
   END
 
 cJSON.ToString                PROCEDURE(BOOL pFormat = FALSE)
-buffer                          LIKE(TPrintBuffer)
-printed                         DynStr
   CODE
-  buffer.printed &= printed
-  buffer.format = pFormat
-  buffer.codepage = -1
-  print_value(SELF, buffer)
-  RETURN buffer.printed.Str()
-
+  RETURN SELF.ToUtf8(pFormat, -1) !- ascii output
+  
 cJSON.ToUtf8                  PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage=CP_ACP)
 buffer                          LIKE(TPrintBuffer)
-printed                         DynStr
+printed                         TStringBuilder
+minPrintedSize                  LONG, AUTO
   CODE
+  !- allocate enough buffer size to avoid realloc calls in TStringBuilder.Cat().
+  minPrintedSize = SELF.GetMinimalOutputSize()
+  IF NOT pFormat
+    printed.Init(minPrintedSize * 5 / 4)
+  ELSE
+    printed.Init(minPrintedSize * 3 / 2)
+  END
+  
   buffer.printed &= printed
   buffer.format = pFormat
   buffer.codepage = pCodepage
@@ -2755,6 +2820,43 @@ cJSON.GetStringSize           PROCEDURE()
   ELSE
     RETURN 0
   END
+  
+cJSON.GetMinimalOutputSize    PROCEDURE()
+child                           &cJSON
+dataSize                        LONG(0)
+  CODE
+  IF NOT SELF.name &= NULL
+    dataSize += SIZE(SELF.name) + 3 !- "name":
+  END
+  
+  CASE BAND(SELF.type, 0FFh)
+  OF cJSON_False
+    dataSize += 5
+  OF cJSON_True
+    dataSize += 4
+  OF cJSON_NULL
+    dataSize += 4
+  OF cJSON_Number
+    dataSize += LEN(SELF.valuedouble)
+  OF cJSON_String
+    dataSize += SIZE(SELF.valuestring) + 2  !- "value"
+  OF cJSON_Array
+    dataSize += 2 !- []
+  OF cJSON_Object
+    dataSize += 2 !- {}
+  OF cJSON_Raw
+    dataSize += SIZE(SELF.valuestring)  !- "value"
+  END
+  
+  child &= SELF.child
+  LOOP WHILE (NOT child &= NULL)
+    dataSize += child.GetMinimalOutputSize()  !- minimal output size of a child.ToString()
+    dataSize += 1  !- a comma
+    child &= child.next
+  END
+  
+  RETURN dataSize
+
 !!!endregion
   
 !!!region cJSONFactory
@@ -2891,5 +2993,112 @@ cJSONFactory.GetError         PROCEDURE()
 cJSONFactory.GetErrorPosition PROCEDURE()
   CODE
   RETURN SELF.parseErrorPos
+!!!endregion
+  
+!!!region cJSONPath
+cJSONPath.Construct           PROCEDURE()
+  CODE
+  SELF.qItems &= NEW typJsonItems
+  
+cJSONPath.Destruct            PROCEDURE()
+  CODE
+  FREE(SELF.qItems)
+  DISPOSE(SELF.qItems)
+  
+cJSONPath.Find                PROCEDURE(*cJSON pRootObject, STRING pPath)
+nSepPos                         LONG, AUTO
+sPart1                          STRING(256)
+bTerminate                      BOOL(FALSE)
+cond                            LIKE(typJPathConditions)
+jArray                          &cJSON
+jItem                           &cJSON
+nArrayIndex                     LONG, AUTO
+i                               LONG, AUTO
+  CODE
+  IF pRootObject &= NULL
+    RETURN RECORDS(SELF.qItems)
+  END
+  
+  !- get first path part
+  nSepPos = INSTRING('/', pPath, 1, 1)
+  IF nSepPos=0
+    !- no part separator, use entire path.
+    nSepPos = LEN(CLIP(pPath))+1
+    !- terminate Find on this step.
+    bTerminate = TRUE
+  END
+  sPart1 = SUB(pPath, 1, nSepPos-1)
+  IF sPart1
+    jpath::SplitJPath(sPart1, cond)
+    
+    IF cond.filterExpr
+      jArray &= pRootObject.GetObjectItem(cond.itemName)
+      IF NOT jArray &= NULL
 
+        IF NUMERIC(cond.filterExpr)
+          !- cond.filterExpr is an array index.
+          nArrayIndex = cond.filterExpr
+          !- get n-th child
+          jItem &= jArray.GetArrayItem(nArrayIndex)
+          SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
+          
+        ELSIF cond.filterExpr = '*'
+          !- all array elements.
+          LOOP nArrayIndex=1 TO jArray.GetArraySize()
+            jItem &= jArray.GetArrayItem(nArrayIndex)
+            SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
+          END
+          
+        ELSE
+          json::DebugInfo('Invalid expression: '& CLIP(cond.filterExpr))
+        END
+
+      END
+    ELSE
+      !- iterate all own items.
+      jArray &= pRootObject
+      LOOP i=1 TO jArray.GetArraySize()
+        jItem &= jArray.GetArrayItem(i)
+        IF NOT jItem &= NULL
+          IF cond.itemName = '*'
+            !- any item
+            SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
+          ELSE
+            IF jItem.GetName() = cond.itemName
+              SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
+            END
+          END
+        END
+      END
+    END
+  END
+  
+  RETURN RECORDS(SELF.qItems)
+  
+cJSONPath.FindFirst           PROCEDURE(*cJSON pRootObject, STRING pPath)
+  CODE
+  IF pRootObject &= NULL
+    RETURN RECORDS(SELF.qItems)
+  END
+  
+  RETURN RECORDS(SELF.qItems)
+    
+cJSONPath.ProcessFoundItem    PROCEDURE(*cJSON pItem, BOOL pTerminate, STRING pPath)
+  CODE
+  IF NOT pItem &= NULL
+    IF pTerminate
+      SELF.qItems.item &= pItem
+      ADD(SELF.qItems)
+    ELSE
+      SELF.Find(pItem, pPath)
+    END
+  END
+
+cJSONPath.GetItemByIndex      PROCEDURE(LONG pIndex)
+  CODE
+  GET(SELF.qItems, pIndex)
+  IF NOT ERRORCODE()
+    RETURN SELF.qItems.item
+  END
+  RETURN NULL
 !!!endregion
