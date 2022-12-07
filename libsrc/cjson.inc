@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.27
-!** 29.11.2022
+!** cJSON for Clarion v1.28
+!** 07.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -492,16 +492,4 @@ GetError                        PROCEDURE(), STRING
 !!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it. </summary>
 !!!<returns>a character position in json string where parse error happened.</returns>
 GetErrorPosition                PROCEDURE(), LONG
-                              END
-
-
-cJSONPath                     CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
-qItems                          &typJsonItems, PRIVATE
-
-Construct                       PROCEDURE()
-Destruct                        PROCEDURE(), VIRTUAL
-Find                            PROCEDURE(*cJSON pRootObject, STRING pPath), LONG, PROC
-FindFirst                       PROCEDURE(*cJSON pRootObject, STRING pPath), *cJSON
-ProcessFoundItem                PROCEDURE(*cJSON pItem, BOOL pTerminate, STRING pPath), PRIVATE
-GetItemByIndex                  PROCEDURE(LONG pIndex), *cJSON
                               END

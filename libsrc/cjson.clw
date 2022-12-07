@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.27
-!** 29.11.2022
+!** cJSON for Clarion v1.28
+!** 07.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -118,15 +118,10 @@ filterExpr                      STRING(256)
     ParseFieldRules(STRING json, *TFieldRules rules), PRIVATE
     FindFieldRule(STRING fldName, *TFieldRules rules), PRIVATE
     ApplyFieldRules(? value, TFieldRule rule), ?, PRIVATE
-    FieldCount(*GROUP pGrp), LONG, PRIVATE          !- returns a number of fields in the group
+    IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
-
-    GetMin(LONG p1, LONG p2), LONG, PRIVATE
-    GetMax(LONG p1, LONG p2), LONG, PRIVATE
-
-    jpath::SplitJPath(STRING pJPath, *typJPathConditions pConditions), PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
@@ -170,7 +165,7 @@ object                          &cJSON
 
       object.Delete()
     ELSE
-      json::DebugInfo('Syntax error near "'& factory.GetError() &'" at position '& factory.GetErrorPosition())
+      json::DebugInfo('[ParseFieldRules] Syntax error near "'& factory.GetError() &'" at position '& factory.GetErrorPosition())
     END
   END
   
@@ -226,29 +221,23 @@ sRefValue                       &STRING, AUTO
     RETURN fldValue
   END
   
-FieldCount                    PROCEDURE(*GROUP pGrp)
-fldNdx                          LONG, AUTO
+IsFieldInGroup                PROCEDURE(*GROUP grp, STRING pFieldName)
+ndx                             LONG, AUTO
 fldRef                          ANY
-nestedGrp                       &GROUP
-nFields                         LONG(0)
   CODE
-  LOOP fldNdx = 1 TO 9999
-    fldRef &= WHAT(pGrp, fldNdx)
+  LOOP ndx = 1 TO 99999
+    fldRef &= WHAT(grp, ndx)
     IF fldRef &= NULL
       !end of group
       BREAK
     END
-  
-    IF ISGROUP(pGrp, fldNdx)
-      !- recursively get number of fields from nested group
-      nestedGrp &= GETGROUP(pGrp, fldNdx)
-      nFields += FieldCount(nestedGrp)
-    ELSE
-      nFields += HOWMANY(pGrp, fldNdx)
+    
+    IF WHO(grp, ndx) = pFieldName
+      RETURN TRUE
     END
   END
-
-  RETURN nFields
+  
+  RETURN FALSE
 
 json::DebugInfo               PROCEDURE(STRING pMsg)
 cs                              CSTRING(LEN('cJSON') + LEN(pMsg) + 3 + 1)
@@ -1666,6 +1655,14 @@ arrSize                         LONG, AUTO
       !skip fields with blank names
       CYCLE
     END
+    
+    IF NOT nestedGrpRef &= NULL AND IsFieldInGroup(nestedGrpRef, fldName)
+      !- this field has already been processed in nested group
+      CYCLE
+    ELSE
+      !- this field in not in nested group - process it
+      nestedGrpRef &= NULL
+    END
 
     RemoveFieldPrefix(fldName)
     
@@ -1699,7 +1696,6 @@ arrSize                         LONG, AUTO
             nestedGrpRef &= GETGROUP(grp, ndx)
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
             item.AddItemToObject(jsonName, nestedItem)
-            ndx += FieldCount(nestedGrpRef)  !- skip fields from nested groups
           ELSIF fldRules.Instance
             !- fldRules.Instance is an address of a queue, so create json array
             nestedQueRef &= (fldRules.Instance)
@@ -1732,14 +1728,13 @@ arrSize                         LONG, AUTO
           !string array
           DO CreateStringArray
         
-        !ELSIF NUMERIC(fldRef)  - this line throws runtime error
+          !ELSIF NUMERIC(fldRef)  - this line throws runtime error
         ELSE  !assume this is numeric array
           DO CreateNumericArray
         END
       END
     END
   END
-  
   RETURN item
 
 CreateString                  ROUTINE
@@ -1798,8 +1793,9 @@ elemNdx     LONG, AUTO
     grpArray.AddItemToObject(jsonName, grpItem)
   END
   item.AddItemToObject(jsonName, grpArray)
-  ndx += FieldCount(grp)
-  
+  !- don't process anymore the fields from this group array
+  nestedGrpRef &= grpRef
+
 CreateQueueArray              ROUTINE
   DATA
 fla       ANY
@@ -1996,47 +1992,7 @@ fldValue    ANY
     pFile{PROP:Value, -cIndex} = ApplyFieldRules(fldValue, fldRules)
   END
 !!!endregion
-  
-!!!region JPath
-GetMin                        PROCEDURE(LONG p1, LONG p2)
-  CODE
-  RETURN CHOOSE(p1 <= p2, p1, p2)
 
-GetMax                        PROCEDURE(LONG p1, LONG p2)
-  CODE
-  RETURN CHOOSE(p1 >= p2, p1, p2)
-
-jpath::SplitJPath             PROCEDURE(STRING pJPath, *typJPathConditions pConditions)
-pathLen                         LONG, AUTO
-squareBracketPos1               LONG, AUTO    !- '['
-squareBracketPos2               LONG, AUTO    !- ']'
-nameEndPos                      LONG, AUTO
-  CODE
-  !- valid jpaths:
-  !- * (any name)
-  !- itemName (exact name)
-  !- itemName[2] (array element)
-  
-  CLEAR(pConditions)
-  pathLen = LEN(CLIP(pJPath))
-  IF pathLen=0
-    RETURN
-  END
-  
-  squareBracketPos1 = INSTRING('[', pJPath, 1, 1)
-  squareBracketPos2 = INSTRING(']', pJPath, -1, pathLen)
-  
-  nameEndPos = pathLen+1
-  IF squareBracketPos1
-    nameEndPos = GetMin(nameEndPos, squareBracketPos1)
-  END
-  pConditions.itemName = LEFT(pJPath[1 : nameEndPos-1])
-  
-  IF squareBracketPos1 AND squareBracketPos1 < squareBracketPos2
-    pConditions.filterExpr = LEFT(pJPath[squareBracketPos1+1 : squareBracketPos2-1])
-  END
-
-!!!endregion
 !!!region cJSON
 cJSON.Construct               PROCEDURE()
   CODE
@@ -2993,112 +2949,4 @@ cJSONFactory.GetError         PROCEDURE()
 cJSONFactory.GetErrorPosition PROCEDURE()
   CODE
   RETURN SELF.parseErrorPos
-!!!endregion
-  
-!!!region cJSONPath
-cJSONPath.Construct           PROCEDURE()
-  CODE
-  SELF.qItems &= NEW typJsonItems
-  
-cJSONPath.Destruct            PROCEDURE()
-  CODE
-  FREE(SELF.qItems)
-  DISPOSE(SELF.qItems)
-  
-cJSONPath.Find                PROCEDURE(*cJSON pRootObject, STRING pPath)
-nSepPos                         LONG, AUTO
-sPart1                          STRING(256)
-bTerminate                      BOOL(FALSE)
-cond                            LIKE(typJPathConditions)
-jArray                          &cJSON
-jItem                           &cJSON
-nArrayIndex                     LONG, AUTO
-i                               LONG, AUTO
-  CODE
-  IF pRootObject &= NULL
-    RETURN RECORDS(SELF.qItems)
-  END
-  
-  !- get first path part
-  nSepPos = INSTRING('/', pPath, 1, 1)
-  IF nSepPos=0
-    !- no part separator, use entire path.
-    nSepPos = LEN(CLIP(pPath))+1
-    !- terminate Find on this step.
-    bTerminate = TRUE
-  END
-  sPart1 = SUB(pPath, 1, nSepPos-1)
-  IF sPart1
-    jpath::SplitJPath(sPart1, cond)
-    
-    IF cond.filterExpr
-      jArray &= pRootObject.GetObjectItem(cond.itemName)
-      IF NOT jArray &= NULL
-
-        IF NUMERIC(cond.filterExpr)
-          !- cond.filterExpr is an array index.
-          nArrayIndex = cond.filterExpr
-          !- get n-th child
-          jItem &= jArray.GetArrayItem(nArrayIndex)
-          SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
-          
-        ELSIF cond.filterExpr = '*'
-          !- all array elements.
-          LOOP nArrayIndex=1 TO jArray.GetArraySize()
-            jItem &= jArray.GetArrayItem(nArrayIndex)
-            SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
-          END
-          
-        ELSE
-          json::DebugInfo('Invalid expression: '& CLIP(cond.filterExpr))
-        END
-
-      END
-    ELSE
-      !- iterate all own items.
-      jArray &= pRootObject
-      LOOP i=1 TO jArray.GetArraySize()
-        jItem &= jArray.GetArrayItem(i)
-        IF NOT jItem &= NULL
-          IF cond.itemName = '*'
-            !- any item
-            SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
-          ELSE
-            IF jItem.GetName() = cond.itemName
-              SELF.ProcessFoundItem(jItem, bTerminate, SUB(pPath, nSepPos+1, LEN(CLIP(pPath))))
-            END
-          END
-        END
-      END
-    END
-  END
-  
-  RETURN RECORDS(SELF.qItems)
-  
-cJSONPath.FindFirst           PROCEDURE(*cJSON pRootObject, STRING pPath)
-  CODE
-  IF pRootObject &= NULL
-    RETURN RECORDS(SELF.qItems)
-  END
-  
-  RETURN RECORDS(SELF.qItems)
-    
-cJSONPath.ProcessFoundItem    PROCEDURE(*cJSON pItem, BOOL pTerminate, STRING pPath)
-  CODE
-  IF NOT pItem &= NULL
-    IF pTerminate
-      SELF.qItems.item &= pItem
-      ADD(SELF.qItems)
-    ELSE
-      SELF.Find(pItem, pPath)
-    END
-  END
-
-cJSONPath.GetItemByIndex      PROCEDURE(LONG pIndex)
-  CODE
-  GET(SELF.qItems, pIndex)
-  IF NOT ERRORCODE()
-    RETURN SELF.qItems.item
-  END
-  RETURN NULL
 !!!endregion

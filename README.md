@@ -2,7 +2,8 @@
 [cJSON](https://github.com/DaveGamble/cJSON) is ultralightweight JSON parser in ANSI C. This repository contains cJSON port to Clarion.
 
 ## Requirements  
-C6.3 and newer.
+- C6.3 and newer.
+- JSONPath requires [printf](https://github.com/mikeduglas/printf).
 
 ## How to install
 Hit the 'Clone or Download' button and select 'Download Zip'.  
@@ -14,6 +15,15 @@ where %ClarionRoot% is the folder into which you installed Clarion.
 ## How to use
 The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/master/howto.md)
 
+## JSONPath
+JSONPath is a way for picking parts out of a JSON structure.  
+An example of selecting all books in a store cheapier than 10:
+```
+resCount = jRoot.FindPathContext('$["store"]["book"][?(@.price << 10)]', output)
+```
+You can find jpathtest example in examples folder.  
+JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/master/jsonpath.md).
+
 
 ## Contacts
 - <mikeduglas@yandex.ru>
@@ -23,6 +33,11 @@ The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/m
 Free
 
 ## Version history
+v1.28 (07.12.2022)
+- FIX: Nested GROUPs could be causing wrong json.
+- CHG: cJSONPath class removed from cjson.inc.
+- NEW: JSONPath support added as a separate stuff (cjsonpath.inc).
+
 v1.27 (29.11.2022)
 - NEW: field rules "IgnoreZero" and "IgnoreFalse".
 - CHG: significantly increased the speed of ToString/ToUtf8.
