@@ -12,4 +12,3 @@ Here is an overview of the JSONPath syntax elements:
 | [start:end]  | array slice operator.                                  |
 | ?()          | applies a filter (script) expression.                  |
 | ()           | cript expression, using the underlying script engine.  |
-|--------------|--------------------------------------------------------|
