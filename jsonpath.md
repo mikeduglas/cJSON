@@ -17,7 +17,7 @@ Here is an overview of the JSONPath syntax elements:
 ### Filter expressions
 - double quotes can be used in string constants instead of apostrophes.
 - any Clarion function can be used in filter expression.  
-- "@.<name>" refers to the "<name>" element of current node.
+- "@.some-item-name" refers to the "some-item-name" element of current node.
 
 Following example finds the books with the title containing "Sword" word:
 ```
