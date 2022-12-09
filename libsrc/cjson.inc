@@ -1,11 +1,12 @@
-!** cJSON for Clarion v1.28
-!** 07.12.2022
+!** cJSON for Clarion v1.29
+!** 09.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
 
   INCLUDE('svapi.inc'), ONCE
   INCLUDE('dynstrclass.inc'), ONCE
+  INCLUDE('dynstr.inc'), ONCE
 
   MAP
     MODULE('cjson')
@@ -442,12 +443,23 @@ Construct                       PROCEDURE()
 !!!<param name="json">json string</param>
 !!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
 Parse                           PROCEDURE(STRING json), *cJSON
+!!!<summary>Parse an object - create a new root, and populate.</summary>
+!!!<param name="json">json string</param>
+!!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
+Parse                           PROCEDURE(*STRING json), *cJSON
+Parse                           PROCEDURE(*IDynStr json), *cJSON
 
 !!!<summary>Parse an object - create a new root, and populate.</summary>
 !!!<param name="json">json string</param>
 !!!<param name="pCodePage">Code page</param>
 !!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
 Parse                           PROCEDURE(STRING json, LONG pCodePage), *cJSON
+!!!<summary>Parse an object - create a new root, and populate.</summary>
+!!!<param name="json">json string</param>
+!!!<param name="pCodePage">Code page</param>
+!!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
+Parse                           PROCEDURE(*STRING json, LONG pCodePage), *cJSON
+Parse                           PROCEDURE(*IDynStr json, LONG pCodePage), *cJSON
 
 !!!<summary>Parse an object - create a new root, and populate.</summary>
 !!!<param name="pFileName">json file</param>
@@ -467,6 +479,8 @@ ParseFile                       PROCEDURE(STRING pFileName, LONG pCodePage), *cJ
 !!!<param name="options">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToGroup                         PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToGroup                         PROCEDURE(*STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToGroup                         PROCEDURE(*IDynStr json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
 !!!<summary>Writes json into a queue.</summary>
 !!!<param name="json">json string</param>
@@ -475,6 +489,8 @@ ToGroup                         PROCEDURE(STRING json, *GROUP grp, BOOL matchByF
 !!!<param name="options">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToQueue                         PROCEDURE(*STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToQueue                         PROCEDURE(*IDynStr json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
 !!!<summary>Writes json into a FILE.</summary>
 !!!<param name="json">json string</param>
@@ -484,6 +500,8 @@ ToQueue                         PROCEDURE(STRING json, *QUEUE que, BOOL matchByF
 !!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
 !!!<returns>true on success, false otherwise</returns>
 ToFile                          PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
+ToFile                          PROCEDURE(*STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
+ToFile                          PROCEDURE(*IDynStr json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it. </summary>
 !!!<returns>a part of json string where parse error happened.</returns>

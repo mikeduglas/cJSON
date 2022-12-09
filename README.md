@@ -33,6 +33,10 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.29 (09.12.2022)
+- NEW: FormatLeft field rule: same as "Format", except it produces left justified string.
+- NEW: Overloaded cJSONFactory methods that accept *STRING and *IDynStr as input json.
+
 v1.28 (07.12.2022)
 - FIX: Nested GROUPs could be causing wrong json.
 - CHG: cJSONPath class removed from cjson.inc.

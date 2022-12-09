@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.28
-!** 07.12.2022
+!** cJSON for Clarion v1.29
+!** 09.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -31,6 +31,7 @@ TFieldRule                    GROUP, TYPE
 Name                            STRING(64)  !field name w/o prefix, or '*' for any field.
 JsonName                        STRING(64)  !json name.
 Format                          STRING(32)  !call fld = FORMAT(value, picture).
+FormatLeft                      STRING(32)  !call fld = LEFT(FORMAT(value, picture)). FORMAT pads spaces on the left for numeric pictures.
 Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture).
 Ignore                          BOOL        !do not process the field.
 Instance                        LONG        !INSTANCE(queue).
@@ -215,6 +216,8 @@ sRefValue                       &STRING, AUTO
   
   IF rule.Format
     RETURN FORMAT(fldValue, rule.Format)
+  ELSIF rule.FormatLeft
+    RETURN LEFT(FORMAT(fldValue, rule.FormatLeft))
   ELSIF rule.Deformat
     RETURN DEFORMAT(fldValue, rule.Deformat)
   ELSE
@@ -2820,7 +2823,17 @@ cJSONFactory.Construct        PROCEDURE()
   CODE
   SELF.codePage = -1  !- disable utf8->ascii conversion
   
-cJSONFactory.Parse            PROCEDURE(STRING value)
+cJSONFactory.Parse            PROCEDURE(STRING json)
+  CODE
+  RETURN SELF.Parse(json)
+    
+cJSONFactory.Parse            PROCEDURE(*IDynStr json)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (json.CStrRef()) &':'& json.StrLen()
+  RETURN SELF.Parse(sRef)
+
+cJSONFactory.Parse            PROCEDURE(*STRING json)
 item                            &cJSON
 buffer                          LIKE(TParseBuffer)
 minival                         &STRING
@@ -2828,14 +2841,14 @@ minival                         &STRING
   CLEAR(SELF.parseErrorString)
   CLEAR(SELF.parseErrorPos)
   
-  IF NOT value
+  IF NOT json
     RETURN NULL
   END
     
   item &= NEW cJSON
 
-  buffer.content &= value
-  buffer.len = LEN(CLIP(value))
+  buffer.content &= json
+  buffer.len = LEN(CLIP(json))
   buffer.pos = 1
   buffer.depth = 0
   buffer.codePage = SELF.codePage
@@ -2852,7 +2865,7 @@ minival                         &STRING
       SELF.parseErrorPos = buffer.len
     END
     
-    SELF.parseErrorString = SUB(value, SELF.parseErrorPos, LEN(SELF.parseErrorString))
+    SELF.parseErrorString = SUB(json, SELF.parseErrorPos, LEN(SELF.parseErrorString))
   ELSE
     !- success
     
@@ -2860,8 +2873,8 @@ minival                         &STRING
     !- check single json item
     IF item.IsNull() OR item.IsFalse() OR item.IsTrue() OR item.IsNumber()
       !- remove whitespaces and comments
-      minival &= NEW STRING(LEN(CLIP(value)))
-      minival = value
+      minival &= NEW STRING(LEN(CLIP(json)))
+      minival = json
       json::Minify(minival)
       
       !- check for atomic value (null|false|true|number)
@@ -2877,7 +2890,7 @@ minival                         &STRING
         item &= NULL
   
         SELF.parseErrorPos = 1
-        SELF.parseErrorString = SUB(value, SELF.parseErrorPos, LEN(SELF.parseErrorString))
+        SELF.parseErrorString = SUB(json, SELF.parseErrorPos, LEN(SELF.parseErrorString))
 
       END
       
@@ -2887,10 +2900,20 @@ minival                         &STRING
   
   RETURN item
     
-cJSONFactory.Parse            PROCEDURE(STRING value, LONG pCodePage)
+cJSONFactory.Parse            PROCEDURE(STRING json, LONG pCodePage)
+  CODE
+  RETURN SELF.Parse(json, pCodePage)
+      
+cJSONFactory.Parse            PROCEDURE(*IDynStr json, LONG pCodePage)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (json.CStrRef()) &':'& json.StrLen()
+  RETURN SELF.Parse(sRef, pCodePage)
+
+cJSONFactory.Parse            PROCEDURE(*STRING json, LONG pCodePage)
   CODE
   SELF.codePage = pCodePage
-  RETURN SELF.Parse(value)
+  RETURN SELF.Parse(json)
 
 cJSONFactory.ParseFile        PROCEDURE(STRING pFileName)
 jsData                          &STRING
@@ -2907,6 +2930,16 @@ cJSONFactory.ParseFile        PROCEDURE(STRING pFileName, LONG pCodePage)
   RETURN SELF.ParseFile(pFileName)
 
 cJSONFactory.ToGroup          PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
+  CODE
+  RETURN SELF.ToGroup(json, grp, matchByFieldNumber, options)
+  
+cJSONFactory.ToGroup          PROCEDURE(*IDynStr json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (json.CStrRef()) &':'& json.StrLen()
+  RETURN SELF.ToGroup(sRef, grp, matchByFieldNumber, options)
+
+cJSONFactory.ToGroup          PROCEDURE(*STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
 object                          &cJSON
 ret                             BOOL(FALSE)
   CODE
@@ -2919,6 +2952,16 @@ ret                             BOOL(FALSE)
   RETURN ret
   
 cJSONFactory.ToQueue          PROCEDURE(STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
+  CODE
+  RETURN SELF.ToQueue(json, que, matchByFieldNumber, options)
+      
+cJSONFactory.ToQueue          PROCEDURE(*IDynStr json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (json.CStrRef()) &':'& json.StrLen()
+  RETURN SELF.ToQueue(sRef, que, matchByFieldNumber, options)
+
+cJSONFactory.ToQueue          PROCEDURE(*STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
 object                          &cJSON
 ret                             BOOL(FALSE)
   CODE
@@ -2931,6 +2974,16 @@ ret                             BOOL(FALSE)
   RETURN ret
   
 cJSONFactory.ToFile           PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(json, pFile, matchByFieldNumber, options, pWithBlobs)
+  
+cJSONFactory.ToFile           PROCEDURE(*IDynStr json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (json.CStrRef()) &':'& json.StrLen()
+  RETURN SELF.ToFile(sRef, pFile, matchByFieldNumber, options, pWithBlobs)
+
+cJSONFactory.ToFile           PROCEDURE(*STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
 object                          &cJSON
 ret                             BOOL(FALSE)
   CODE
