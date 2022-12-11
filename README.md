@@ -33,8 +33,18 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.30 (11.12.2022)
+- NEW: Field rule inheritance: field rules inherit the default rule.
+- NEW: TCJsonRuleHelper class allows to customize field rules.
+- NEW: "RuleHelper" field rule: pass an address of TCJsonRuleHelper instance.
+- NEW: RuleHelperTest example.
+- NEW: "IgnoreEmptyObject" field rule: do not include empty objects ({}) into the resulting json.
+- NEW: "IgnoreEmptyArray" field rule: do not include empty arrays ([]) into the resulting json.
+- NEW: cJSON.HasItem method.
+- NEW: cJSON.Compare method (a wrapper for a static json::Compare).
+
 v1.29 (09.12.2022)
-- NEW: FormatLeft field rule: same as "Format", except it produces left justified string.
+- NEW: "FormatLeft" field rule: same as "Format", except it produces left justified string.
 - NEW: Overloaded cJSONFactory methods that accept *STRING and *IDynStr as input json.
 
 v1.28 (07.12.2022)

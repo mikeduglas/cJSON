@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.29
-!** 09.12.2022
+!** cJSON for Clarion v1.30
+!** 11.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -127,6 +127,42 @@ cJSON_StringIsNotConst        EQUATE(0111111111b)   !511
 !This is to prevent stack overflows.
 CJSON_NESTING_LIMIT           EQUATE(1000)  !not used for now
 
+
+!Field rule used in CreateObject/ToGroup/ToQueue/ToFILE modifiers.
+typCJsonFieldRule             GROUP, TYPE
+Name                            STRING(64)  !field name w/o prefix, or '*' for any field.
+RuleHelper                      LONG        !an address of the RuleHelper class instance.
+
+!- field specific options (not applicable for default rule (*)).
+JsonName                        STRING(64)  !json name.
+Instance                        LONG        !INSTANCE(queue).
+IsQueue                         BOOL        !field is a queue: create a json array.
+ArraySize                       LONG        !DIM(1) issue fix.
+
+!- field specific options, but can be applied for default rule (*).
+Format                          STRING(32)  !call fld = FORMAT(value, picture).
+FormatLeft                      STRING(32)  !call fld = LEFT(FORMAT(value, picture)). FORMAT pads spaces on the left for numeric pictures.
+Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture).
+Ignore                          BOOL        !do not process the field.
+IsStringRef                     BOOL        !field is &STRING.
+IsBool                          BOOL        !field is BOOLEAN.
+IsRaw                           BOOL        !field is raw json string.
+
+!- these options are applicable for both field and default rules.
+EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
+IgnoreFalse                     BOOL        !do not create bool object with 'false' value.
+IgnoreZero                      BOOL        !do not create numeric object with 0 value.
+IgnoreEmptyArray                BOOL        !do not create empty arrays [].
+IgnoreEmptyObject               BOOL        !do not create empty objects {}.
+                              END
+
+
+TCJsonRuleHelper              CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
+!- Called when a rule for the field is found.
+FindCB                          PROCEDURE(STRING fldName, *typCJsonFieldRule rule), VIRTUAL
+                              END
+
+
 cJSON                         CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
 !next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem
 next                            &cJSON, PRIVATE
@@ -201,6 +237,12 @@ GetArrayItem                    PROCEDURE(LONG index), *cJSON
 !!!<param name="caseSensitive">comparison rule</param>
 !!!<returns>a child item of the onject.</returns>
 GetObjectItem                   PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), *cJSON
+
+!!!<summary>Get a child item existence.</summary>
+!!!<param name="itemName">an item name to check.</param>
+!!!<param name="caseSensitive">comparison rule.</param>
+!!!<returns>true if the object has an item with passed name.</returns>
+HasItem                         PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), BOOL
 
 !!!<summary>Read string item value.</summary>
 !!!<returns>>item value.</returns>
@@ -428,6 +470,11 @@ GetStringSize                   PROCEDURE(), LONG
 
 !!!<summary>Get a minimal size of a string produced by ToString method.</summary>
 GetMinimalOutputSize            PROCEDURE(), LONG
+
+!!!<summary>Recursively compare two items for equality. If either SELF or pItemToCompare is NULL or invalid, they will be considered unequal.</summary>
+!!!<param name="case_sensitive">determines if object keys are treated case sensitive (true) or case insensitive (false).</param>
+!!!<returns>true if items are equal.</returns>
+Compare                         PROCEDURE(*cJSON pItemToCompare, BOOL case_sensitive), BOOL
                               END
 
 

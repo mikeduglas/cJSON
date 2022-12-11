@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.29
-!** 09.12.2022
+!** cJSON for Clarion v1.30
+!** 11.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -10,14 +10,14 @@
 
   INCLUDE('cjson.inc'), ONCE
 
-TPrintBuffer                  GROUP, TYPE
+typPrintBuffer                GROUP, TYPE
 printed                         &TStringBuilder
 depth                           LONG  !current nesting depth (for formatted printing)
 format                          BOOL  !is this print a formatted print
 codePage                        LONG  !original code page to convert to utf 8; -1 - don't convert
                               END
 
-TParseBuffer                  GROUP, TYPE
+typParseBuffer                GROUP, TYPE
 content                         &STRING
 len                             LONG
 pos                             LONG  !1..len(clip(input))
@@ -25,26 +25,7 @@ depth                           LONG  !How deeply nested (in arrays/objects) is 
 codePage                        LONG  !code page to convert from utf 8; -1 - don't convert
                               END
 
-
-!ToGroup/ToQueue/ToFILE modifiers
-TFieldRule                    GROUP, TYPE
-Name                            STRING(64)  !field name w/o prefix, or '*' for any field.
-JsonName                        STRING(64)  !json name.
-Format                          STRING(32)  !call fld = FORMAT(value, picture).
-FormatLeft                      STRING(32)  !call fld = LEFT(FORMAT(value, picture)). FORMAT pads spaces on the left for numeric pictures.
-Deformat                        STRING(32)  !call fld = DEFORMAT(value, picture).
-Ignore                          BOOL        !do not process the field.
-Instance                        LONG        !INSTANCE(queue).
-IsQueue                         BOOL        !field is a queue: create a json array.
-ArraySize                       LONG        !DIM(1) issue fix.
-EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
-IgnoreFalse                     BOOL        !do not create bool object with 'false' value.
-IgnoreZero                      BOOL        !do not create numeric object with 0 value.
-IsStringRef                     BOOL        !field is &STRING.
-IsBool                          BOOL        !field is BOOLEAN.
-IsRaw                           BOOL        !field is raw json string.
-                              END
-TFieldRules                   QUEUE(TFieldRule), TYPE
+typCJsonFieldRules            QUEUE(typCJsonFieldRule), TYPE
                               END
 
 !jPath
@@ -90,39 +71,41 @@ filterExpr                      STRING(256)
     get_array_item(*cJSON array, LONG index), *cJSON, PRIVATE
     create_reference(*cJSON item), *cJSON, PRIVATE
 
-    print_value(*cJSON item, *TPrintBuffer buffer), BOOL, PROC, PRIVATE
-    print_number(*cJSON item, *TPrintBuffer buffer), BOOL, PRIVATE
-    print_string(*cJSON item, *TPrintBuffer buffer), BOOL, PRIVATE
-    print_string_ptr(*STRING input, *TPrintBuffer buffer), BOOL, PRIVATE
-    print_array(*cJSON item, *TPrintBuffer buffer), BOOL, PRIVATE
-    print_object(*cJSON item, *TPrintBuffer buffer), BOOL, PRIVATE
+    print_value(*cJSON item, *typPrintBuffer buffer), BOOL, PROC, PRIVATE
+    print_number(*cJSON item, *typPrintBuffer buffer), BOOL, PRIVATE
+    print_string(*cJSON item, *typPrintBuffer buffer), BOOL, PRIVATE
+    print_string_ptr(*STRING input, *typPrintBuffer buffer), BOOL, PRIVATE
+    print_array(*cJSON item, *typPrintBuffer buffer), BOOL, PRIVATE
+    print_object(*cJSON item, *typPrintBuffer buffer), BOOL, PRIVATE
 
-    parse_value(*cJSON item, *TParseBuffer buffer), BOOL, PRIVATE
-    parse_number(*cJSON item, *TParseBuffer buffer), BOOL, PRIVATE
-    parse_string(*cJSON item, *TParseBuffer buffer), BOOL, PRIVATE
-    parse_array(*cJSON item, *TParseBuffer buffer), BOOL, PRIVATE
-    parse_object(*cJSON item, *TParseBuffer buffer), BOOL, PRIVATE
+    parse_value(*cJSON item, *typParseBuffer buffer), BOOL, PRIVATE
+    parse_number(*cJSON item, *typParseBuffer buffer), BOOL, PRIVATE
+    parse_string(*cJSON item, *typParseBuffer buffer), BOOL, PRIVATE
+    parse_array(*cJSON item, *typParseBuffer buffer), BOOL, PRIVATE
+    parse_object(*cJSON item, *typParseBuffer buffer), BOOL, PRIVATE
 
     !parse 4 digit hexadecimal number
-    parse_hex4(TParseBuffer buffer, LONG pos), UNSIGNED, PRIVATE
+    parse_hex4(typParseBuffer buffer, LONG pos), UNSIGNED, PRIVATE
     !converts a UTF-16 literal to UTF-8. A literal can be one or two sequences of the form \uXXXX
-    utf16_literal_to_utf8(*TParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output), BYTE, PRIVATE
+    utf16_literal_to_utf8(*typParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output), BYTE, PRIVATE
     !skip the UTF-8 BOM (byte order mark) if it is at the beginning of a buffer
-    skip_utf8_bom(*TParseBuffer buffer), PRIVATE
+    skip_utf8_bom(*typParseBuffer buffer), PRIVATE
     !Utility to jump whitespace and cr/lf
-    buffer_skip_whitespace(*TParseBuffer buffer), PRIVATE
+    buffer_skip_whitespace(*typParseBuffer buffer), PRIVATE
   
     json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
 
     RemoveFieldPrefix(*STRING fldName), PRIVATE
 
-    ParseFieldRules(STRING json, *TFieldRules rules), PRIVATE
-    FindFieldRule(STRING fldName, *TFieldRules rules), PRIVATE
-    ApplyFieldRules(? value, TFieldRule rule), ?, PRIVATE
+    ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE
+    FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE
+    ApplyFieldRules(? value, typCJsonFieldRule rule), ?, PRIVATE
     IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
+
+    AddItemReferenceToObject(cJSON pDst, cJSON pSrc, STRING pItemName), PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
@@ -139,6 +122,13 @@ _CRLF_                        EQUATE('<0Dh,0Ah>') !\r\n
 !- json::LoadFile/json::SaveFile
 OS_INVALID_HANDLE_VALUE       EQUATE(-1)
   
+
+!!!region TCJsonRuleHelper
+TCJsonRuleHelper.FindCB       PROCEDURE(STRING fldName, *typCJsonFieldRule rule)
+  CODE
+  !- stub
+!!!endregion
+
 !!!region public functions
 RemoveFieldPrefix             PROCEDURE(*STRING fldName)
 first_colon_pos                 LONG, AUTO
@@ -148,36 +138,116 @@ first_colon_pos                 LONG, AUTO
     fldName = fldName[first_colon_pos + 1 : LEN(fldName)]
   END
 
-ParseFieldRules               PROCEDURE(STRING json, *TFieldRules rules)
+ParseFieldRules               PROCEDURE(STRING options, *typCJsonFieldRules rules)
 factory                         cJSONFactory
-object                          &cJSON
+jOptions                        &cJSON
+jOption                         &cJSON
+jArray                          &cJSON
+jDefaultOption                  &cJSON
+defaultRule                     LIKE(typCJsonFieldRule), AUTO
+i                               LONG, AUTO
   CODE
-  !- field convertion rules
-  IF json
-    object &= factory.Parse(json)
-    IF NOT object &= NULL
-      IF object.IsArray()
-        object.ToQueue(rules)
-      ELSIF object.IsObject()
-        IF object.ToGroup(rules)
-          ADD(rules)
+  FREE(rules)
+  IF options
+    jOptions &= factory.Parse(options)
+    IF NOT jOptions &= NULL
+      IF jOptions.IsArray()
+        !- Array []
+        jArray &= jOptions
+      ELSIF jOptions.IsObject()
+        !- Object {}, put it into an array
+        jArray &= json::CreateArray()
+        jArray.AddItemToArray(jOptions)
+      ELSE
+        !- Invalid json type
+        json::DebugInfo('[ParseFieldRules] Unable to parse options.')
+        jOptions.Delete()
+        RETURN
+      END
+      
+      !- find default rule (name='*')
+      LOOP i=1 TO jArray.GetArraySize()
+        jOption &= jArray.GetArrayItem(i)
+        IF jOption.GetValue('name') = '*'
+          jDefaultOption &= jOption
+          jDefaultOption.ToGroup(defaultRule)
+          BREAK
         END
       END
+      
+      !- default rule not found, so create it
+      IF jDefaultOption &= NULL
+        CLEAR(defaultRule)
+        defaultRule.name = '*'
+        jDefaultOption &= json::CreateObject(defaultRule)
+        jArray.AddItemToArray(jDefaultOption)
+      END
+      
+      !- copy default rules if field rules are missing
+      LOOP i=1 TO jArray.GetArraySize()
+        jOption &= jArray.GetArrayItem(i)
 
-      object.Delete()
+        IF NOT jOption &= jDefaultOption
+          !- these rules are inherited:
+          !EmptyString
+          !IgnoreFalse
+          !IgnoreZero
+          !IgnoreEmptyArray
+          !IgnoreEmptyObject
+          !Format
+          !FormatLeft
+          !Deformat
+          !Ignore
+          !IsStringRef
+          !IsBool
+          !IsRaw
+          jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyArray')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyObject')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'Format')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'FormatLeft')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'Deformat')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'Ignore')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IsStringRef')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IsBool')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
+        END
+      END
+              
+      !- load the rules into queue
+      jArray.ToQueue(rules)
+
+      jArray.Delete()
     ELSE
       json::DebugInfo('[ParseFieldRules] Syntax error near "'& factory.GetError() &'" at position '& factory.GetErrorPosition())
     END
   END
   
-FindFieldRule                 PROCEDURE(STRING fldName, *TFieldRules rules)
-qIndex                          LONG, AUTO
+FindFieldRule                 PROCEDURE(STRING fldName, *typCJsonFieldRules rules)
+i                               LONG, AUTO
+rh                              &TCJsonRuleHelper
   CODE
+  !- search for rule helper
+  rules.Name = '*'
+  GET(rules, 'Name')
+  IF NOT ERRORCODE()
+    IF rules.RuleHelper
+      !- callback
+      rh &= (rules.RuleHelper)
+    END
+  END
+
   !- search for field rule
-  LOOP qIndex = 1 TO RECORDS(rules)
-    GET(rules, qIndex)
+  LOOP i = 1 TO RECORDS(rules)
+    GET(rules, i)
     IF LOWER(rules.Name) = LOWER(fldName)
       !- found field rule
+      IF NOT rh &= NULL
+        !- callback
+        rh.FindCB(fldName, rules)
+      END
       RETURN
     END
   END
@@ -186,13 +256,17 @@ qIndex                          LONG, AUTO
   rules.Name = '*'
   GET(rules, 'Name')
   IF NOT ERRORCODE()
+    IF NOT rh &= NULL
+      !- callback
+      rh.FindCB(fldName, rules)
+    END
     RETURN
   END
   
   !- no rule found, use default behavior
   CLEAR(rules)
 
-ApplyFieldRules               PROCEDURE(? value, TFieldRule rule)
+ApplyFieldRules               PROCEDURE(? value, typCJsonFieldRule rule)
 fldValue                        ANY
 vGrp                            GROUP
 adr                               LONG
@@ -202,7 +276,7 @@ sValue                          STRING(8), OVER(vGrp)
 sRefValue                       &STRING, AUTO
 
   CODE
-  IF rule.IsStringRef
+  IF rule.IsStringRef=TRUE
     !- Passed value is &STRING.
     !- Assigning to sValue we get an address of underlying string and its length, 
     sValue = value
@@ -225,22 +299,29 @@ sRefValue                       &STRING, AUTO
   END
   
 IsFieldInGroup                PROCEDURE(*GROUP grp, STRING pFieldName)
-ndx                             LONG, AUTO
+i                               LONG, AUTO
 fldRef                          ANY
   CODE
-  LOOP ndx = 1 TO 99999
-    fldRef &= WHAT(grp, ndx)
+  LOOP i = 1 TO 99999
+    fldRef &= WHAT(grp, i)
     IF fldRef &= NULL
       !end of group
       BREAK
     END
     
-    IF WHO(grp, ndx) = pFieldName
+    IF WHO(grp, i) = pFieldName
       RETURN TRUE
     END
   END
   
   RETURN FALSE
+  
+AddItemReferenceToObject      PROCEDURE(cJSON pDst, cJSON pSrc, STRING pItemName)
+  CODE
+  IF pSrc.HasItem(pItemName) AND NOT pDst.HasItem(pItemName)
+    !- src has the item "pItemName", dst hasn't.
+    pDst.AddItemReferenceToObject(pItemName, pSrc.GetObjectItem(pItemName))
+  END
 
 json::DebugInfo               PROCEDURE(STRING pMsg)
 cs                              CSTRING(LEN('cJSON') + LEN(pMsg) + 3 + 1)
@@ -544,7 +625,7 @@ reference                       &cJSON
   
   RETURN reference
 
-print_value                   PROCEDURE(*cJSON item, *TPrintBuffer buffer)
+print_value                   PROCEDURE(*cJSON item, *typPrintBuffer buffer)
   CODE
   IF item &= NULL OR buffer.printed &= NULL
     RETURN FALSE
@@ -579,7 +660,7 @@ print_value                   PROCEDURE(*cJSON item, *TPrintBuffer buffer)
   RETURN FALSE
 
 !Render the number nicely from the given item into a string.
-print_number                  PROCEDURE(*cJSON item, *TPrintBuffer buffer)
+print_number                  PROCEDURE(*cJSON item, *typPrintBuffer buffer)
   CODE
   IF item &= NULL OR buffer.printed &= NULL
     RETURN FALSE
@@ -589,7 +670,7 @@ print_number                  PROCEDURE(*cJSON item, *TPrintBuffer buffer)
   RETURN TRUE
 
 !Render the cstring provided to an escaped version that can be printed.
-print_string_ptr              PROCEDURE(*STRING input, *TPrintBuffer buffer)
+print_string_ptr              PROCEDURE(*STRING input, *typPrintBuffer buffer)
 escape_characters               LONG, AUTO  !numbers of additional characters needed for escaping
 cIndex                          LONG, AUTO
 oIndex                          LONG, AUTO
@@ -683,11 +764,11 @@ output                          &STRING
   
   RETURN TRUE
 
-print_string                  PROCEDURE(*cJSON item, *TPrintBuffer buffer)
+print_string                  PROCEDURE(*cJSON item, *typPrintBuffer buffer)
   CODE
   RETURN print_string_ptr(item.valuestring, buffer)
   
-print_array                   PROCEDURE(*cJSON item, *TPrintBuffer buffer)
+print_array                   PROCEDURE(*cJSON item, *typPrintBuffer buffer)
 current_element                 &cJSON
   CODE
   IF item &= NULL OR buffer.printed &= NULL
@@ -721,7 +802,7 @@ current_element                 &cJSON
 
   RETURN TRUE
 
-print_object                  PROCEDURE(*cJSON item, *TPrintBuffer buffer)
+print_object                  PROCEDURE(*cJSON item, *typPrintBuffer buffer)
 current_item                    &cJSON
   CODE
   IF item &= NULL OR buffer.printed &= NULL
@@ -782,7 +863,7 @@ current_item                    &cJSON
   RETURN TRUE
 
 !Parser core - when encountering text, process appropriately.
-parse_value                   PROCEDURE(*cJSON item, *TParseBuffer buffer)
+parse_value                   PROCEDURE(*cJSON item, *typParseBuffer buffer)
 start_char                      STRING(1), AUTO
   CODE
   IF buffer.content &= NULL OR buffer.content = ''
@@ -832,7 +913,7 @@ start_char                      STRING(1), AUTO
   RETURN FALSE
 
 !Parse the input text to generate a number, and populate the result into item.
-parse_number                  PROCEDURE(*cJSON item, *TParseBuffer buffer)
+parse_number                  PROCEDURE(*cJSON item, *typParseBuffer buffer)
 number                          REAL(0)
 number_c_string                 STRING(64)
 decimal_point                   STRING(1), AUTO
@@ -889,7 +970,7 @@ digitPos                        LONG AUTO
   RETURN TRUE
 
 !Parse the input text into an unescaped cinput, and populate item.
-parse_string                  PROCEDURE(*cJSON item, *TParseBuffer buffer)
+parse_string                  PROCEDURE(*cJSON item, *typParseBuffer buffer)
 cur_char                        STRING(1)
 next_char                       STRING(1)
 skipped_bytes                   LONG(0)
@@ -990,7 +1071,7 @@ Fail                          ROUTINE
   RETURN FALSE
   
 !Build an array from input text.
-parse_array                   PROCEDURE(*cJSON item, *TParseBuffer buffer)
+parse_array                   PROCEDURE(*cJSON item, *typParseBuffer buffer)
 head                            &cJSON  !head of the linked list
 current_item                    &cJSON
 new_item                        &cJSON
@@ -1065,7 +1146,7 @@ Fail                          ROUTINE
   RETURN FALSE
   
 !Build an object from the text.
-parse_object                  PROCEDURE(*cJSON item, *TParseBuffer buffer)
+parse_object                  PROCEDURE(*cJSON item, *typParseBuffer buffer)
 head                            &cJSON  !head of the linked list
 current_item                    &cJSON
 new_item                        &cJSON
@@ -1155,7 +1236,7 @@ Fail                          ROUTINE
   END
   RETURN FALSE
 
-parse_hex4                    PROCEDURE(*TParseBuffer buffer, LONG pos)
+parse_hex4                    PROCEDURE(*typParseBuffer buffer, LONG pos)
 h                               UNSIGNED(0)
 i                               LONG, AUTO
 char                            STRING(1), AUTO
@@ -1182,7 +1263,7 @@ char                            STRING(1), AUTO
   
   RETURN h
   
-utf16_literal_to_utf8         PROCEDURE(*TParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output)
+utf16_literal_to_utf8         PROCEDURE(*typParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output)
 codepoint                       DECIMAL(10, 0)  !uint64
 first_sequence                  LONG, AUTO
 second_sequence                 LONG, AUTO
@@ -1286,7 +1367,7 @@ tempstr                         STRING(4)
   output.Cat(CLIP(tempstr))
   RETURN sequence_length
 
-skip_utf8_bom                 PROCEDURE(*TParseBuffer buffer)
+skip_utf8_bom                 PROCEDURE(*typParseBuffer buffer)
   CODE
   IF buffer.pos <> 1 OR buffer.len < 3
     RETURN
@@ -1296,7 +1377,7 @@ skip_utf8_bom                 PROCEDURE(*TParseBuffer buffer)
     buffer.pos += 3
   END
 
-buffer_skip_whitespace        PROCEDURE(*TParseBuffer buffer)
+buffer_skip_whitespace        PROCEDURE(*typParseBuffer buffer)
 i                               LONG, AUTO
   CODE
   LOOP i = buffer.pos TO buffer.len
@@ -1632,7 +1713,7 @@ fldRef                          ANY
 fldName                         STRING(256), AUTO
 fldDim                          LONG, AUTO
 item                            &cJSON
-fldRules                        QUEUE(TFieldRules)
+fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 fldValue                        ANY
 jsonName                        &STRING
@@ -1660,10 +1741,10 @@ arrSize                         LONG, AUTO
     END
     
     IF NOT nestedGrpRef &= NULL AND IsFieldInGroup(nestedGrpRef, fldName)
-      !- this field has already been processed in nested group
+      !- this field has already been processed in a nested group
       CYCLE
     ELSE
-      !- this field in not in nested group - process it
+      !- this field is not in a nested group - process it
       nestedGrpRef &= NULL
     END
 
@@ -1683,12 +1764,12 @@ arrSize                         LONG, AUTO
       jsonName &= fldName
     END
     
-    IF NOT fldRules.Ignore
+    IF fldRules.Ignore <> TRUE
       fldDim = HOWMANY(grp, ndx)
       IF fldDim = 1
         !not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
        
-        IF fldRules.IsQueue
+        IF fldRules.IsQueue = TRUE
           DO CreateQueueArray
         ELSE
           !- apply field rules
@@ -1698,22 +1779,37 @@ arrSize                         LONG, AUTO
             !- recursively add nested group as json object
             nestedGrpRef &= GETGROUP(grp, ndx)
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
+  
+            IF fldRules.IgnoreEmptyObject=TRUE AND nestedItem.GetArraySize() = 0
+              !- delete empty object
+              nestedItem.Delete()
+              nestedItem &= NULL
+            END
+
             item.AddItemToObject(jsonName, nestedItem)
           ELSIF fldRules.Instance
             !- fldRules.Instance is an address of a queue, so create json array
             nestedQueRef &= (fldRules.Instance)
             nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, options)
+              
+            IF fldRules.IgnoreEmptyArray=TRUE AND nestedItem.GetArraySize() = 0
+              !- don't add empty array
+              nestedItem.Delete()
+              nestedItem &= NULL
+            END
+
             item.AddItemToObject(jsonName, nestedItem)
-          ELSIF fldRules.IsBool
-            IF NOT (fldRules.IgnoreFalse AND fldValue = 0)
+
+          ELSIF fldRules.IsBool=TRUE
+            IF NOT (fldRules.IgnoreFalse=TRUE AND fldValue=0)
               item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
             END
-          ELSIF fldRules.IsRaw
+          ELSIF fldRules.IsRaw=TRUE
             item.AddRawToObject(jsonName, fldValue)   !- raw json
           ELSIF ISSTRING(fldValue)
             DO CreateString
           ELSIF NUMERIC(fldValue)
-            IF NOT (fldRules.IgnoreZero AND fldValue = 0)
+            IF NOT (fldRules.IgnoreZero=TRUE AND fldValue=0)
               item.AddNumberToObject(jsonName, fldValue)
             END
           ELSE
@@ -1738,6 +1834,7 @@ arrSize                         LONG, AUTO
       END
     END
   END
+  
   RETURN item
 
 CreateString                  ROUTINE
@@ -1784,10 +1881,10 @@ elemNdx LONG, AUTO
   
 CreateGroupArray              ROUTINE
   DATA
-grpRef      &GROUP
+grpRef  &GROUP
 grpArray    &cJSON
-grpItem     &cJSON
-elemNdx     LONG, AUTO
+grpItem &cJSON
+elemNdx LONG, AUTO
   CODE
   grpArray &= json::CreateArray()
   LOOP elemNdx = 1 TO arrSize
@@ -1795,20 +1892,28 @@ elemNdx     LONG, AUTO
     grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, options)
     grpArray.AddItemToObject(jsonName, grpItem)
   END
+  !- I dont't check IgnoreEmptyObject rule here because an empty array in this case is possible only with "GROUP,DIM(0)" declaraion.
   item.AddItemToObject(jsonName, grpArray)
   !- don't process anymore the fields from this group array
   nestedGrpRef &= grpRef
 
 CreateQueueArray              ROUTINE
   DATA
-fla       ANY
-queRef    &QUEUE
-queArray  &cJSON
+fla ANY
+queRef  &QUEUE
+queArray    &cJSON
   CODE
   ndx += 1  !- we assume that next field is INSTANCE of queue.
   fla &= WHAT(grp,ndx)
   queRef &= (fla)
   queArray &= json::CreateArray(queRef, pNamesInLowerCase, options)
+  
+  IF fldRules.IgnoreEmptyArray=TRUE AND queArray.GetArraySize() = 0
+    !- don't add empty array
+    queArray.Delete()
+    queArray &= NULL
+  END
+
   item.AddItemToObject(jsonName, queArray)
   
 json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
@@ -1822,7 +1927,7 @@ ndx                             LONG, AUTO
     grp &= que
     array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
   END
-  
+
   RETURN array
 
 json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE)
@@ -1872,7 +1977,7 @@ doCloseFile                     BOOL(FALSE)
   RETURN array
   
 json::BlobsToObject           PROCEDURE(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
-fldRules                        QUEUE(TFieldRules)
+fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 cIndex                          BYTE, AUTO
 fldName                         STRING(256), AUTO
@@ -1905,7 +2010,7 @@ jsonName                        &STRING
       jsonName &= fldName
     END
     
-    IF NOT fldRules.Ignore
+    IF fldRules.Ignore <> TRUE
       !- apply field rules
       fldValue = ApplyFieldRules(pFile{PROP:Value, -cIndex}, fldRules)
       pItem.AddStringToObject(jsonName, fldValue)
@@ -1915,7 +2020,7 @@ jsonName                        &STRING
 json::ObjectToBlobs           PROCEDURE(*cJSON pObject, *FILE pFile, <STRING options>)
 item                            &cJSON
 fldName                         STRING(256), AUTO
-fldRules                        QUEUE(TFieldRules)
+fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 cIndex                          BYTE, AUTO
 jsonName                        &STRING
@@ -1978,7 +2083,7 @@ AssignGroup                   ROUTINE
   DATA
 fldValue    ANY
   CODE
-  IF NOT fldRules.Ignore
+  IF fldRules.Ignore <> TRUE
     IF item.IsString()
       fldValue = item.valuestring
     ELSIF item.IsNumber()
@@ -2067,7 +2172,7 @@ cJSON.ToString                PROCEDURE(BOOL pFormat = FALSE)
   RETURN SELF.ToUtf8(pFormat, -1) !- ascii output
   
 cJSON.ToUtf8                  PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage=CP_ACP)
-buffer                          LIKE(TPrintBuffer)
+buffer                          LIKE(typPrintBuffer)
 printed                         TStringBuilder
 minPrintedSize                  LONG, AUTO
   CODE
@@ -2139,6 +2244,16 @@ cJSON.GetArrayItem            PROCEDURE(LONG index)
 cJSON.GetObjectItem           PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
   CODE
   RETURN get_object_item(SELF, itemName, caseSensitive)
+  
+cJSON.HasItem                 PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
+  CODE
+  IF SELF.IsObject()
+    RETURN CHOOSE(NOT SELF.GetObjectItem(itemName, caseSensitive) &= NULL)
+  ELSIF SELF.IsArray() AND NUMERIC(itemName)
+    RETURN CHOOSE(NOT SELF.GetArrayItem(itemName) &= NULL)
+  ELSE
+    RETURN FALSE
+  END
   
 cJSON.GetStringValue          PROCEDURE()
   CODE
@@ -2509,7 +2624,7 @@ item                            &cJSON
 fldRef                          ANY
 fldName                         STRING(256), AUTO
 fidNdx                          LONG, AUTO
-fldRules                        QUEUE(TFieldRules)
+fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
@@ -2610,7 +2725,7 @@ AssignGroup                   ROUTINE
   DATA
 fldValue    ANY
   CODE
-  IF NOT fldRules.Ignore
+  IF fldRules.Ignore <> TRUE
     IF item.IsString()
       fldValue = item.valuestring
     ELSIF item.IsNumber()
@@ -2816,6 +2931,9 @@ dataSize                        LONG(0)
   
   RETURN dataSize
 
+cJSON.Compare                 PROCEDURE(*cJSON pItemToCompare, BOOL case_sensitive)
+  CODE
+  RETURN json::Compare(SELF, pItemToCompare, case_sensitive)
 !!!endregion
   
 !!!region cJSONFactory
@@ -2835,7 +2953,7 @@ sRef                            &STRING, AUTO
 
 cJSONFactory.Parse            PROCEDURE(*STRING json)
 item                            &cJSON
-buffer                          LIKE(TParseBuffer)
+buffer                          LIKE(typParseBuffer)
 minival                         &STRING
   CODE
   CLEAR(SELF.parseErrorString)
