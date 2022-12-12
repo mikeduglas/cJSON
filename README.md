@@ -33,8 +33,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
-v1.30 (11.12.2022)
+v1.30 (12.12.2022)
 - NEW: Field rule inheritance: field rules inherit the default rule.
+- NEW: RuleInheritanceTest example.
 - NEW: TCJsonRuleHelper class allows to customize field rules.
 - NEW: "RuleHelper" field rule: pass an address of TCJsonRuleHelper instance.
 - NEW: RuleHelperTest example.

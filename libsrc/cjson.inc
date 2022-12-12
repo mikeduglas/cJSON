@@ -158,8 +158,16 @@ IgnoreEmptyObject               BOOL        !do not create empty objects {}.
 
 
 TCJsonRuleHelper              CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
-!- Called when a rule for the field is found.
-FindCB                          PROCEDURE(STRING fldName, *typCJsonFieldRule rule), VIRTUAL
+!!!<summary>Called when a rule for the field is found.</summary>
+!!!<param name="pFldName">The name of a field to be processed.</param>
+!!!<param name="pRule">The rule to be applied tho the field.</param>
+!!!<remarks>pFldName case depends on pNamesInLowerCase parameter passed to json::CreateObject(GROUP) family function.
+!!!If pNamesInLowerCase=TRUE (by default) then pFldName is in lowercase.
+!!!If pNamesInLowerCase=FALSE and there is no NAME attribute on the field then pFldName is in UPPERCASE.
+!!!If pNamesInLowerCase=FALSE and there is a NAME attribute on the field then pFldName equals to the NAME attribute value.
+!!!In all cases pFldName has no prefix.
+!!!</remarks>
+FindCB                          PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule), VIRTUAL
                               END
 
 
