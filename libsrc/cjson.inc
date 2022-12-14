@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.30
-!** 11.12.2022
+!** cJSON for Clarion v1.31
+!** 14.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -9,102 +9,105 @@
   INCLUDE('dynstr.inc'), ONCE
 
   MAP
-    MODULE('cjson')
+                          MODULE('cjson')
 
 !!!<summary>a wrapper of OutputDebugString api.</summary>
-json::DebugInfo   PROCEDURE(STRING pMsg)
+json::DebugInfo             PROCEDURE(STRING pMsg)
 
 !!!<summary>Removes all whitespeces from the string.</summary>
-json::Minify  PROCEDURE(*STRING pJson)
+json::Minify                PROCEDURE(*STRING pJson)
       
 !!!<summary>Recursively compare two items for equality. If either a or b is NULL or invalid, they will be considered unequal.</summary>
 !!!<param name="case_sensitive">determines if object keys are treated case sensitive (true) or case insensitive (false).</param>
 !!!<returns>true if items are equal.</returns>
-json::Compare PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
+json::Compare               PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
 
 !!!<summary>Create a cJSON item of null type.</summary>
-json::CreateNull  PROCEDURE(), *cJSON
+json::CreateNull            PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON item of boolean type with true value.</summary>
-json::CreateTrue  PROCEDURE(), *cJSON
+json::CreateTrue            PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON item of boolean type with false value.</summary>
-json::CreateFalse PROCEDURE(), *cJSON
+json::CreateFalse           PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON item of boolean type.</summary>
 !!!<param name="b">item value</param>
-json::CreateBool  PROCEDURE(BOOL b), *cJSON
+json::CreateBool            PROCEDURE(BOOL b), *cJSON
 
 !!!<summary>Create a cJSON item of numeric type.</summary>
 !!!<param name="num">item value</param>
-json::CreateNumber    PROCEDURE(REAL num), *cJSON
+json::CreateNumber          PROCEDURE(REAL num), *cJSON
 
 !!!<summary>Create a cJSON item of string type.</summary>
 !!!<param name="str">item value</param>
-json::CreateString    PROCEDURE(STRING str), *cJSON
+json::CreateString          PROCEDURE(STRING str), *cJSON
 
 !!!<summary>Create a cJSON item of raw type.</summary>
 !!!<param name="rawJson">item value</param>
-json::CreateRaw   PROCEDURE(STRING rawJson), *cJSON
+json::CreateRaw             PROCEDURE(STRING rawJson), *cJSON
 
 !!!<summary>Create a cJSON array.</summary>
-json::CreateArray PROCEDURE(), *cJSON
+json::CreateArray           PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON object.</summary>
-json::CreateObject    PROCEDURE(), *cJSON
+json::CreateObject          PROCEDURE(), *cJSON
 
 !!!<summary>Create a string where valuestring references a string so it will not be freed by Delete.</summary>
-json::CreateStringReference   PROCEDURE(*STRING str), *cJSON
+json::CreateStringReference PROCEDURE(*STRING str), *cJSON
 
 !!!<summary>Create an object that only references it's elements so they will not be freed by Delete.</summary>
-json::CreateObjectReference   PROCEDURE(*cJSON child), *cJSON
+json::CreateObjectReference PROCEDURE(*cJSON child), *cJSON
 
 !!!<summary>Create an arrray that only references it's elements so they will not be freed by Delete.</summary>
-json::CreateArrayReference    PROCEDURE(*cJSON child), *cJSON
+json::CreateArrayReference  PROCEDURE(*cJSON child), *cJSON
 
 !!!<summary>Create an Array of LONGs.>/summary>
-json::CreateIntArray  PROCEDURE(LONG[] numbers), *cJSON
+json::CreateIntArray        PROCEDURE(LONG[] numbers), *cJSON
 
 !!!<summary>Create an Array of REALs.</summary>
-json::CreateDoubleArray   PROCEDURE(REAL[] numbers), *cJSON
+json::CreateDoubleArray     PROCEDURE(REAL[] numbers), *cJSON
 
 !!!<summary>Create an Array of STRINGs.</summary>
 !!!<param name="strings">string array.</param>
 !!!<param name="pIfEmpty">If it is "null", then null objects will be created for empty elements; 
 !!!if it is "ignore", then empty elements will not be created; 
 !!!otherwise empty string elements will be created.</param>
-json::CreateStringArray   PROCEDURE(STRING[] strings, <STRING pIfEmpty>), *cJSON
+json::CreateStringArray     PROCEDURE(STRING[] strings, <STRING pIfEmpty>), *cJSON
 
 !!!<summary>Create an object from GROUP.</summary>
-json::CreateObject    PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+json::CreateObject          PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
 !!!<summary>Create an array from QUEUE.</summary>
-json::CreateArray PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+json::CreateArray           PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
 !!!<summary>Create an array from FILE's RECORD and optionally blobs and memos),
 !!! string and numeric arrays are allowed; Blobs and Memos aren't.
 !!! File must be OPENed and SET before calling this method.</summary>
-json::CreateArray PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE), *cJSON
+json::CreateArray           PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE), *cJSON
+
+!!!<summary>Create an array from a queue field.</summary>
+json::CreateSimpleArray     PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
 
 !!!<summary>Converts input string from one encoding to another.</summary>
 !!!<param name="pInput">Input string.</param>
 !!!<param name="pInputCodepage">Input code page, like CP_ACP, CP_UTF8.</param>
 !!!<param name="pOutputCodepage">Output code page; pass -1 to convert to UTF16.</param>
-json::ConvertEncoding PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
+json::ConvertEncoding       PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
 !!!<summary>Converts input string from utf-8.</summary>
-json::FromUtf8    PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+json::FromUtf8              PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
 !!!<summary>Converts input string to utf-8.</summary>
-json::ToUtf8  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+json::ToUtf8                PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
 
 !!!<summary>Returns a string where each character in form of \uXXXX.</summary>
-json::StringToULiterals   PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
+json::StringToULiterals     PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
  
 !!!<summary>Reads data from the specified file.</summary>
-json::LoadFile    PROCEDURE(STRING pFilename), *STRING
+json::LoadFile              PROCEDURE(STRING pFilename), *STRING
 
 !!!<summary>Writes data to the specified file.</summary>
-json::SaveFile    PROCEDURE(STRING pFilename, STRING pData), BOOL, PROC
-    END
+json::SaveFile              PROCEDURE(STRING pFilename, STRING pData), BOOL, PROC
+                          END
   END
 
 !cJSON Types
@@ -137,6 +140,7 @@ RuleHelper                      LONG        !an address of the RuleHelper class 
 JsonName                        STRING(64)  !json name.
 Instance                        LONG        !INSTANCE(queue).
 IsQueue                         BOOL        !field is a queue: create a json array.
+FieldNumber                     LONG        !an ordinal position of a field in a queue; if FieldNumber > 0 then json array will be built from this field only and look like ["alpha", "beta"] or [1,2,3].
 ArraySize                       LONG        !DIM(1) issue fix.
 
 !- field specific options, but can be applied for default rule (*).

@@ -33,6 +33,10 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.31 (14.12.2022)
+- NEW: json::CreateSimpleArray static function creates json array from queue's field.
+- NEW: "FieldNumber" field rule: tells the json builder to create an array from a queue's field rather than from a queue itself. This rule works together with "Instance" and "IsQueue" rules.
+
 v1.30 (12.12.2022)
 - NEW: Field rule inheritance: field rules inherit the default rule.
 - NEW: RuleInheritanceTest example.

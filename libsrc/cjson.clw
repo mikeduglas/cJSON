@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.30
-!** 11.12.2022
+!** cJSON for Clarion v1.31
+!** 14.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -1790,8 +1790,13 @@ arrSize                         LONG, AUTO
           ELSIF fldRules.Instance
             !- fldRules.Instance is an address of a queue, so create json array
             nestedQueRef &= (fldRules.Instance)
-            nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, options)
-              
+            IF fldRules.FieldNumber = 0
+              nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, options)
+            ELSE
+              !- an array of one q field
+              nestedItem &= json::CreateSimpleArray(nestedQueRef, fldRules.FieldNumber, pNamesInLowerCase, options)
+            END
+            
             IF fldRules.IgnoreEmptyArray=TRUE AND nestedItem.GetArraySize() = 0
               !- don't add empty array
               nestedItem.Delete()
@@ -1881,10 +1886,10 @@ elemNdx LONG, AUTO
   
 CreateGroupArray              ROUTINE
   DATA
-grpRef  &GROUP
+grpRef      &GROUP
 grpArray    &cJSON
-grpItem &cJSON
-elemNdx LONG, AUTO
+grpItem     &cJSON
+elemNdx     LONG, AUTO
   CODE
   grpArray &= json::CreateArray()
   LOOP elemNdx = 1 TO arrSize
@@ -1899,14 +1904,19 @@ elemNdx LONG, AUTO
 
 CreateQueueArray              ROUTINE
   DATA
-fla ANY
-queRef  &QUEUE
+fla         ANY
+queRef      &QUEUE
 queArray    &cJSON
   CODE
   ndx += 1  !- we assume that next field is INSTANCE of queue.
   fla &= WHAT(grp,ndx)
   queRef &= (fla)
-  queArray &= json::CreateArray(queRef, pNamesInLowerCase, options)
+  IF fldRules.FieldNumber = 0
+    queArray &= json::CreateArray(queRef, pNamesInLowerCase, options)
+  ELSE
+    !- an array of one q field
+    queArray &= json::CreateSimpleArray(queRef, fldRules.FieldNumber, pNamesInLowerCase, options)
+  END
   
   IF fldRules.IgnoreEmptyArray=TRUE AND queArray.GetArraySize() = 0
     !- don't add empty array
@@ -1928,6 +1938,55 @@ ndx                             LONG, AUTO
     array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
   END
 
+  RETURN array
+
+json::CreateSimpleArray       PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+array                           &cJSON
+grp                             &GROUP
+fldRef                          ANY
+fldName                         STRING(256), AUTO
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+fldValue                        ANY
+ndx                             LONG, AUTO
+  CODE
+  array &= json::CreateArray()
+  
+  IF pFieldNumber
+    fldName = WHO(que, pFieldNumber)
+    IF fldName
+      RemoveFieldPrefix(fldName)
+    
+      IF pNamesInLowerCase
+        fldName = LOWER(fldName)
+      END
+    
+      !- field convertion rules
+      ParseFieldRules(options, fldRules)
+
+      !- find field rules
+      FindFieldRule(fldName, fldRules)
+
+      !- loop thru queue records
+      LOOP ndx = 1 TO RECORDS(que)
+        GET(que, ndx)
+        grp &= que
+        fldRef &= WHAT(grp, pFieldNumber)
+        IF fldRef &= NULL
+          BREAK
+        END
+      
+        fldValue = ApplyFieldRules(fldRef, fldRules)
+        
+        IF ISSTRING(fldValue)
+          array.AddItemToArray(json::CreateString(fldValue))
+        ELSE
+          array.AddItemToArray(json::CreateNumber(fldValue))
+        END
+      END
+    END
+  END
+  
   RETURN array
 
 json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE)
