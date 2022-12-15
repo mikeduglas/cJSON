@@ -3,7 +3,9 @@
 
 ## Requirements  
 - C6.3 and newer.
-- JSONPath requires [printf](https://github.com/mikeduglas/printf).
+
+## Dependencies
+- [printf](https://github.com/mikeduglas/printf)
 
 ## How to install
 Hit the 'Clone or Download' button and select 'Download Zip'.  
@@ -33,6 +35,12 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.32 (15.12.2022)
+- NEW: "IsBase64" field rule. Use it when you want to either encode binary data to json, or decode binary data from json.
+- NEW: cJSON.ToQueueField, cJSONFactory.ToQueueField methods load simple array into specific queue field. 
+- NEW: "FieldNumber" field rule is now supported in the scenarios where simple arrays should be loaded into a queue field other than first one.
+- CHG: cJSON now depends on [printf](https://github.com/mikeduglas/printf).
+
 v1.31 (14.12.2022)
 - NEW: json::CreateSimpleArray static function creates json array from queue's field.
 - NEW: "FieldNumber" field rule: tells the json builder to create an array from a queue's field rather than from a queue itself. This rule works together with "Instance" and "IsQueue" rules.

@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.31
-!** 14.12.2022
+!** cJSON for Clarion v1.32
+!** 15.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -43,7 +43,6 @@ filterExpr                      STRING(256)
   MAP
     MODULE('win api')
       winapi::memcpy(LONG lpDest,LONG lpSource,LONG nCount),LONG,PROC,NAME('_memcpy')
-      winapi::OutputDebugString(*CSTRING lpOutputString), PASCAL, RAW, NAME('OutputDebugStringA')
    
       winapi::MultiByteToWideChar(UNSIGNED Codepage, ULONG dwFlags, ULONG LpMultuByteStr, |
         LONG cbMultiByte, ULONG LpWideCharStr, LONG cchWideChar), RAW, ULONG, PASCAL, PROC, NAME('MultiByteToWideChar')
@@ -61,6 +60,7 @@ filterExpr                      STRING(256)
     END
 
     INCLUDE('CWUTIL.inc'), ONCE
+    INCLUDE('printf.inc'), ONCE
 
     !static functions
     suffix_object(*cJSON prev, *cJSON item), PRIVATE
@@ -201,6 +201,7 @@ i                               LONG, AUTO
           !IsStringRef
           !IsBool
           !IsRaw
+          !IsBase64
           jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
@@ -213,6 +214,7 @@ i                               LONG, AUTO
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsStringRef')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsBool')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IsBase64')
         END
       END
               
@@ -324,10 +326,8 @@ AddItemReferenceToObject      PROCEDURE(cJSON pDst, cJSON pSrc, STRING pItemName
   END
 
 json::DebugInfo               PROCEDURE(STRING pMsg)
-cs                              CSTRING(LEN('cJSON') + LEN(pMsg) + 3 + 1)
   CODE
-  cs = '['& 'cJSON' &'] ' & CLIP(pMsg)
-  winapi::OutputDebugString(cs)
+  printd('[cJSON] %s', pMsg)
   
 json::Minify                  PROCEDURE(*STRING pJson)
 into                            &STRING
@@ -1774,6 +1774,10 @@ arrSize                         LONG, AUTO
         ELSE
           !- apply field rules
           fldValue = ApplyFieldRules(fldRef, fldRules)
+          IF fldRules.IsBase64
+            !- encode to base64
+            fldValue = printf('%v', fldValue)
+          END
 
           IF ISGROUP(grp, ndx)
             !- recursively add nested group as json object
@@ -1977,7 +1981,11 @@ ndx                             LONG, AUTO
         END
       
         fldValue = ApplyFieldRules(fldRef, fldRules)
-        
+        IF fldRules.IsBase64
+          !- encode to base64
+          fldValue = printf('%v', fldValue)
+        END
+
         IF ISSTRING(fldValue)
           array.AddItemToArray(json::CreateString(fldValue))
         ELSE
@@ -2072,6 +2080,10 @@ jsonName                        &STRING
     IF fldRules.Ignore <> TRUE
       !- apply field rules
       fldValue = ApplyFieldRules(pFile{PROP:Value, -cIndex}, fldRules)
+      IF fldRules.IsBase64
+        !- encode to base64
+        fldValue = printf('%v', fldValue)
+      END
       pItem.AddStringToObject(jsonName, fldValue)
     END
   END
@@ -2144,7 +2156,12 @@ fldValue    ANY
   CODE
   IF fldRules.Ignore <> TRUE
     IF item.IsString()
-      fldValue = item.valuestring
+      IF NOT fldRules.IsBase64
+        fldValue = item.valuestring
+      ELSE
+        !- decode base64 encoded string
+        fldValue = printf('%w', item.valuestring)
+      END
     ELSIF item.IsNumber()
       fldValue = item.valuedouble
     ELSIF item.IsBool()
@@ -2740,7 +2757,11 @@ nestedQueRef                    &QUEUE
             ELSIF item.IsArray() AND fldRules.Instance
               !- child item is an array, so load it into a queue
               nestedQueRef &= (fldRules.Instance)
-              item.ToQueue(nestedQueRef, matchByFieldNumber, options)
+              IF fldRules.FieldNumber = 0
+                item.ToQueue(nestedQueRef, matchByFieldNumber, options)
+              ELSE
+                item.ToQueueField(nestedQueRef, fldRules.FieldNumber, matchByFieldNumber, options)
+              END
             ELSE
               !found group field, assign the value
               DO AssignGroup
@@ -2786,7 +2807,12 @@ fldValue    ANY
   CODE
   IF fldRules.Ignore <> TRUE
     IF item.IsString()
-      fldValue = item.valuestring
+      IF NOT fldRules.IsBase64
+        fldValue = item.valuestring
+      ELSE
+        !- decode base64 encoded string
+        fldValue = printf('%w', item.valuestring)
+      END
     ELSIF item.IsNumber()
       fldValue = item.valuedouble
     ELSIF item.IsBool()
@@ -2802,6 +2828,10 @@ fldValue    ANY
   END
   
 cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
+  CODE
+  RETURN SELF.ToQueueField(que, 1, matchByFieldNumber, options)
+  
+cJSON.ToQueueField            PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
 grp                             &GROUP
 item                            &cJSON
 fldRef                          ANY
@@ -2817,6 +2847,11 @@ fldValue                        ANY
     !empty array
     RETURN TRUE
   END
+  
+  IF pFieldNumber = 0
+    !- assume default field number is 1
+    pFieldNumber = 1
+  END
 
   !go thru array elements
   LOOP WHILE NOT item &= NULL
@@ -2830,22 +2865,24 @@ fldValue                        ANY
       END
     ELSE
       !- array of constants
-     
-      fldRef &= WHAT(grp, 1)
-      IF item.IsString()
-        fldRef = item.valuestring
-      ELSIF item.IsNumber()
-        fldRef = item.valuedouble
-      ELSIF item.IsBool()
-        fldRef = item.valueint
-      ELSIF item.IsFalse()
-        fldRef = 0
-      ELSIF item.IsTrue()
-        fldRef = 1
-      ELSE
-        fldRef = ''
+      !- save the constant into a field which ordinal position is pFieldNumber
+      fldRef &= WHAT(grp, pFieldNumber)
+      IF NOT fldRef&= NULL
+        IF item.IsString()
+          fldRef = item.valuestring
+        ELSIF item.IsNumber()
+          fldRef = item.valuedouble
+        ELSIF item.IsBool()
+          fldRef = item.valueint
+        ELSIF item.IsFalse()
+          fldRef = FALSE
+        ELSIF item.IsTrue()
+          fldRef = TRUE
+        ELSE
+          fldRef = ''
+        END
+        ADD(que)
       END
-      ADD(que)
     END
     
     item &= item.next
@@ -3149,7 +3186,29 @@ ret                             BOOL(FALSE)
   END
   
   RETURN ret
+    
+cJSONFactory.ToQueueField     PROCEDURE(STRING json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+  CODE
+  RETURN SELF.ToQueueField(json, que, pFieldNumber, matchByFieldNumber, options)
+      
+cJSONFactory.ToQueueField     PROCEDURE(*IDynStr json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (json.CStrRef()) &':'& json.StrLen()
+  RETURN SELF.ToQueueField(sRef, que, pFieldNumber, matchByFieldNumber, options)
+
+cJSONFactory.ToQueueField     PROCEDURE(*STRING json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+object                          &cJSON
+ret                             BOOL(FALSE)
+  CODE
+  object &= SELF.Parse(json)
+  IF NOT object &= NULL
+    ret = object.ToQueueField(que, pFieldNumber, matchByFieldNumber, options)
+    object.Delete()
+  END
   
+  RETURN ret
+
 cJSONFactory.ToFile           PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
   CODE
   RETURN SELF.ToFile(json, pFile, matchByFieldNumber, options, pWithBlobs)

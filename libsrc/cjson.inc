@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.31
-!** 14.12.2022
+!** cJSON for Clarion v1.32
+!** 15.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -151,6 +151,7 @@ Ignore                          BOOL        !do not process the field.
 IsStringRef                     BOOL        !field is &STRING.
 IsBool                          BOOL        !field is BOOLEAN.
 IsRaw                           BOOL        !field is raw json string.
+IsBase64                        BOOL        !field is base64 encoded json string.
 
 !- these options are applicable for both field and default rules.
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
@@ -446,6 +447,14 @@ ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = 
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
+!!!<summary>save json array to a QUEUE.</summary>
+!!!<param name="que">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="matchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="options">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueueField                    PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+
 !!!<summary>save json array to a FILE's RECORD and optionally in blobs/memos.
 !!! pFile must allow ADD(). Any ADD() errors are logged in debugview.
 !!!</summary>
@@ -550,6 +559,17 @@ ToGroup                         PROCEDURE(*IDynStr json, *GROUP grp, BOOL matchB
 ToQueue                         PROCEDURE(STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 ToQueue                         PROCEDURE(*STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 ToQueue                         PROCEDURE(*IDynStr json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+
+!!!<summary>Writes json into a queue field.</summary>
+!!!<param name="json">json string</param>
+!!!<param name="que">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="matchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="options">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueueField                    PROCEDURE(STRING json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToQueueField                    PROCEDURE(*STRING json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
+ToQueueField                    PROCEDURE(*IDynStr json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>), BOOL, PROC
 
 !!!<summary>Writes json into a FILE.</summary>
 !!!<param name="json">json string</param>
