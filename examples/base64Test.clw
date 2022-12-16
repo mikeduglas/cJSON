@@ -6,6 +6,7 @@
 
   MAP
     Base64Test()
+    FileToBase64Test()
     INCLUDE('printf.inc'), ONCE
   END
 
@@ -26,6 +27,9 @@
   !Name: Lionel, BinaryData: Some binary data
 
   
+  FileToBase64Test()
+
+  
 Base64Test                    PROCEDURE()
 Person                          GROUP
 Name                              STRING(20)
@@ -33,6 +37,8 @@ BinaryData                        STRING(20)
                                 END
 jPerson                         &cJSON
   CODE
+  printd('Base64Test....')
+
   !- Clarion to JSON
   Person.Name = 'Lionel'
   Person.BinaryData = 'Some binary data'
@@ -53,4 +59,48 @@ jPerson                         &cJSON
       printd('Name: %s, BinaryData: %s', Person.Name, Person.BinaryData)
     END
   END
+  printd('%|')
+
   
+  
+FileToBase64Test              PROCEDURE()
+Person                          GROUP
+Name                              STRING(20)
+Photo                             STRING(MAX_PATH)
+                                END
+jPerson                         &cJSON
+rh                              CLASS(TCJsonRuleHelper)
+ApplyCB                           PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue), ?, DERIVED
+                                END
+  CODE
+  printd('FileToBase64Test....')
+
+  Person.Name = 'Bob'
+  Person.Photo = 'photo_12345.bmp'  !- enter existing image file
+  
+  !- "options" allow to load base64 encoded file content into "photo" item, instead of filename originally stored in Person.Photo.
+  jPerson &= json::CreateObject(Person,, | 
+    printf(  '' |
+    & '['                                                           |
+    & '  {{"name":"*","rulehelper":%i},'                            |
+    & '  {{"name":"Photo","isbase64":true,"emptystring":"ignore"}'  |
+    & ']', ADDRESS(rh)))
+  
+  IF NOT jPerson &= NULL
+    printd(jPerson.ToString(TRUE))
+    jPerson.Delete()
+  END
+  
+  
+rh.ApplyCB                    PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue)
+fContent                        &STRING, AUTO
+  CODE
+  IF pFldName = 'photo'
+    !- Person.Photo contains a file path.
+    !- Load this file and return the content as a field value.
+    !- Base64 encoding will be perfomed by "isbase64" rule.
+    fContent &= json::LoadFile(pValue)
+    pValue = fContent
+    DISPOSE(fContent)
+  END
+  RETURN pValue

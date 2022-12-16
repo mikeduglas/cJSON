@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.32
-!** 15.12.2022
+!** cJSON for Clarion v1.33
+!** 16.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -97,9 +97,10 @@ filterExpr                      STRING(256)
 
     RemoveFieldPrefix(*STRING fldName), PRIVATE
 
+    FindRuleHelper(typCJsonFieldRule rule), *TCJsonRuleHelper, PRIVATE
     ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE
     FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE
-    ApplyFieldRules(? value, typCJsonFieldRule rule), ?, PRIVATE
+    ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE
     IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
@@ -127,6 +128,11 @@ OS_INVALID_HANDLE_VALUE       EQUATE(-1)
 TCJsonRuleHelper.FindCB       PROCEDURE(STRING fldName, *typCJsonFieldRule rule)
   CODE
   !- stub
+
+TCJsonRuleHelper.ApplyCB      PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue)
+  CODE
+  !- stub
+  RETURN pValue
 !!!endregion
 
 !!!region public functions
@@ -215,6 +221,9 @@ i                               LONG, AUTO
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsBool')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsBase64')
+          
+          !- Propagate RuleHelper to field rule to allow call ApplyCB from ApplyFieldRule.
+          jOption.AddItemReferenceToObject(jDefaultOption, 'RuleHelper')
         END
       END
               
@@ -227,19 +236,21 @@ i                               LONG, AUTO
     END
   END
   
+FindRuleHelper                PROCEDURE(typCJsonFieldRule rule)
+rh                              &TCJsonRuleHelper, AUTO
+  CODE
+  IF rule.RuleHelper
+    rh &= (rule.RuleHelper)
+    RETURN rh
+  END
+  RETURN NULL
+  
 FindFieldRule                 PROCEDURE(STRING fldName, *typCJsonFieldRules rules)
 i                               LONG, AUTO
 rh                              &TCJsonRuleHelper
   CODE
   !- search for rule helper
-  rules.Name = '*'
-  GET(rules, 'Name')
-  IF NOT ERRORCODE()
-    IF rules.RuleHelper
-      !- callback
-      rh &= (rules.RuleHelper)
-    END
-  END
+  rh &= FindRuleHelper(rules)
 
   !- search for field rule
   LOOP i = 1 TO RECORDS(rules)
@@ -268,7 +279,7 @@ rh                              &TCJsonRuleHelper
   !- no rule found, use default behavior
   CLEAR(rules)
 
-ApplyFieldRules               PROCEDURE(? value, typCJsonFieldRule rule)
+ApplyFieldRule                PROCEDURE(STRING fldName, ? value, typCJsonFieldRule rule)
 fldValue                        ANY
 vGrp                            GROUP
 adr                               LONG
@@ -276,8 +287,12 @@ len                               LONG
                                 END
 sValue                          STRING(8), OVER(vGrp)
 sRefValue                       &STRING, AUTO
+rh                              &TCJsonRuleHelper
 
   CODE
+  !- search for rule helper
+  rh &= FindRuleHelper(rule)
+
   IF rule.IsStringRef=TRUE
     !- Passed value is &STRING.
     !- Assigning to sValue we get an address of underlying string and its length, 
@@ -290,6 +305,11 @@ sRefValue                       &STRING, AUTO
     fldValue = value
   END
   
+  IF NOT rh &= NULL
+    !- callback
+    fldValue = rh.ApplyCB(fldName, rule, fldValue)
+  END
+
   IF rule.Format
     RETURN FORMAT(fldValue, rule.Format)
   ELSIF rule.FormatLeft
@@ -718,10 +738,10 @@ output                          &STRING
     RETURN TRUE
   END
   
-  output &= NEW STRING(LEN(input) + escape_characters)
+  output &= NEW STRING(SIZE(input) + escape_characters)
   
   oIndex = 0
-  LOOP cIndex = 1 TO LEN(input)
+  LOOP cIndex = 1 TO SIZE(input)
     oIndex += 1
     IF VAL(input[cIndex]) > 31 AND input[cIndex] <> '"' AND input[cIndex] <> '\'
       !normal character, copy
@@ -747,7 +767,7 @@ output                          &STRING
         output[oIndex] = 't'
       ELSE
         !escape and print as unicode codepoint
-        output[oIndex : oIndex + 4] = 'u'& LongToHex(VAL(input[cIndex])) &'x'
+        output[oIndex : oIndex + 4] = 'u'& ShortToHex(VAL(input[cIndex]))
         oIndex += 4
       END
     END
@@ -1773,7 +1793,7 @@ arrSize                         LONG, AUTO
           DO CreateQueueArray
         ELSE
           !- apply field rules
-          fldValue = ApplyFieldRules(fldRef, fldRules)
+          fldValue = ApplyFieldRule(fldName, fldRef, fldRules)
           IF fldRules.IsBase64
             !- encode to base64
             fldValue = printf('%v', fldValue)
@@ -1871,7 +1891,7 @@ elemNdx LONG, AUTO
   !copy array
   LOOP elemNdx = 1 TO arrSize
     elemRef &= WHAT(grp, ndx, elemNdx)
-    strings[elemNdx] = ApplyFieldRules(elemRef, fldRules)
+    strings[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRules)
   END
   item.AddItemToObject(jsonName, json::CreateStringArray(strings, fldRules.EmptyString))
 
@@ -1884,7 +1904,7 @@ elemNdx LONG, AUTO
   !copy array
   LOOP elemNdx = 1 TO arrSize
     elemRef &= WHAT(grp, ndx, elemNdx)
-    numbers[elemNdx] = ApplyFieldRules(elemRef, fldRules)
+    numbers[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRules)
   END
   item.AddItemToObject(jsonName, json::CreateDoubleArray(numbers))
   
@@ -1980,7 +2000,7 @@ ndx                             LONG, AUTO
           BREAK
         END
       
-        fldValue = ApplyFieldRules(fldRef, fldRules)
+        fldValue = ApplyFieldRule(fldName, fldRef, fldRules)
         IF fldRules.IsBase64
           !- encode to base64
           fldValue = printf('%v', fldValue)
@@ -2079,7 +2099,7 @@ jsonName                        &STRING
     
     IF fldRules.Ignore <> TRUE
       !- apply field rules
-      fldValue = ApplyFieldRules(pFile{PROP:Value, -cIndex}, fldRules)
+      fldValue = ApplyFieldRule(fldName, pFile{PROP:Value, -cIndex}, fldRules)
       IF fldRules.IsBase64
         !- encode to base64
         fldValue = printf('%v', fldValue)
@@ -2173,7 +2193,7 @@ fldValue    ANY
     END
 
     !- apply field rule, if exists
-    pFile{PROP:Value, -cIndex} = ApplyFieldRules(fldValue, fldRules)
+    pFile{PROP:Value, -cIndex} = ApplyFieldRule(fldName, fldValue, fldRules)
   END
 !!!endregion
 
@@ -2824,7 +2844,7 @@ fldValue    ANY
     END
 
     !- apply field rule, if exists
-    fldRef = ApplyFieldRules(fldValue, fldRules)
+    fldRef = ApplyFieldRule(fldName, fldValue, fldRules)
   END
   
 cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)

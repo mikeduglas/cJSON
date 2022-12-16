@@ -35,6 +35,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.33 (16.12.2022)
+- NEW: TCJsonRuleHelper.ApplyCB callback method to customize json values. See updated base64Test example.
+
 v1.32 (15.12.2022)
 - NEW: "IsBase64" field rule. Use it when you want to either encode binary data to json, or decode binary data from json.
 - NEW: cJSON.ToQueueField, cJSONFactory.ToQueueField methods load simple array into specific queue field. 

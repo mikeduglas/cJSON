@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.32
-!** 15.12.2022
+!** cJSON for Clarion v1.33
+!** 16.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -173,6 +173,12 @@ TCJsonRuleHelper              CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
 !!!In all cases pFldName has no prefix.
 !!!</remarks>
 FindCB                          PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule), VIRTUAL
+!!!<summary>Called when a rule for the field is being applied.</summary>
+!!!<param name="pFldName">The name of a field to be processed. See remarks section in FindCB method description.</param>
+!!!<param name="pRule">The rule to be applied tho the field.</param>
+!!!<param name="pValue">The raw value of the field.</param>
+!!!<returns>A value which will be used instead of original field value.</returns>
+ApplyCB                         PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue), ?, VIRTUAL
                               END
 
 
