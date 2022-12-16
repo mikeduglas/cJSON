@@ -7,6 +7,7 @@
   MAP
     Base64Test()
     FileToBase64Test()
+    FileToBase64RuleHelperTest()
     INCLUDE('printf.inc'), ONCE
   END
 
@@ -28,6 +29,7 @@
 
   
   FileToBase64Test()
+  FileToBase64RuleHelperTest()
 
   
 Base64Test                    PROCEDURE()
@@ -62,8 +64,32 @@ jPerson                         &cJSON
   printd('%|')
 
   
-  
 FileToBase64Test              PROCEDURE()
+Person                          GROUP
+Name                              STRING(20)
+Photo                             STRING(MAX_PATH)
+                                END
+jPerson                         &cJSON
+  CODE
+  printd('FileToBase64Test....')
+
+  Person.Name = 'Bob'
+  Person.Photo = 'photo_12345.bmp'  !- enter existing image file
+  
+  !- "options" allow to load base64 encoded file content into "photo" item, instead of filename originally stored in Person.Photo.
+  jPerson &= json::CreateObject(Person,, '' | 
+    & '['                                                                         |
+    & '  {{"name":"Photo","isfile":true,"isbase64":true,"emptystring":"ignore"}'  |
+    & ']')
+  
+  IF NOT jPerson &= NULL
+    printd(jPerson.ToString(TRUE))
+    jPerson.Delete()
+  END
+  printd('%|')
+
+  
+FileToBase64RuleHelperTest    PROCEDURE()
 Person                          GROUP
 Name                              STRING(20)
 Photo                             STRING(MAX_PATH)
@@ -73,7 +99,7 @@ rh                              CLASS(TCJsonRuleHelper)
 ApplyCB                           PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue), ?, DERIVED
                                 END
   CODE
-  printd('FileToBase64Test....')
+  printd('FileToBase64RuleHelperTest....')
 
   Person.Name = 'Bob'
   Person.Photo = 'photo_12345.bmp'  !- enter existing image file

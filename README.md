@@ -36,7 +36,9 @@ Free
 
 ## Version history
 v1.33 (16.12.2022)
-- NEW: TCJsonRuleHelper.ApplyCB callback method to customize json values. See updated base64Test example.
+- NEW: "IsFile" field rule allows to load file content. In addition "IsBase64":true encodes file content.
+- NEW: TCJsonRuleHelper.ApplyCB callback method to customize json values. 
+- CHG: base64Test example shows new features.
 
 v1.32 (15.12.2022)
 - NEW: "IsBase64" field rule. Use it when you want to either encode binary data to json, or decode binary data from json.

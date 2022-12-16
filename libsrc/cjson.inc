@@ -152,6 +152,7 @@ IsStringRef                     BOOL        !field is &STRING.
 IsBool                          BOOL        !field is BOOLEAN.
 IsRaw                           BOOL        !field is raw json string.
 IsBase64                        BOOL        !field is base64 encoded json string.
+IsFile                          BOOL        !field is a filename, result is a file content. Use "IsBase64":true to stote the content as base64.
 
 !- these options are applicable for both field and default rules.
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.

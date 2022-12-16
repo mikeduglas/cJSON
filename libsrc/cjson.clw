@@ -208,6 +208,7 @@ i                               LONG, AUTO
           !IsBool
           !IsRaw
           !IsBase64
+          !IsFile
           jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
@@ -221,6 +222,7 @@ i                               LONG, AUTO
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsBool')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsBase64')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'IsFile')
           
           !- Propagate RuleHelper to field rule to allow call ApplyCB from ApplyFieldRule.
           jOption.AddItemReferenceToObject(jDefaultOption, 'RuleHelper')
@@ -288,7 +290,7 @@ len                               LONG
 sValue                          STRING(8), OVER(vGrp)
 sRefValue                       &STRING, AUTO
 rh                              &TCJsonRuleHelper
-
+sFileContent                    &STRING, AUTO
   CODE
   !- search for rule helper
   rh &= FindRuleHelper(rule)
@@ -309,7 +311,14 @@ rh                              &TCJsonRuleHelper
     !- callback
     fldValue = rh.ApplyCB(fldName, rule, fldValue)
   END
-
+  
+  IF rule.IsFile
+    !- load file content
+    sFileContent &= json::LoadFile(fldValue)
+    fldValue = sFileContent
+    DISPOSE(sFileContent)
+  END
+  
   IF rule.Format
     RETURN FORMAT(fldValue, rule.Format)
   ELSIF rule.FormatLeft
