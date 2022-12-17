@@ -38,6 +38,7 @@ Free
 ## Version history
 v1.34 (17.12.2022)
 - NEW: "Auto" field rule allows to manually set group field value.
+- NEW: TCJsonRuleHelper.AutoCB callback method to set the values of "auto" fields. 
 - CHG: Updated base64Test example shows an "Auto" rule usage.
 - CHG: Removed CWUTIL dependency.
 - FIX: "JsonName" field rule was unaccessible from rule helper callbacks.
