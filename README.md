@@ -35,6 +35,10 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.34 (17.12.2022)
+- CHG: Removed CWUTIL dependency.
+- CHG: "JsonName" field rule is now accessible from rule helper callbacks.
+
 v1.33 (16.12.2022)
 - NEW: "IsFile" field rule allows to load file content. In addition "IsBase64":true encodes file content.
 - NEW: TCJsonRuleHelper.ApplyCB callback method to customize json values. 

@@ -1,13 +1,11 @@
-!** cJSON for Clarion v1.33
-!** 16.12.2022
+!** cJSON for Clarion v1.34
+!** 17.12.2022
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
 
   MEMBER
   
-  PRAGMA('compile(CWUTIL.CLW)')
-
   INCLUDE('cjson.inc'), ONCE
 
 typPrintBuffer                GROUP, TYPE
@@ -95,8 +93,8 @@ filterExpr                      STRING(256)
   
     json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
 
+    CharToHex4(STRING pChar), STRING, PRIVATE
     RemoveFieldPrefix(*STRING fldName), PRIVATE
-
     FindRuleHelper(typCJsonFieldRule rule), *TCJsonRuleHelper, PRIVATE
     ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE
     FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE
@@ -136,6 +134,10 @@ TCJsonRuleHelper.ApplyCB      PROCEDURE(STRING pFldName, *typCJsonFieldRule pRul
 !!!endregion
 
 !!!region public functions
+CharToHex4                    PROCEDURE(STRING pChar)
+  CODE
+  RETURN printf('00%X', VAL(pChar))
+  
 RemoveFieldPrefix             PROCEDURE(*STRING fldName)
 first_colon_pos                 LONG, AUTO
   CODE
@@ -195,6 +197,7 @@ i                               LONG, AUTO
 
         IF NOT jOption &= jDefaultOption
           !- these rules are inherited:
+          !JsonName
           !EmptyString
           !IgnoreFalse
           !IgnoreZero
@@ -209,6 +212,7 @@ i                               LONG, AUTO
           !IsRaw
           !IsBase64
           !IsFile
+          jOption.AddItemReferenceToObject(jDefaultOption, 'JsonName')
           jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
@@ -776,7 +780,7 @@ output                          &STRING
         output[oIndex] = 't'
       ELSE
         !escape and print as unicode codepoint
-        output[oIndex : oIndex + 4] = 'u'& ShortToHex(VAL(input[cIndex]))
+        output[oIndex : oIndex + 4] = 'u'& CharToHex4(input[cIndex])
         oIndex += 4
       END
     END
