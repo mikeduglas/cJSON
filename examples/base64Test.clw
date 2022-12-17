@@ -8,6 +8,8 @@
     Base64Test()
     FileToBase64Test()
     FileToBase64RuleHelperTest()
+    FileFromBase64RuleHelperTest()
+
     INCLUDE('printf.inc'), ONCE
   END
 
@@ -30,7 +32,9 @@
   
   FileToBase64Test()
   FileToBase64RuleHelperTest()
-
+  FileFromBase64RuleHelperTest()
+  
+  MESSAGE('Done!', 'base64Test', ICON:Asterisk)
   
 Base64Test                    PROCEDURE()
 Person                          GROUP
@@ -90,7 +94,7 @@ jPerson                         &cJSON
 
   
 FileToBase64RuleHelperTest    PROCEDURE()
-Person                          GROUP
+Persons                         QUEUE
 Name                              STRING(20)
 Photo                             STRING(MAX_PATH)
                                 END
@@ -101,11 +105,15 @@ ApplyCB                           PROCEDURE(STRING pFldName, *typCJsonFieldRule 
   CODE
   printd('FileToBase64RuleHelperTest....')
 
-  Person.Name = 'Bob'
-  Person.Photo = 'photo_12345.bmp'  !- enter existing image file
-  
+  Persons.Name = 'Bob'
+  Persons.Photo = 'photo_12345.bmp'  !- enter existing image file
+  ADD(Persons)
+  Persons.Name = 'Greg'
+  Persons.Photo = 'photo_67890.bmp'  !- enter existing image file
+  ADD(Persons)
+
   !- "options" allow to load base64 encoded file content into "photo" item, instead of filename originally stored in Person.Photo.
-  jPerson &= json::CreateObject(Person,, | 
+  jPerson &= json::CreateArray(Persons,, | 
     printf(  '' |
     & '['                                                           |
     & '  {{"name":"*","rulehelper":%i},'                            |
@@ -113,10 +121,13 @@ ApplyCB                           PROCEDURE(STRING pFldName, *typCJsonFieldRule 
     & ']', ADDRESS(rh)))
   
   IF NOT jPerson &= NULL
-    printd(jPerson.ToString(TRUE))
+!    printd(jPerson.ToString(TRUE))
+    json::SaveFile('Persons_base64.json', jPerson.ToString())
     jPerson.Delete()
   END
-  
+  printd('Done!')
+  printd('%|')
+
   
 rh.ApplyCB                    PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue)
 fContent                        &STRING, AUTO
@@ -130,3 +141,45 @@ fContent                        &STRING, AUTO
     DISPOSE(fContent)
   END
   RETURN pValue
+
+  
+FileFromBase64RuleHelperTest  PROCEDURE()
+Persons                         QUEUE
+Name                              STRING(20)
+Photo                             ANY
+                                END
+jParser                         cJSONFactory
+jPerson                         &cJSON
+rh                              CLASS(TCJsonRuleHelper)
+AutoCB                            PROCEDURE(STRING pFldName, cJSON pItem), DERIVED
+                                END
+i                               LONG, AUTO
+  CODE
+  printd('FileFromBase64RuleHelperTest....')
+
+  jPerson &= jParser.ParseFile('Persons_base64.json')
+  IF NOT jPerson &= NULL
+    jPerson.ToQueue(Persons,, | 
+      printf(  '' |
+      & '['                                |
+      & '  {{"name":"*","rulehelper":%i},' |
+      & '  {{"name":"Photo","auto":true}'  |
+      & ']', ADDRESS(rh)))
+       
+    jPerson.Delete()
+ 
+    LOOP i=1 TO RECORDS(Persons)
+      GET(Persons, i)
+      !- save each person photo
+      json::SaveFile(printf('Photo_%s.bmp', Persons.Name), Persons.Photo)
+    END
+  END
+  printd('Done!')
+
+    
+rh.AutoCB                     PROCEDURE(STRING pFldName, cJSON pItem)
+  CODE
+  IF pFldName = 'PHOTO' !- name in UPPERCASE as returned by WHO() w/o a prefix
+    !- set Photo to base64 decoded value.
+    Persons.Photo = printf('%w', pItem.GetStringValue())
+  END

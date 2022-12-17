@@ -15,7 +15,8 @@ Copy the contents of "libsrc" folder into %ClarionRoot%\Accessory\libsrc\win
 where %ClarionRoot% is the folder into which you installed Clarion.
 
 ## How to use
-The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/master/howto.md)
+The documentation can be found [here](https://github.com/mikeduglas/cJSON/blob/master/howto.md).  
+[Field rules summary](https://github.com/mikeduglas/cJSON/blob/master/RuleOptions.md).  
 
 ## JSONPath
 JSONPath is a way for picking parts out of a JSON structure.  
@@ -36,8 +37,10 @@ Free
 
 ## Version history
 v1.34 (17.12.2022)
+- NEW: "Auto" field rule allows to manually set group field value.
+- CHG: Updated base64Test example shows an "Auto" rule usage.
 - CHG: Removed CWUTIL dependency.
-- CHG: "JsonName" field rule is now accessible from rule helper callbacks.
+- FIX: "JsonName" field rule was unaccessible from rule helper callbacks.
 
 v1.33 (16.12.2022)
 - NEW: "IsFile" field rule allows to load file content. In addition "IsBase64":true encodes file content.

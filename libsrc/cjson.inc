@@ -152,7 +152,8 @@ IsStringRef                     BOOL        !field is &STRING.
 IsBool                          BOOL        !field is BOOLEAN.
 IsRaw                           BOOL        !field is raw json string.
 IsBase64                        BOOL        !field is base64 encoded json string.
-IsFile                          BOOL        !field is a filename, result is a file content. Use "IsBase64":true to stote the content as base64.
+IsFile                          BOOL        !field is a filename, result is a file content. Use "IsBase64":true to store the content as base64.
+Auto                            BOOL        !field value must be assigned in callback method, most rules are not used.
 
 !- these options are applicable for both field and default rules.
 EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
@@ -175,11 +176,15 @@ TCJsonRuleHelper              CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
 !!!</remarks>
 FindCB                          PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule), VIRTUAL
 !!!<summary>Called when a rule for the field is being applied.</summary>
-!!!<param name="pFldName">The name of a field to be processed. See remarks section in FindCB method description.</param>
+!!!<param name="pFldName">The name of a field to be processed, in UPPERCASE.</param>
 !!!<param name="pRule">The rule to be applied tho the field.</param>
 !!!<param name="pValue">The raw value of the field.</param>
 !!!<returns>A value which will be used instead of original field value.</returns>
 ApplyCB                         PROCEDURE(STRING pFldName, *typCJsonFieldRule pRule, ? pValue), ?, VIRTUAL
+!!!<summary>Called when the field is marked as "auto".</summary>
+!!!<param name="pFldName">The name of a field to be processed, in UPPERCASE.</param>
+!!!<param name="pItem">Json item which corresponds to the field.</param>
+AutoCB                          PROCEDURE(STRING pFldName, cJSON pItem), VIRTUAL
                               END
 
 

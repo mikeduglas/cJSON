@@ -99,6 +99,7 @@ filterExpr                      STRING(256)
     ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE
     FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE
     ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE
+    ProcessAutoField(STRING fldName, cJSON item, typCJsonFieldRule rule), PRIVATE
     IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
@@ -131,6 +132,10 @@ TCJsonRuleHelper.ApplyCB      PROCEDURE(STRING pFldName, *typCJsonFieldRule pRul
   CODE
   !- stub
   RETURN pValue
+
+TCJsonRuleHelper.AutoCB       PROCEDURE(STRING pFldName, cJSON pItem)
+  CODE
+  !- stub
 !!!endregion
 
 !!!region public functions
@@ -212,6 +217,7 @@ i                               LONG, AUTO
           !IsRaw
           !IsBase64
           !IsFile
+          !Auto
           jOption.AddItemReferenceToObject(jDefaultOption, 'JsonName')
           jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
@@ -227,6 +233,7 @@ i                               LONG, AUTO
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsBase64')
           jOption.AddItemReferenceToObject(jDefaultOption, 'IsFile')
+          jOption.AddItemReferenceToObject(jDefaultOption, 'Auto')
           
           !- Propagate RuleHelper to field rule to allow call ApplyCB from ApplyFieldRule.
           jOption.AddItemReferenceToObject(jDefaultOption, 'RuleHelper')
@@ -299,9 +306,9 @@ sFileContent                    &STRING, AUTO
   !- search for rule helper
   rh &= FindRuleHelper(rule)
 
-  IF rule.IsStringRef=TRUE
+  IF rule.IsStringRef
     !- Passed value is &STRING.
-    !- Assigning to sValue we get an address of underlying string and its length, 
+    !- Assigning to sValue we get an address of underlying string and its length.
     sValue = value
     !- Getting a reference to underlying string.
     sRefValue &= (vGrp.adr) &':'& vGrp.len
@@ -331,6 +338,16 @@ sFileContent                    &STRING, AUTO
     RETURN DEFORMAT(fldValue, rule.Deformat)
   ELSE
     RETURN fldValue
+  END
+  
+ProcessAutoField              PROCEDURE(STRING fldName, cJSON item, typCJsonFieldRule rule)
+rh                              &TCJsonRuleHelper
+  CODE
+  !- search for rule helper
+  rh &= FindRuleHelper(rule)
+  IF NOT rh &= NULL
+    !- callback
+    rh.AutoCB(fldName, item)
   END
   
 IsFieldInGroup                PROCEDURE(*GROUP grp, STRING pFieldName)
@@ -1802,7 +1819,7 @@ arrSize                         LONG, AUTO
       IF fldDim = 1
         !not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
        
-        IF fldRules.IsQueue = TRUE
+        IF fldRules.IsQueue
           DO CreateQueueArray
         ELSE
           !- apply field rules
@@ -1817,7 +1834,7 @@ arrSize                         LONG, AUTO
             nestedGrpRef &= GETGROUP(grp, ndx)
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
   
-            IF fldRules.IgnoreEmptyObject=TRUE AND nestedItem.GetArraySize() = 0
+            IF fldRules.IgnoreEmptyObject AND nestedItem.GetArraySize() = 0
               !- delete empty object
               nestedItem.Delete()
               nestedItem &= NULL
@@ -1834,7 +1851,7 @@ arrSize                         LONG, AUTO
               nestedItem &= json::CreateSimpleArray(nestedQueRef, fldRules.FieldNumber, pNamesInLowerCase, options)
             END
             
-            IF fldRules.IgnoreEmptyArray=TRUE AND nestedItem.GetArraySize() = 0
+            IF fldRules.IgnoreEmptyArray AND nestedItem.GetArraySize() = 0
               !- don't add empty array
               nestedItem.Delete()
               nestedItem &= NULL
@@ -1842,16 +1859,16 @@ arrSize                         LONG, AUTO
 
             item.AddItemToObject(jsonName, nestedItem)
 
-          ELSIF fldRules.IsBool=TRUE
-            IF NOT (fldRules.IgnoreFalse=TRUE AND fldValue=0)
+          ELSIF fldRules.IsBool
+            IF NOT (fldRules.IgnoreFalse AND fldValue=0)
               item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
             END
-          ELSIF fldRules.IsRaw=TRUE
+          ELSIF fldRules.IsRaw
             item.AddRawToObject(jsonName, fldValue)   !- raw json
           ELSIF ISSTRING(fldValue)
             DO CreateString
           ELSIF NUMERIC(fldValue)
-            IF NOT (fldRules.IgnoreZero=TRUE AND fldValue=0)
+            IF NOT (fldRules.IgnoreZero AND fldValue=0)
               item.AddNumberToObject(jsonName, fldValue)
             END
           ELSE
@@ -1955,7 +1972,7 @@ queArray    &cJSON
     queArray &= json::CreateSimpleArray(queRef, fldRules.FieldNumber, pNamesInLowerCase, options)
   END
   
-  IF fldRules.IgnoreEmptyArray=TRUE AND queArray.GetArraySize() = 0
+  IF fldRules.IgnoreEmptyArray AND queArray.GetArraySize() = 0
     !- don't add empty array
     queArray.Delete()
     queArray &= NULL
@@ -2836,33 +2853,38 @@ nestedQueRef                    &QUEUE
 
 AssignGroup                   ROUTINE
   DATA
-fldValue    ANY
+fldValue                      ANY
   CODE
   IF fldRules.Ignore <> TRUE
-    IF item.IsString()
-      IF NOT fldRules.IsBase64
-        fldValue = item.valuestring
-      ELSE
-        !- decode base64 encoded string
-        fldValue = printf('%w', item.valuestring)
+    IF NOT fldRules.Auto
+      IF item.IsString()
+        IF NOT fldRules.IsBase64
+          fldValue = item.valuestring
+        ELSE
+          !- decode base64 encoded string
+          fldValue = printf('%w', item.valuestring)
+        END
+      ELSIF item.IsNumber()
+        fldValue = item.valuedouble
+      ELSIF item.IsBool()
+        fldValue = item.valueint
+      ELSIF item.IsFalse()
+        fldValue = FALSE
+      ELSIF item.IsTrue()
+        fldValue = TRUE
       END
-    ELSIF item.IsNumber()
-      fldValue = item.valuedouble
-    ELSIF item.IsBool()
-      fldValue = item.valueint
-    ELSIF item.IsFalse()
-      fldValue = 0
-    ELSIF item.IsTrue()
-      fldValue = 1
-    END
 
-    !- apply field rule, if exists
-    fldRef = ApplyFieldRule(fldName, fldValue, fldRules)
+      !- apply field rule if it exists
+      fldRef = ApplyFieldRule(fldName, fldValue, fldRules)
+    ELSE
+      !- "auto" field must be explicitly assigned
+      ProcessAutoField(fldName, item, fldRules)
+    END
   END
   
 cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
   CODE
-  RETURN SELF.ToQueueField(que, 1, matchByFieldNumber, options)
+  RETURN SELF.ToQueueField(que, 0, matchByFieldNumber, options)
   
 cJSON.ToQueueField            PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
 grp                             &GROUP
