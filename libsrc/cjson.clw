@@ -101,6 +101,7 @@ filterExpr                      STRING(256)
     ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE
     ProcessAutoField(STRING fldName, cJSON item, typCJsonFieldRule rule), PRIVATE
     IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE
+    IsAnyNullRef(? value), BOOL, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
@@ -291,7 +292,7 @@ rh                              &TCJsonRuleHelper
   
   !- no rule found, use default behavior
   CLEAR(rules)
-
+  
 ApplyFieldRule                PROCEDURE(STRING fldName, ? value, typCJsonFieldRule rule)
 fldValue                        ANY
 vGrp                            GROUP
@@ -368,6 +369,15 @@ fldRef                          ANY
   
   RETURN FALSE
   
+IsAnyNullRef                  PROCEDURE(? value)
+vGrp                            GROUP
+adr                               LONG
+                                END
+sValue                          STRING(4), OVER(vGrp)
+  CODE
+  sValue = value
+  RETURN CHOOSE(vGrp.adr=0)
+
 AddItemReferenceToObject      PROCEDURE(cJSON pDst, cJSON pSrc, STRING pItemName)
   CODE
   IF pSrc.HasItem(pItemName) AND NOT pDst.HasItem(pItemName)
@@ -1897,18 +1907,27 @@ arrSize                         LONG, AUTO
   RETURN item
 
 CreateString                  ROUTINE
-  IF CLIP(fldValue) <> ''
-    !- not empty string
+  DATA
+bIsNullRef  BOOL, AUTO
+  CODE
+  bIsNullRef = IsAnyNullRef(fldValue)
+  IF CLIP(fldValue) <> '' AND NOT bIsNullRef
+    !- not empty string / not null reference to a string / not null ref to a queue
     item.AddStringToObject(jsonName, fldValue)
   ELSE
     !- empty string
     CASE fldRules.EmptyString
-    OF 'null'
-      item.AddNullToObject(jsonName)
     OF 'ignore'
       ! do nothing
+    OF 'null'
+      item.AddNullToObject(jsonName)
     ELSE
-      item.AddStringToObject(jsonName, fldValue)
+      IF NOT bIsNullRef
+        item.AddStringToObject(jsonName, '')
+      ELSE
+        !- null ref
+        item.AddNullToObject(jsonName)
+      END
     END
   END
 

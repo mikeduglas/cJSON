@@ -42,6 +42,7 @@ v1.34 (17.12.2022)
 - CHG: Updated base64Test example shows an "Auto" rule usage.
 - CHG: Removed CWUTIL dependency.
 - FIX: "JsonName" field rule was unaccessible from rule helper callbacks.
+- FIX: Unassigned referenced fields (&STRING, &QUEUE) produced json strings like '\u0000\u0000\u0000\u0000'.
 
 v1.33 (16.12.2022)
 - NEW: "IsFile" field rule allows to load file content. In addition "IsBase64":true encodes file content.
