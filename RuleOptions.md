@@ -3,7 +3,7 @@
 - "to JSON" column says that you can/cannot use this rule in json::CreateObject(group), json::CreateArray(queue/file).
 - "from JSON" column says that you can/cannot use this rule in ToGroup, ToQueue, ToFile methods.
 - Default values: for strings - empty string, for numbers - 0, for booleans - false.
-- "Name" is required rule and cannot be omitted or blank.
+- "Name" is required rule and cannot be blank.
 
 
 |   **Rule name**   | **Type** |                **Value**                | **to JSON** | **from JSON** |                                                                        **Description**                                                                        |   |
