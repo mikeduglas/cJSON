@@ -22,6 +22,7 @@ pos                             LONG  !1..len(clip(input))
 depth                           LONG  !How deeply nested (in arrays/objects) is the input at the current offset
 depthLimit                      LONG  !arrays/objects depth limit
 codePage                        LONG  !code page to convert from utf 8; -1 - don't convert
+parser                          &cJSONFactory !- parser instance
                               END
 
 typCJsonFieldRules            QUEUE(typCJsonFieldRule), TYPE
@@ -691,7 +692,7 @@ print_value                   PROCEDURE(*cJSON item, *typPrintBuffer buffer)
   IF item &= NULL OR buffer.printed &= NULL
     RETURN FALSE
   END
-
+  
   CASE BAND(item.type, 0FFh)
   OF cJSON_NULL
     buffer.printed.Cat('null')
@@ -1150,10 +1151,10 @@ new_item                        &cJSON
   END
   
   buffer.pos += 1
-  
+
   !skip whitespaces
   buffer_skip_whitespace(buffer)
-
+  
   IF buffer.pos <= buffer.len AND buffer.content[buffer.pos] = ']'
     !empty array
     DO Success
@@ -1202,6 +1203,9 @@ new_item                        &cJSON
   DO Success
 
 Success                       ROUTINE
+  !- callback
+  buffer.parser.ParseCallback(buffer.len, buffer.pos, buffer.depth)
+
   IF buffer.depth > buffer.depthLimit
     !- don't add children
     IF NOT head &= NULL
@@ -1309,6 +1313,9 @@ new_item                        &cJSON
   DO Success
 
 Success                       ROUTINE
+  !- callback
+  buffer.parser.ParseCallback(buffer.len, buffer.pos, buffer.depth)
+  
   IF buffer.depth > buffer.depthLimit
     !- don't add children
     IF NOT head &= NULL
@@ -3180,6 +3187,8 @@ minival                         &STRING
     CLEAR(buffer.depthLimit, 1)
   END
   buffer.codePage = SELF.codePage
+  buffer.parser &= SELF
+  
   skip_utf8_bom(buffer)
   
   IF NOT parse_value(item, buffer)
@@ -3352,4 +3361,7 @@ cJSONFactory.GetError         PROCEDURE()
 cJSONFactory.GetErrorPosition PROCEDURE()
   CODE
   RETURN SELF.parseErrorPos
+  
+cJSONFactory.ParseCallback    PROCEDURE(LONG pInputLength, LONG pCurrentPos, LONG pCurrentDepth)
+  CODE
 !!!endregion

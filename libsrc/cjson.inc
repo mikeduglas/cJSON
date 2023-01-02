@@ -596,11 +596,14 @@ ToFile                          PROCEDURE(STRING json, *FILE pFile, BOOL matchBy
 ToFile                          PROCEDURE(*STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
 ToFile                          PROCEDURE(*IDynStr json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE), BOOL, PROC
 
-!!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it. </summary>
+!!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it.</summary>
 !!!<returns>a part of json string where parse error happened.</returns>
 GetError                        PROCEDURE(), STRING
 
 !!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it. </summary>
 !!!<returns>a character position in json string where parse error happened.</returns>
 GetErrorPosition                PROCEDURE(), LONG
+
+!!!<summary>Callback.</summary>
+ParseCallback                   PROCEDURE(LONG pInputLength, LONG pCurrentPos, LONG pCurrentDepth), VIRTUAL, PROTECTED
                               END
