@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.34
-!** 17.12.2022
+!** cJSON for Clarion v1.35
+!** 02.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -16,10 +16,11 @@ codePage                        LONG  !original code page to convert to utf 8; -
                               END
 
 typParseBuffer                GROUP, TYPE
-content                         &STRING
-len                             LONG
+content                         &STRING !input
+len                             LONG  !input length
 pos                             LONG  !1..len(clip(input))
-depth                           LONG  !How deeply nested (in arrays/objects) is the input at the current offset.
+depth                           LONG  !How deeply nested (in arrays/objects) is the input at the current offset
+depthLimit                      LONG  !arrays/objects depth limit
 codePage                        LONG  !code page to convert from utf 8; -1 - don't convert
                               END
 
@@ -93,15 +94,15 @@ filterExpr                      STRING(256)
   
     json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
 
-    CharToHex4(STRING pChar), STRING, PRIVATE
-    RemoveFieldPrefix(*STRING fldName), PRIVATE
-    FindRuleHelper(typCJsonFieldRule rule), *TCJsonRuleHelper, PRIVATE
-    ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE
-    FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE
-    ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE
-    ProcessAutoField(STRING fldName, cJSON item, typCJsonFieldRule rule), PRIVATE
-    IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE
-    IsAnyNullRef(? value), BOOL, PRIVATE
+    CharToHex4(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to '00XX' hex string
+    RemoveFieldPrefix(*STRING fldName), PRIVATE                                   !- removes prefix from field name
+    ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE              !- parses json string and fills rules queue
+    FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE             !- searches an entry by field name in rules queue
+    ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE   !- applies the rules to the field, returns modified field value
+    FindRuleHelper(typCJsonFieldRule rule), *TCJsonRuleHelper, PRIVATE            !- returns TCJsonRuleHelper instance or null
+    ProcessAutoField(STRING fldName, cJSON item, typCJsonFieldRule rule), PRIVATE !- processes "auto" field
+    IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE                 !- returns true if the group contains a field with passed name
+    IsAnyNullRef(? value), BOOL, PRIVATE                                          !- determines either the ANY value refers to a field (ex. &STRING) which is NULL reference
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
@@ -1136,6 +1137,13 @@ head                            &cJSON  !head of the linked list
 current_item                    &cJSON
 new_item                        &cJSON
   CODE
+  IF buffer.depth >= CJSON_NESTING_LIMIT
+    !to deeply nested
+    RETURN FALSE
+  END
+  
+  buffer.depth += 1
+  
   IF buffer.content[buffer.pos] <> '['
     !not an array
     DO Fail
@@ -1194,6 +1202,15 @@ new_item                        &cJSON
   DO Success
 
 Success                       ROUTINE
+  IF buffer.depth > buffer.depthLimit
+    !- don't add children
+    IF NOT head &= NULL
+      head.Delete()
+      head &= NULL
+    END
+  END
+  
+  buffer.depth -= 1
   item.type = cJSON_Array
   item.child &= head
   buffer.pos += 1
@@ -1211,6 +1228,13 @@ head                            &cJSON  !head of the linked list
 current_item                    &cJSON
 new_item                        &cJSON
   CODE
+  IF buffer.depth >= CJSON_NESTING_LIMIT
+    !to deeply nested
+    RETURN FALSE
+  END
+  
+  buffer.depth += 1
+  
   IF buffer.content[buffer.pos] <> '{{'
     !not an object
     DO Fail
@@ -1285,6 +1309,15 @@ new_item                        &cJSON
   DO Success
 
 Success                       ROUTINE
+  IF buffer.depth > buffer.depthLimit
+    !- don't add children
+    IF NOT head &= NULL
+      head.Delete()
+      head &= NULL
+    END
+  END
+  
+  buffer.depth -= 1
   item.type = cJSON_Object
   item.child &= head
   buffer.pos += 1
@@ -1826,8 +1859,9 @@ arrSize                         LONG, AUTO
     
     IF fldRules.Ignore <> TRUE
       fldDim = HOWMANY(grp, ndx)
-      IF fldDim = 1
-        !not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
+
+      IF fldDim = 1 !AND fldRules.ArraySize = 0
+        !- not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
        
         IF fldRules.IsQueue
           DO CreateQueueArray
@@ -3109,7 +3143,8 @@ cJSON.Compare                 PROCEDURE(*cJSON pItemToCompare, BOOL case_sensiti
 !!!region cJSONFactory
 cJSONFactory.Construct        PROCEDURE()
   CODE
-  SELF.codePage = -1  !- disable utf8->ascii conversion
+  SELF.codePage = -1        !- disable utf8->ascii conversion
+  CLEAR(SELF.depthLimit, 1) !- no limit
   
 cJSONFactory.Parse            PROCEDURE(STRING json)
   CODE
@@ -3139,6 +3174,11 @@ minival                         &STRING
   buffer.len = LEN(CLIP(json))
   buffer.pos = 1
   buffer.depth = 0
+  buffer.depthLimit = SELF.depthLimit
+  IF buffer.depthLimit < 0
+    !- negative mean no limit
+    CLEAR(buffer.depthLimit, 1)
+  END
   buffer.codePage = SELF.codePage
   skip_utf8_bom(buffer)
   

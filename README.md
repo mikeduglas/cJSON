@@ -36,6 +36,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.35 (02.01.2023)
+- NEW: cJSONFactory.depthLimit property: arrays/objects depth limit for json parsing.
+
 v1.34 (17.12.2022)
 - NEW: "Auto" field rule allows to manually set group field value.
 - NEW: TCJsonRuleHelper.AutoCB callback method to set the values of "auto" fields. 

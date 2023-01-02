@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.34
-!** 17.12.2022
+!** cJSON for Clarion v1.35
+!** 02.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -128,7 +128,8 @@ cJSON_StringIsNotConst        EQUATE(0111111111b)   !511
 
 !Limits how deeply nested arrays/objects can be before cJSON rejects to parse them.
 !This is to prevent stack overflows.
-CJSON_NESTING_LIMIT           EQUATE(1000)  !not used for now
+CJSON_NESTING_LIMIT           EQUATE(1000)  !Limits how deeply nested arrays/objects can be before cJSON rejects to parse them.
+                                            !This is to prevent stack overflows.
 
 
 !Field rule used in CreateObject/ToGroup/ToQueue/ToFILE modifiers.
@@ -516,6 +517,7 @@ parseErrorString                STRING(20), PRIVATE
 parseErrorPos                   LONG, PRIVATE
 
 codePage                        LONG  ! -1 by default. Set it to CP_ACP prior Parse call to convert all strings from utf8 to ascii
+depthLimit                      LONG  ! arrays/objects depth limit
 
 Construct                       PROCEDURE()
 
