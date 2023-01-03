@@ -1134,6 +1134,12 @@ sequence_length                 LONG, AUTO
   END
   
   buffer.pos = input_end + 1
+    
+  !- callback if the string is big
+  IF SIZE(item.valuestring) > 8192
+    buffer.parser.ParseCallback(buffer.len, buffer.pos, buffer.depth)
+  END
+
   RETURN TRUE
   
 Fail                          ROUTINE
