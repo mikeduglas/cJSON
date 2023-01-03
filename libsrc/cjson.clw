@@ -87,7 +87,7 @@ filterExpr                      STRING(256)
     !parse 4 digit hexadecimal number
     parse_hex4(typParseBuffer buffer, LONG pos), UNSIGNED, PRIVATE
     !converts a UTF-16 literal to UTF-8. A literal can be one or two sequences of the form \uXXXX
-    utf16_literal_to_utf8(*typParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output), BYTE, PRIVATE
+    utf16_literal_to_utf8(*typParseBuffer buffer, LONG input_pos, LONG input_end, *TStringBuilder output), BYTE, PRIVATE
     !skip the UTF-8 BOM (byte order mark) if it is at the beginning of a buffer
     skip_utf8_bom(*typParseBuffer buffer), PRIVATE
     !Utility to jump whitespace and cr/lf
@@ -1041,8 +1041,8 @@ parse_string                  PROCEDURE(*cJSON item, *typParseBuffer buffer)
 cur_char                        STRING(1)
 next_char                       STRING(1)
 skipped_bytes                   LONG(0)
-output                          DynStr
-decoded                         DynStr
+output                          TStringBuilder
+decoded                         TStringBuilder
 input_pos                       LONG, AUTO
 input_end                       LONG, AUTO
 sequence_length                 LONG, AUTO
@@ -1079,6 +1079,8 @@ sequence_length                 LONG, AUTO
   !buffer.pos points to opening "
   !input_pos points to first char after opening "
   !input_end points to closing "
+  
+  output.Init(input_end-input_pos+1)
   
   !loop through the string literal
   LOOP WHILE input_pos < input_end
@@ -1125,6 +1127,7 @@ sequence_length                 LONG, AUTO
     item.valuestring = output.Str()
   ELSE
     !- convert utf8 to another code page
+    decoded.Init(output.StrLen())
     decoded.Cat(json::FromUtf8(output.Str(), buffer.codePage))
     item.valuestring &= NEW STRING(decoded.StrLen())
     item.valuestring = decoded.Str()
@@ -1368,7 +1371,110 @@ char                            STRING(1), AUTO
   
   RETURN h
   
-utf16_literal_to_utf8         PROCEDURE(*typParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output)
+!utf16_literal_to_utf8         PROCEDURE(*typParseBuffer buffer, LONG input_pos, LONG input_end, *DynStr output)
+!codepoint                       DECIMAL(10, 0)  !uint64
+!first_sequence                  LONG, AUTO
+!second_sequence                 LONG, AUTO
+!sequence_length                 BYTE(0)
+!first_code                      LONG, AUTO
+!second_code                     LONG, AUTO
+!utf8_length                     BYTE(0)
+!first_byte_mark                 BYTE(0)
+!utf8_position                   LONG, AUTO
+!tempstr                         STRING(4)
+!  CODE
+!  first_sequence = input_pos
+!  
+!  IF input_end - first_sequence + 1 < 6
+!    !input ends unexpectedly
+!    json::DebugInfo('input ends unexpectedly')
+!    RETURN 0
+!  END
+!  
+!  !get the first utf16 sequence
+!  first_code = parse_hex4(buffer, first_sequence + 2)
+!
+!  !check that the code is valid
+!  IF first_code >= 0DC00h AND first_code <= 0DFFFh
+!    json::DebugInfo('the code is invalid')
+!    RETURN 0
+!  END
+!
+!  !UTF16 surrogate pair
+!  IF first_code >= 0D800h AND first_code <= 0DBFFh
+!    second_sequence = first_sequence + 6
+!    second_code = 0
+!    sequence_length = 12  ! \uXXXX\uXXXX
+!      
+!    IF input_end - second_sequence < 6
+!      !input ends unexpectedly
+!      json::DebugInfo('input ends unexpectedly #2')
+!      RETURN 0
+!    END
+!
+!    IF buffer.content[second_sequence] <> '\' OR buffer.content[second_sequence + 1] <> 'u'
+!      !missing second half of the surrogate pair
+!      json::DebugInfo('missing second half of the surrogate pair')
+!      RETURN 0
+!    END
+!    
+!    !get the second utf16 sequence
+!    second_code = parse_hex4(buffer, second_sequence + 2)
+!    !check that the code is valid
+!    IF second_code < 0DC00h OR second_code > 0DFFFh
+!      !invalid second half of the surrogate pair
+!      json::DebugInfo('invalid second half of the surrogate pair')
+!      RETURN 0
+!    END
+!    
+!    !calculate the unicode codepoint from the surrogate pair
+!    codepoint = 010000h + BOR(BSHIFT(BAND(first_code, 03FFh), 10), BAND(second_code, 03FFh))
+!  ELSE
+!    sequence_length = 6 ! \uXXXX
+!    codepoint = first_code
+!  END
+!  
+!  !encode as UTF-8
+!  !takes at maximum 4 bytes to encode:
+!  !11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+!  IF codepoint < 080h
+!    !normal ascii, encoding 0xxxxxxx
+!    utf8_length = 1
+!  ELSIF codepoint < 0800h
+!    !two bytes, encoding 110xxxxx 10xxxxxx
+!    utf8_length = 2
+!    first_byte_mark = 0C0h  ! 11000000
+!  ELSIF codepoint < 010000h
+!    !three bytes, encoding 1110xxxx 10xxxxxx 10xxxxxx
+!    utf8_length = 3
+!    first_byte_mark = 0E0h  ! 11100000
+!  ELSIF codepoint < 010FFFFh
+!    !four bytes, encoding 1110xxxx 10xxxxxx 10xxxxxx 10xxxxxx
+!    utf8_length = 4
+!    first_byte_mark = 0F0h  ! 11110000
+!  ELSE
+!    !invalid unicode codepoint
+!    json::DebugInfo('invalid unicode codepoint')
+!    RETURN 0
+!  END
+!
+!  !encode as utf8
+!  LOOP utf8_position = utf8_length TO 2 BY -1
+!    !10xxxxxx
+!    tempstr[utf8_position] = CHR(BAND(BOR(codepoint, 080h), 0BFh))
+!    codepoint = BSHIFT(codepoint, -6)
+!  END
+!
+!  !encode first byte
+!  IF utf8_length > 1
+!    tempstr[1] = CHR(BAND(BOR(codepoint, first_byte_mark), 0FFh))
+!  ELSE
+!    tempstr[1] = CHR(BAND(codepoint, 07Fh))
+!  END
+!
+!  output.Cat(CLIP(tempstr))
+!  RETURN sequence_length
+utf16_literal_to_utf8         PROCEDURE(*typParseBuffer buffer, LONG input_pos, LONG input_end, *TStringBuilder output)
 codepoint                       DECIMAL(10, 0)  !uint64
 first_sequence                  LONG, AUTO
 second_sequence                 LONG, AUTO

@@ -39,6 +39,7 @@ Free
 v1.36 (03.01.2023)
 - FIX: removed CWUtil dependency from json::StringToULiterals.
 - CHG: replaced some calls of LEN(string) with faster SIZE(string).
+- CHG: parse_string now uses fast TStringBuilder instead of slow IDynStr.
 
 v1.35 (02.01.2023)
 - NEW: cJSONFactory.depthLimit property: arrays/objects depth limit for json parsing.
