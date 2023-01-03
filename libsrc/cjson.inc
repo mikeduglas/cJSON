@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.35
-!** 02.01.2023
+!** cJSON for Clarion v1.36
+!** 03.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 

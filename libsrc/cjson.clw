@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.35
-!** 02.01.2023
+!** cJSON for Clarion v1.36
+!** 03.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -95,6 +95,7 @@ filterExpr                      STRING(256)
   
     json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
 
+    CharToHex2(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to 'XX' hex string
     CharToHex4(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to '00XX' hex string
     RemoveFieldPrefix(*STRING fldName), PRIVATE                                   !- removes prefix from field name
     ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE              !- parses json string and fills rules queue
@@ -142,16 +143,20 @@ TCJsonRuleHelper.AutoCB       PROCEDURE(STRING pFldName, cJSON pItem)
 !!!endregion
 
 !!!region public functions
+CharToHex2                    PROCEDURE(STRING pChar)
+  CODE
+  RETURN printf('%X', VAL(pChar))
+  
 CharToHex4                    PROCEDURE(STRING pChar)
   CODE
   RETURN printf('00%X', VAL(pChar))
-  
+
 RemoveFieldPrefix             PROCEDURE(*STRING fldName)
 first_colon_pos                 LONG, AUTO
   CODE
   first_colon_pos = INSTRING(':', fldName, 1, 1)
   IF first_colon_pos
-    fldName = fldName[first_colon_pos + 1 : LEN(fldName)]
+    fldName = fldName[first_colon_pos + 1 : SIZE(fldName)]
   END
 
 ParseFieldRules               PROCEDURE(STRING options, *typCJsonFieldRules rules)
@@ -628,7 +633,7 @@ replace_item_in_object        PROCEDURE(*cJSON object, *STRING str, *cJSON repla
     replacement.name &= NULL
   END
 
-  replacement.name &= NEW STRING(LEN(str))
+  replacement.name &= NEW STRING(SIZE(str))
   replacement.name = str
   replacement.type = BAND(replacement.type, cJSON_StringIsNotConst)
 
@@ -748,7 +753,7 @@ output                          &STRING
   END
   
   escape_characters = 0
-  LOOP cIndex = 1 TO LEN(input)
+  LOOP cIndex = 1 TO SIZE(input)
     CASE input[cIndex]
     OF   '"'
     OROF '\'
@@ -992,7 +997,7 @@ digitPos                        LONG AUTO
   digitPos = 0
   LOOP i = buffer.pos TO buffer.len
     digitPos += 1
-    IF digitPos > LEN(number_c_string)
+    IF digitPos > SIZE(number_c_string)
       BREAK
     END
     
@@ -1194,7 +1199,7 @@ new_item                        &cJSON
     
     buffer_skip_whitespace(buffer)
 
-  WHILE buffer.pos < buffer.len AND buffer.content[buffer.pos] = ','
+  WHILE buffer.pos <= buffer.len AND buffer.content[buffer.pos] = ','
   
   IF buffer.pos > buffer.len OR buffer.content[buffer.pos] <> ']'
     DO Fail   !expected end of array
@@ -1492,9 +1497,9 @@ i                               LONG, AUTO
   END
 
 json::ConvertEncoding         PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage)
-szInput                         CSTRING(LEN(pInput) + 1)
-UnicodeText                     CSTRING(LEN(pInput)*2+2)
-DecodedText                     CSTRING(LEN(pInput)*2+2)
+szInput                         CSTRING(SIZE(pInput) + 1)
+UnicodeText                     CSTRING(SIZE(pInput)*2+2)
+DecodedText                     CSTRING(SIZE(pInput)*2+2)
 Len                             LONG, AUTO
 CP_UTF16                        EQUATE(-1)
   CODE
@@ -1513,7 +1518,7 @@ CP_UTF16                        EQUATE(-1)
     !- get UnicodeText terminated by <0,0>
     winapi::MultiByteToWideChar(pInputCodePage, 0, ADDRESS(szInput), -1, ADDRESS(UnicodeText), Len)
   ELSE
-    Len = LEN(pInput) / 2
+    Len = SIZE(pInput) / 2
     UnicodeText = pInput & '<0,0>'
   END
   
@@ -1541,23 +1546,23 @@ json::ToUtf8                  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_A
 json::StringToULiterals       PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP)
 AChar                           STRING(1)
 WChar                           STRING(2)
-UnicodeText                     STRING(LEN(pInput) * 6) !\uXXXX
+UnicodeText                     STRING(SIZE(pInput) * 6) !\uXXXX
 cIndex                          LONG
   CODE
   IF NOT pInput
     RETURN ''
   END
   
-  LOOP cIndex = 1 TO LEN(pInput)
+  LOOP cIndex = 1 TO SIZE(pInput)
     AChar = pInput[cIndex]
     winapi::MultiByteToWideChar(pInputCodepage, 0, ADDRESS(AChar), 1, ADDRESS(WChar), 2)
-    UnicodeText[(cIndex-1)*6+1 : cIndex*6] = '\u' & ByteToHex(VAL(WChar[2]), 1) & ByteToHex(VAL(WChar[1]), 1)
+    UnicodeText[(cIndex-1)*6+1 : cIndex*6] = '\u' & CharToHex2(WChar[2]) & CharToHex2(WChar[1])
   END
   
   RETURN UnicodeText
   
 json::LoadFile                PROCEDURE(STRING pFile)
-szFile                          CSTRING(LEN(pFile) + 1)
+szFile                          CSTRING(SIZE(pFile) + 1)
 sData                           &STRING
 hFile                           HANDLE
 dwFileSize                      LONG
@@ -1591,7 +1596,7 @@ bRC                             LONG, AUTO
     RETURN FALSE
   END
   
-  bRC = winapi::WriteFile(hFile, pData, LEN(pData), dwBytesWritten, 0)
+  bRC = winapi::WriteFile(hFile, pData, SIZE(pData), dwBytesWritten, 0)
   winapi::CloseHandle(hFile)
 
   IF NOT bRC
@@ -2658,14 +2663,14 @@ newchild                        &cJSON
   newitem.valueint = SELF.valueint
   newitem.valuedouble = SELF.valuedouble
   IF NOT SELF.valuestring &= NULL
-    newitem.valuestring &= NEW STRING(LEN(SELF.valuestring))
+    newitem.valuestring &= NEW STRING(SIZE(SELF.valuestring))
     newitem.valuestring = SELF.valuestring
   END
   IF NOT SELF.name &= NULL
     IF BAND(SELF.type, cJSON_StringIsConst)
       newitem.name &= SELF.name
     ELSE
-      newitem.name &= NEW STRING(LEN(SELF.name))
+      newitem.name &= NEW STRING(SIZE(SELF.name))
       newitem.name = SELF.name
     END
   END
@@ -3202,7 +3207,7 @@ minival                         &STRING
       SELF.parseErrorPos = buffer.len
     END
     
-    SELF.parseErrorString = SUB(json, SELF.parseErrorPos, LEN(SELF.parseErrorString))
+    SELF.parseErrorString = SUB(json, SELF.parseErrorPos, SIZE(SELF.parseErrorString))
   ELSE
     !- success
     
@@ -3227,7 +3232,7 @@ minival                         &STRING
         item &= NULL
   
         SELF.parseErrorPos = 1
-        SELF.parseErrorString = SUB(json, SELF.parseErrorPos, LEN(SELF.parseErrorString))
+        SELF.parseErrorString = SUB(json, SELF.parseErrorPos, SIZE(SELF.parseErrorString))
 
       END
       

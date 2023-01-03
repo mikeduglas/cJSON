@@ -36,6 +36,10 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.36 (03.01.2023)
+- FIX: removed CWUtil dependency from json::StringToULiterals.
+- CHG: replaced some calls of LEN(string) with faster SIZE(string).
+
 v1.35 (02.01.2023)
 - NEW: cJSONFactory.depthLimit property: arrays/objects depth limit for json parsing.
 - NEW: cJSONFactory.ParseCallback virtual method.
