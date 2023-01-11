@@ -36,6 +36,12 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.37 (10.01.2023)
+- NEW: cJSONFactory.notifyStringSize property to control ParseCallback notifications for strings.
+- NEW: TCJsonRuleHelper.ArrayCB method is called after each item of an array has been processed. It can be used to update progress indicator, 
+also you can interrupt an array processing at any time returning FALSE from derived method.
+
+
 v1.36 (03.01.2023)
 - FIX: removed CWUtil dependency from json::StringToULiterals.
 - CHG: replaced some calls of LEN(string) with faster SIZE(string).

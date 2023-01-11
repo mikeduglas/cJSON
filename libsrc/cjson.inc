@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.36
-!** 03.01.2023
+!** cJSON for Clarion v1.37.3
+!** 10.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -164,6 +164,9 @@ IgnoreEmptyArray                BOOL        !do not create empty arrays [].
 IgnoreEmptyObject               BOOL        !do not create empty objects {}.
                               END
 
+typCJsonFieldRules            QUEUE(typCJsonFieldRule), TYPE
+                              END
+
 
 TCJsonRuleHelper              CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
 !!!<summary>Called when a rule for the field is found.</summary>
@@ -186,6 +189,14 @@ ApplyCB                         PROCEDURE(STRING pFldName, *typCJsonFieldRule pR
 !!!<param name="pFldName">The name of a field to be processed, in UPPERCASE.</param>
 !!!<param name="pItem">Json item which corresponds to the field.</param>
 AutoCB                          PROCEDURE(STRING pFldName, cJSON pItem), VIRTUAL
+!!!<summary>Called after each item of an array has been processed.</summary>
+!!!<param name="pArraySize">A size of the array, whether RECORDS(queue/file) or array.GetArraySize().</param>
+!!!<param name="pCurrentIndex">Current item index.</param>
+!!!<param name="pArray">A reference to a JSON array.</param>
+!!!<param name="pQueueInstance">INSTANCE(queue, thread) or 0 for FILE.</param>
+!!!<param name="pRules">The rules.</param>
+!!!<returns>false to abort current array processing.</returns>
+ArrayCB                         PROCEDURE(LONG pArraySize, LONG pCurrentIndex, CONST *cJSON pArray, LONG pQueueInstance, *typCJsonFieldRules pRules), BOOL, VIRTUAL
                               END
 
 
@@ -518,6 +529,7 @@ parseErrorPos                   LONG, PRIVATE
 
 codePage                        LONG  ! -1 by default. Set it to CP_ACP prior Parse call to convert all strings from utf8 to ascii
 depthLimit                      LONG  ! arrays/objects depth limit
+notifyStringSize                LONG  ! ParseCallback will be called if "string" size equals or greater that this value
 
 Construct                       PROCEDURE()
 

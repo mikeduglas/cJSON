@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.36
-!** 03.01.2023
+!** cJSON for Clarion v1.37.3
+!** 10.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -23,9 +23,6 @@ depth                           LONG  !How deeply nested (in arrays/objects) is 
 depthLimit                      LONG  !arrays/objects depth limit
 codePage                        LONG  !code page to convert from utf 8; -1 - don't convert
 parser                          &cJSONFactory !- parser instance
-                              END
-
-typCJsonFieldRules            QUEUE(typCJsonFieldRule), TYPE
                               END
 
 !jPath
@@ -56,7 +53,7 @@ filterExpr                      STRING(256)
       winapi::CloseHandle(UNSIGNED),BOOL,PASCAL,PROC,NAME('CloseHandle')
       winapi::WriteFile(LONG, *STRING, LONG, *LONG, LONG),LONG,RAW,PASCAL,NAME('WriteFile')
       winapi::GetFileSize(HANDLE hFile, *LONG FileSizeHigh),LONG,RAW,PASCAL,NAME('GetFileSize')
-      winapi::ReadFile(HANDLE hFile, LONG lpBuffer, LONG dwBytes, *LONG dwBytesRead, LONG lpOverlapped),BOOL,RAW,PASCAL,NAME('ReadFile')
+      winapi::ReadFile(HANDLE hFile, LONG lpBuffer, LONG dwBytes, *LONG dwBytesRead, LONG lpOverlapped),BOOL,PROC,RAW,PASCAL,NAME('ReadFile')
     END
 
     INCLUDE('CWUTIL.inc'), ONCE
@@ -140,6 +137,11 @@ TCJsonRuleHelper.ApplyCB      PROCEDURE(STRING pFldName, *typCJsonFieldRule pRul
 TCJsonRuleHelper.AutoCB       PROCEDURE(STRING pFldName, cJSON pItem)
   CODE
   !- stub
+
+TCJsonRuleHelper.ArrayCB      PROCEDURE(LONG pArraySize, LONG pCurrentIndex, CONST *cJSON pArray, LONG pQueueInstance, *typCJsonFieldRules pRules)
+  CODE
+  !- stub
+  RETURN TRUE
 !!!endregion
 
 !!!region public functions
@@ -334,8 +336,12 @@ sFileContent                    &STRING, AUTO
   IF rule.IsFile
     !- load file content
     sFileContent &= json::LoadFile(fldValue)
-    fldValue = sFileContent
-    DISPOSE(sFileContent)
+    IF NOT sFileContent &= NULL
+      fldValue = sFileContent
+      DISPOSE(sFileContent)
+    ELSE
+      fldValue = ''
+    END
   END
   
   IF rule.Format
@@ -1135,8 +1141,8 @@ sequence_length                 LONG, AUTO
   
   buffer.pos = input_end + 1
     
-  !- callback if the string is big
-  IF SIZE(item.valuestring) > 8192
+  !- notify if the string is big enough
+  IF SIZE(item.valuestring) >= buffer.parser.notifyStringSize
     buffer.parser.ParseCallback(buffer.len, buffer.pos, buffer.depth)
   END
 
@@ -1656,7 +1662,7 @@ json::ToUtf8                  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_A
   RETURN json::ConvertEncoding(pInput, pCodepage, CP_UTF8)
 
 json::StringToULiterals       PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP)
-AChar                           STRING(1)
+AChar                           STRING(1), AUTO
 WChar                           STRING(2)
 UnicodeText                     STRING(SIZE(pInput) * 6) !\uXXXX
 cIndex                          LONG
@@ -1674,14 +1680,12 @@ cIndex                          LONG
   RETURN UnicodeText
   
 json::LoadFile                PROCEDURE(STRING pFile)
-szFile                          CSTRING(SIZE(pFile) + 1)
+szFile                          CSTRING(SIZE(pFile) + 1), AUTO
 sData                           &STRING
-hFile                           HANDLE
-dwFileSize                      LONG
-lpFileSizeHigh                  LONG
-pvData                          LONG
-dwBytesRead                     LONG
-bRead                           BOOL
+hFile                           HANDLE, AUTO
+dwFileSize                      LONG, AUTO
+lpFileSizeHigh                  LONG, AUTO
+dwBytesRead                     LONG, AUTO
   CODE
   szFile=CLIP(pFile)
   hFile = winapi::CreateFile(szFile,GENERIC_READ,0,0,OPEN_EXISTING,0,0)
@@ -1689,7 +1693,7 @@ bRead                           BOOL
     dwFileSize = winapi::GetFileSize(hFile,lpFileSizeHigh)
     IF dwFileSize > 0
       sData &= NEW STRING(dwFileSize)
-      bRead = winapi::ReadFile(hFile,ADDRESS(sData),dwFileSize,dwBytesRead,0)
+      winapi::ReadFile(hFile,ADDRESS(sData),dwFileSize,dwBytesRead,0)
     END
     winapi::CloseHandle(hFile)
   END
@@ -1697,9 +1701,9 @@ bRead                           BOOL
   RETURN sData
 
 json::SaveFile                PROCEDURE(STRING pFilename, STRING pData)
-szFile                          CSTRING(256)
-hFile                           HANDLE
-dwBytesWritten                  LONG
+szFile                          CSTRING(256), AUTO
+hFile                           HANDLE, AUTO
+dwBytesWritten                  LONG, AUTO
 bRC                             LONG, AUTO
   CODE
   szFile=CLIP(pFilename)
@@ -1709,15 +1713,13 @@ bRC                             LONG, AUTO
   END
   
   bRC = winapi::WriteFile(hFile, pData, SIZE(pData), dwBytesWritten, 0)
-  winapi::CloseHandle(hFile)
-
   IF NOT bRC
     !-- error
     json::DebugInfo('WriteFile failed with Win error code '& winapi::GetLastError())
   END
-  
-  RETURN bRC
+  winapi::CloseHandle(hFile)
 
+  RETURN bRC
 !!!endregion
 
 !!!region shortcuts
@@ -2158,15 +2160,37 @@ queArray    &cJSON
   item.AddItemToObject(jsonName, queArray)
   
 json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
-array                           &cJSON
-grp                             &GROUP
+array                           &cJSON, AUTO
+grp                             &GROUP, AUTO
 ndx                             LONG, AUTO
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
+qInstance                       LONG, AUTO
   CODE
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+
+  !- search for rule helper
+  rh &= FindRuleHelper(fldRules)
+  IF NOT rh &= NULL
+    nRecs = RECORDS(que)
+    qInstance = INSTANCE(que, THREAD())
+  END
+  
   array &= json::CreateArray()
   LOOP ndx = 1 TO RECORDS(que)
     GET(que, ndx)
     grp &= que
     array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
+  
+    IF NOT rh &= NULL
+      !- callback
+      IF NOT rh.ArrayCB(nRecs, ndx, array, qInstance, fldRules)
+        BREAK
+      END
+    END
   END
 
   RETURN array
@@ -2180,6 +2204,9 @@ fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 fldValue                        ANY
 ndx                             LONG, AUTO
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
+qInstance                       LONG, AUTO
   CODE
   array &= json::CreateArray()
   
@@ -2194,6 +2221,13 @@ ndx                             LONG, AUTO
     
       !- field convertion rules
       ParseFieldRules(options, fldRules)
+
+      !- search for rule helper
+      rh &= FindRuleHelper(fldRules)
+      IF NOT rh &= NULL
+        nRecs = RECORDS(que)
+        qInstance = INSTANCE(que, THREAD())
+      END
 
       !- find field rules
       FindFieldRule(fldName, fldRules)
@@ -2218,6 +2252,13 @@ ndx                             LONG, AUTO
         ELSE
           array.AddItemToArray(json::CreateNumber(fldValue))
         END
+       
+        IF NOT rh &= NULL
+          !- callback
+          IF NOT rh.ArrayCB(nRecs, ndx, array, qInstance, fldRules)
+            BREAK
+          END
+        END
       END
     END
   END
@@ -2230,6 +2271,11 @@ item                            &cJSON
 ferr                            LONG, AUTO
 grp                             &GROUP
 doCloseFile                     BOOL(FALSE)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+ndx                             LONG, AUTO
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
   CODE
   IF STATUS(pFile) = 0
     OPEN(pFile, 40h)  !- Read Only/Deny None
@@ -2239,6 +2285,16 @@ doCloseFile                     BOOL(FALSE)
     
     doCloseFile = TRUE
     SET(pFile)  !- sort by physical order
+  END
+    
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+
+  !- search for rule helper
+  rh &= FindRuleHelper(fldRules)
+  IF NOT rh &= NULL
+    nRecs = RECORDS(pFile)
+    ndx = 0
   END
 
   grp &= pFile{PROP:Record}
@@ -2262,6 +2318,13 @@ doCloseFile                     BOOL(FALSE)
     END
     
     array.AddItemToArray(item)
+         
+    IF NOT rh &= NULL
+      !- callback
+      IF NOT rh.ArrayCB(nRecs, ndx, array, 0, fldRules)
+        BREAK
+      END
+    END
   END
   
   IF doCloseFile
@@ -3068,6 +3131,12 @@ grp                             &GROUP
 item                            &cJSON
 fldRef                          ANY
 fldValue                        ANY
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
+ndx                             LONG, AUTO
+qInstance                       LONG, AUTO
   CODE
   IF NOT SELF.IsArray()
     !not an array
@@ -3078,6 +3147,17 @@ fldValue                        ANY
   IF item &= NULL
     !empty array
     RETURN TRUE
+  END
+  
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+
+  !- search for rule helper
+  rh &= FindRuleHelper(fldRules)
+  IF NOT rh &= NULL
+    nRecs = SELF.GetArraySize()
+    ndx = 0
+    qInstance = INSTANCE(que, THREAD())
   END
   
   IF pFieldNumber = 0
@@ -3116,7 +3196,15 @@ fldValue                        ANY
         ADD(que)
       END
     END
-    
+      
+    IF NOT rh &= NULL
+      !- callback
+      ndx += 1
+      IF NOT rh.ArrayCB(nRecs, ndx, SELF, qInstance, fldRules)
+        BREAK
+      END
+    END
+
     item &= item.next
   END
 
@@ -3125,6 +3213,11 @@ fldValue                        ANY
 cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
 grp                             &GROUP
 item                            &cJSON
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
+ndx                             LONG, AUTO
   CODE
   IF NOT SELF.IsArray()
     !not an array
@@ -3135,6 +3228,16 @@ item                            &cJSON
   IF item &= NULL
     !empty array
     RETURN TRUE
+  END
+  
+  !- field convertion rules
+  ParseFieldRules(options, fldRules)
+
+  !- search for rule helper
+  rh &= FindRuleHelper(fldRules)
+  IF NOT rh &= NULL
+    nRecs = SELF.GetArraySize()
+    ndx = 0
   END
 
   !go thru array elements
@@ -3152,7 +3255,15 @@ item                            &cJSON
         json::DebugInfo('ADD error: '& ERROR())
       END
     END
-    
+          
+    IF NOT rh &= NULL
+      !- callback
+      ndx += 1
+      IF NOT rh.ArrayCB(nRecs, ndx, SELF, 0, fldRules)
+        BREAK
+      END
+    END
+
     item &= item.next
   END
 
@@ -3267,8 +3378,9 @@ cJSON.Compare                 PROCEDURE(*cJSON pItemToCompare, BOOL case_sensiti
 !!!region cJSONFactory
 cJSONFactory.Construct        PROCEDURE()
   CODE
-  SELF.codePage = -1        !- disable utf8->ascii conversion
-  CLEAR(SELF.depthLimit, 1) !- no limit
+  SELF.codePage = -1              !- disable utf8->ascii conversion
+  CLEAR(SELF.depthLimit, 1)       !- no limit
+  SELF.notifyStringSize = 8193    !- 8K+ strings
   
 cJSONFactory.Parse            PROCEDURE(STRING json)
   CODE
