@@ -36,6 +36,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.38 (13.01.2023)
+- FIX: json::CreateSimpleArray ignored field rules "EmptyString", "IgnoreZero", "IgnoreFalse", "IsBool".
+
 v1.37 (10.01.2023)
 - NEW: cJSONFactory.notifyStringSize property to control ParseCallback notifications for strings.
 - NEW: TCJsonRuleHelper.ArrayCB method is called after each item of an array has been processed. It can be used to update progress indicator, 

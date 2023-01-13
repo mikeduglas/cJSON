@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.37.3
-!** 10.01.2023
+!** cJSON for Clarion v1.38.1
+!** 13.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -2247,10 +2247,26 @@ qInstance                       LONG, AUTO
           fldValue = printf('%v', fldValue)
         END
 
+        !- add a primitive, checking for empty/false/zero value
         IF ISSTRING(fldValue)
-          array.AddItemToArray(json::CreateString(fldValue))
+          !- string
+          IF fldValue = '' AND LOWER(fldRules.EmptyString) = 'null'
+            array.AddItemToArray(json::CreateNull())
+          ELSIF NOT (fldValue = '' AND LOWER(fldRules.EmptyString) = 'ignore')
+            array.AddItemToArray(json::CreateString(fldValue))
+          END
         ELSE
-          array.AddItemToArray(json::CreateNumber(fldValue))
+          IF fldRules.IsBool
+            !- boolean
+            IF NOT (fldValue = 0 AND fldRules.IgnoreFalse)
+              array.AddItemToArray(json::CreateBool(fldValue))
+            END
+          ELSE
+            !- numeric
+            IF NOT (fldValue = 0 AND fldRules.IgnoreZero)
+              array.AddItemToArray(json::CreateNumber(fldValue))
+            END
+          END
         END
        
         IF NOT rh &= NULL
