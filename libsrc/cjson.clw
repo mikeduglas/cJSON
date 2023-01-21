@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.38.1
-!** 13.01.2023
+!** cJSON for Clarion v1.39.1
+!** 21.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -3138,10 +3138,30 @@ fldValue                      ANY
     END
   END
   
+cJSON.ToGroup                 PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+  CODE
+  jObject &= SELF.FindObjectItem(pObjectName)
+  IF NOT jObject &= NULL
+    RETURN jObject.ToGroup(pGrp, pMatchByFieldNumber, pOptions)
+  ELSE
+    RETURN FALSE
+  END
+  
 cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
   CODE
   RETURN SELF.ToQueueField(que, 0, matchByFieldNumber, options)
   
+cJSON.ToQueue                 PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jArray                          &cJSON, AUTO
+  CODE
+  jArray &= SELF.FindObjectItem(pArrayName)
+  IF NOT jArray &= NULL
+    RETURN jArray.ToQueue(pQue, pMatchByFieldNumber, pOptions)
+  ELSE
+    RETURN FALSE
+  END
+
 cJSON.ToQueueField            PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
 grp                             &GROUP
 item                            &cJSON
@@ -3225,6 +3245,16 @@ qInstance                       LONG, AUTO
   END
 
   RETURN TRUE
+  
+cJSON.ToQueueField            PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jArray                          &cJSON, AUTO
+  CODE
+  jArray &= SELF.FindObjectItem(pArrayName)
+  IF NOT jArray &= NULL
+    RETURN jArray.ToQueueField(pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+  ELSE
+    RETURN FALSE
+  END
 
 cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
 grp                             &GROUP
@@ -3284,6 +3314,16 @@ ndx                             LONG, AUTO
   END
 
   RETURN TRUE
+  
+cJSON.ToFile                  PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+jArray                          &cJSON, AUTO
+  CODE
+  jArray &= SELF.FindObjectItem(pArrayName)
+  IF NOT jArray &= NULL
+    RETURN jArray.ToFile(pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+  ELSE
+    RETURN FALSE
+  END
              
 cJSON.FindObjectItem          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
 item                            &cJSON
@@ -3511,89 +3551,177 @@ cJSONFactory.ParseFile        PROCEDURE(STRING pFileName, LONG pCodePage)
   SELF.codePage = pCodePage
   RETURN SELF.ParseFile(pFileName)
 
-cJSONFactory.ToGroup          PROCEDURE(STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSONFactory.ToGroup          PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
   CODE
-  RETURN SELF.ToGroup(json, grp, matchByFieldNumber, options)
+  RETURN SELF.ToGroup(pJson, pGrp, pMatchByFieldNumber, pOptions)
   
-cJSONFactory.ToGroup          PROCEDURE(*IDynStr json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSONFactory.ToGroup          PROCEDURE(STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToGroup(pJson, pObjectName, pGrp, pMatchByFieldNumber, pOptions)
+  
+cJSONFactory.ToGroup          PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 sRef                            &STRING, AUTO
   CODE
-  sRef &= (json.CStrRef()) &':'& json.StrLen()
-  RETURN SELF.ToGroup(sRef, grp, matchByFieldNumber, options)
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroup(sRef, pGrp, pMatchByFieldNumber, pOptions)
+  
+cJSONFactory.ToGroup          PROCEDURE(*IDynStr pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroup(sRef, pObjectName, pGrp, pMatchByFieldNumber, pOptions)
 
-cJSONFactory.ToGroup          PROCEDURE(*STRING json, *GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
-object                          &cJSON
+cJSONFactory.ToGroup          PROCEDURE(*STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
   CODE
-  object &= SELF.Parse(json)
-  IF NOT object &= NULL
-    ret = object.ToGroup(grp, matchByFieldNumber, options)
-    object.Delete()
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToGroup(pGrp, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
   END
   
   RETURN ret
   
-cJSONFactory.ToQueue          PROCEDURE(STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
-  CODE
-  RETURN SELF.ToQueue(json, que, matchByFieldNumber, options)
-      
-cJSONFactory.ToQueue          PROCEDURE(*IDynStr json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
-sRef                            &STRING, AUTO
-  CODE
-  sRef &= (json.CStrRef()) &':'& json.StrLen()
-  RETURN SELF.ToQueue(sRef, que, matchByFieldNumber, options)
-
-cJSONFactory.ToQueue          PROCEDURE(*STRING json, *QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
-object                          &cJSON
+cJSONFactory.ToGroup          PROCEDURE(*STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
   CODE
-  object &= SELF.Parse(json)
-  IF NOT object &= NULL
-    ret = object.ToQueue(que, matchByFieldNumber, options)
-    object.Delete()
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToGroup(pObjectName, pGrp, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
+  END
+  
+  RETURN ret
+
+cJSONFactory.ToQueue          PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueue(pJson, pQue, pMatchByFieldNumber, pOptions)
+      
+cJSONFactory.ToQueue          PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueue(pJson, pArrayName, pQue, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueue          PROCEDURE(*IDynStr pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueue(sRef, pQue, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueue          PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueue(sRef, pArrayName, pQue, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueue          PROCEDURE(*STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+ret                             BOOL(FALSE)
+  CODE
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToQueue(pQue, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
   END
   
   RETURN ret
     
-cJSONFactory.ToQueueField     PROCEDURE(STRING json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSONFactory.ToQueue          PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+ret                             BOOL(FALSE)
   CODE
-  RETURN SELF.ToQueueField(json, que, pFieldNumber, matchByFieldNumber, options)
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToQueue(pArrayName, pQue, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
+  END
+  
+  RETURN ret
+
+cJSONFactory.ToQueueField     PROCEDURE(STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueueField(pJson, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
       
-cJSONFactory.ToQueueField     PROCEDURE(*IDynStr json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSONFactory.ToQueueField     PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueueField(pJson, pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueueField     PROCEDURE(*IDynStr pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 sRef                            &STRING, AUTO
   CODE
-  sRef &= (json.CStrRef()) &':'& json.StrLen()
-  RETURN SELF.ToQueueField(sRef, que, pFieldNumber, matchByFieldNumber, options)
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueueField(sRef, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
 
-cJSONFactory.ToQueueField     PROCEDURE(*STRING json, *QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSONFactory.ToQueueField     PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueueField(sRef, pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueueField     PROCEDURE(*STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+ret                             BOOL(FALSE)
+  CODE
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToQueueField(pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
+  END
+  
+  RETURN ret
+
+cJSONFactory.ToQueueField     PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+ret                             BOOL(FALSE)
+  CODE
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToQueueField(pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
+  END
+  
+  RETURN ret
+
+cJSONFactory.ToFile           PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pJson, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+  
+cJSONFactory.ToFile           PROCEDURE(STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pJson, pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+
+cJSONFactory.ToFile           PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToFile(sRef, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+
+cJSONFactory.ToFile           PROCEDURE(*IDynStr pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToFile(sRef, pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+
+cJSONFactory.ToFile           PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
 object                          &cJSON
 ret                             BOOL(FALSE)
   CODE
-  object &= SELF.Parse(json)
+  object &= SELF.Parse(pJson)
   IF NOT object &= NULL
-    ret = object.ToQueueField(que, pFieldNumber, matchByFieldNumber, options)
+    ret = object.ToFile(pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
     object.Delete()
   END
   
   RETURN ret
 
-cJSONFactory.ToFile           PROCEDURE(STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
-  CODE
-  RETURN SELF.ToFile(json, pFile, matchByFieldNumber, options, pWithBlobs)
-  
-cJSONFactory.ToFile           PROCEDURE(*IDynStr json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
-sRef                            &STRING, AUTO
-  CODE
-  sRef &= (json.CStrRef()) &':'& json.StrLen()
-  RETURN SELF.ToFile(sRef, pFile, matchByFieldNumber, options, pWithBlobs)
-
-cJSONFactory.ToFile           PROCEDURE(*STRING json, *FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
+cJSONFactory.ToFile           PROCEDURE(*STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
 object                          &cJSON
 ret                             BOOL(FALSE)
   CODE
-  object &= SELF.Parse(json)
+  object &= SELF.Parse(pJson)
   IF NOT object &= NULL
-    ret = object.ToFile(pFile, matchByFieldNumber, options, pWithBlobs)
+    ret = object.ToFile(pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
     object.Delete()
   END
   

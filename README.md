@@ -36,6 +36,27 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.39 (21.01.2023)
+- NEW: ToGroup, ToQueue, ToQueueField, ToFile methods can accept object/array name, it allows to load json object/array into a group/queue/file in one step.  
+Early you should parse a json string, then find the object/array by name, then load it into a Clarion struct:
+```
+jParser cJSONFactory
+jRoot   &cJSON
+jBooks  &cJSON
+  CODE
+  jRoot &= jParser.Parse(jsonString)
+  jBooks &= jRoot.FindObjectItem('book')
+  jBooks.ToQueue(BooksQ)
+```
+Now you can say which object to load:
+```
+jParser cJSONFactory
+  CODE
+  jParser.ToQueue(jsonString, 'book', BooksQ)
+```
+- NEW: LoadStructByObjectNameTest example demonstrates new form of ToGroup and ToQueue methods.
+
+
 v1.38 (13.01.2023)
 - FIX: json::CreateSimpleArray ignored field rules "EmptyString", "IgnoreZero", "IgnoreFalse", "IsBool".
 
