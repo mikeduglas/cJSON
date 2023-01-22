@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.39.1
-!** 21.01.2023
+!** cJSON for Clarion v1.40
+!** 22.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -2548,6 +2548,22 @@ cJSON.SetNumberValue          PROCEDURE(REAL pNewValue)
   ELSE
     SELF.valueint = SELF.valuedouble
   END
+  
+cJSON.GetValue                PROCEDURE()
+  CODE
+  IF SELF.IsArray() OR SELF.IsInvalid() OR SELF.IsNull() OR SELF.IsObject() OR SELF.IsRaw()
+    RETURN ''
+  END
+
+  IF SELF.IsString()
+    RETURN SELF.GetStringValue()
+  ELSIF SELF.IsFalse()
+    RETURN FALSE
+  ELSIF SELF.IsTrue()
+    RETURN TRUE
+  ELSE
+    RETURN SELF.GetNumberValue()
+  END
 
 cJSON.ToString                PROCEDURE(BOOL pFormat = FALSE)
   CODE
@@ -3360,22 +3376,10 @@ cJSON.GetValue                PROCEDURE(STRING itemName, BOOL caseSensitive = FA
 item                            &cJSON
   CODE
   item &= SELF.FindObjectItem(itemName, caseSensitive)
-  IF item &= NULL
-    RETURN ''
-  END
-  
-  IF item.IsArray() OR item.IsInvalid() OR item.IsNull() OR item.IsObject() OR item.IsRaw()
-    RETURN ''
-  END
-
-  IF item.IsString()
-    RETURN item.GetStringValue()
-  ELSIF item.IsFalse()
-    RETURN FALSE
-  ELSIF item.IsTrue()
-    RETURN TRUE
+  IF NOT item &= NULL
+    RETURN item.GetValue()
   ELSE
-    RETURN item.GetNumberValue()
+    RETURN ''
   END
 
 cJSON.GetStringRef            PROCEDURE()

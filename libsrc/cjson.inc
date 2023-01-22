@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.39.1
-!** 21.01.2023
+!** cJSON for Clarion v1.40
+!** 22.01.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -282,7 +282,7 @@ GetObjectItem                   PROCEDURE(STRING itemName, BOOL caseSensitive = 
 HasItem                         PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), BOOL
 
 !!!<summary>Read string item value.</summary>
-!!!<returns>>item value.</returns>
+!!!<returns>item value.</returns>
 GetStringValue                  PROCEDURE(), STRING
 
 !!!<summary>Change item value.</summary>
@@ -290,12 +290,17 @@ GetStringValue                  PROCEDURE(), STRING
 SetStringValue                  PROCEDURE(STRING pNewValue)
 
 !!!<summary>Read numeric item value.</summary>
-!!!<returns>>item value.</returns>
+!!!<returns>item value.</returns>
 GetNumberValue                  PROCEDURE(), REAL
 
 !!!<summary>Change item value.</summary>
 !!!<param name="pNewValue">new value.</param>
 SetNumberValue                  PROCEDURE(REAL pNewValue)
+
+!!!<summary>Read item value.</summary>
+!!!<returns>item value.</returns>
+!!!<remarks>Returns a value of string, numeric or boolean item, or an empty string.</remarks>
+GetValue                        PROCEDURE(), ?
 
 !!!<returns>true if the item is invalid.</summary>
 IsInvalid                       PROCEDURE(), BOOL

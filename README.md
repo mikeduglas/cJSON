@@ -36,6 +36,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.40 (22.01.2023)
+- NEW: cJSON.GetValue overloaded method returns a value of the item.
+
 v1.39 (21.01.2023)
 - NEW: ToGroup, ToQueue, ToQueueField, ToFile methods can accept object/array name, it allows to load json object/array into a group/queue/file in one step.  
 Early you should parse a json string, then find the object/array by name, then load it into a Clarion struct:
