@@ -1,4 +1,4 @@
-!converts QUEUE to json array and vice versa
+!Using json::CreateObject with the options.
 !
   PROGRAM
   INCLUDE('cjson.inc')
@@ -18,7 +18,7 @@ LastVisitDate                     LONG
 LastVisitTime                     LONG
                                 END
 
-root                            &cJSON
+object                          &cJSON
   CODE
   Account.UserName = 'LuckyGamer5371'
   Account.Password = '08AX08$tgeN'
@@ -36,8 +36,9 @@ root                            &cJSON
   !Pass an array [option1, option2, option3, option4], each optionN describes one group field.
   !Do not forget to put 2 left curly braces.
   
-  root &= json::CreateObject(Account, TRUE, '[{{"name":"Password", "ignore":true}, {{"name":"Balance", "format":"@N$9.2"}, {{"name":"LastVisitDate", "jsonname":"date", "format":"@d17"}, {{"name":"LastVisitTime", "jsonname":"time", "format":"@t8"}]')
-  MESSAGE(root.ToString(TRUE))
+  object &= json::CreateObject(Account, TRUE, '[{{"name":"Password", "ignore":true}, {{"name":"Balance", "format":"@N$9.2"}, {{"name":"LastVisitDate", "jsonname":"date", "format":"@d17"}, {{"name":"LastVisitTime", "jsonname":"time", "format":"@t8"}]')
+  json::DebugInfo(object.ToString(FALSE))
+  MESSAGE(object.ToString(TRUE))
   
   !dispose all cJSON objects at once
-  root.Delete()
+  object.Delete()
