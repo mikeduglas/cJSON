@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.40
-!** 22.01.2023
+!** cJSON for Clarion v1.41
+!** 14.12.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -989,7 +989,7 @@ start_char                      STRING(1), AUTO
 parse_number                  PROCEDURE(*cJSON item, *typParseBuffer buffer)
 number                          REAL(0)
 number_c_string                 STRING(64)
-decimal_point                   STRING(1), AUTO
+decimal_point                   STRING('.')
 i                               LONG, AUTO
 digitPos                        LONG AUTO
   CODE
@@ -998,8 +998,6 @@ digitPos                        LONG AUTO
   END
   
   !copy the number into a temporary buffer
-!  decimal_point = get_decimal_point()
-  decimal_point = '.'
   digitPos = 0
   LOOP i = buffer.pos TO buffer.len
     digitPos += 1
@@ -1035,6 +1033,10 @@ digitPos                        LONG AUTO
   ELSE
     item.valueint = number_c_string
   END
+
+  !- Store original value as a string. This is useful for big int numbers like 417610737815768073. Use GetStringValue to obtain the value.
+  item.valuestring &= NEW STRING(LEN(CLIP(number_c_string)))
+  item.valuestring = number_c_string
 
   item.type = cJSON_Number
   
@@ -2653,13 +2655,20 @@ cJSON.HasItem                 PROCEDURE(STRING itemName, BOOL caseSensitive = FA
     RETURN FALSE
   END
   
+!cJSON.GetStringValue          PROCEDURE()
+!  CODE
+!  IF NOT SELF.IsString()
+!    RETURN ''
+!  END
+!  
+!  RETURN SELF.valuestring
 cJSON.GetStringValue          PROCEDURE()
   CODE
-  IF NOT SELF.IsString()
-    RETURN ''
+  IF NOT SELF.valuestring &= NULL
+    RETURN SELF.valuestring
   END
   
-  RETURN SELF.valuestring
+  RETURN ''
   
 cJSON.SetStringValue          PROCEDURE(STRING pNewValue)
   CODE
@@ -3378,6 +3387,16 @@ item                            &cJSON
   item &= SELF.FindObjectItem(itemName, caseSensitive)
   IF NOT item &= NULL
     RETURN item.GetValue()
+  ELSE
+    RETURN ''
+  END
+  
+cJSON.GetStringValue          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
+item                            &cJSON
+  CODE
+  item &= SELF.FindObjectItem(itemName, caseSensitive)
+  IF NOT item &= NULL
+    RETURN item.GetStringValue()
   ELSE
     RETURN ''
   END

@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.40
-!** 22.01.2023
+!** cJSON for Clarion v1.41
+!** 14.12.2023
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -201,24 +201,24 @@ ArrayCB                         PROCEDURE(LONG pArraySize, LONG pCurrentIndex, C
 
 
 cJSON                         CLASS, TYPE, MODULE('cjson.clw'),LINK('cjson.clw')
-!next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem
+!next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem.
 next                            &cJSON, PRIVATE
 prev                            &cJSON, PRIVATE
 
-!An array or object item will have a child pointer pointing to a chain of the items in the array/object
+!An array or object item will have a child pointer pointing to a chain of the items in the array/object.
 child                           &cJSON, PRIVATE
 
 !The type of the item, as above
 type                            cJSON_Type, PRIVATE
 
-!The item's string, if type==cJSON_String  and type == cJSON_Raw
+!The item's string, if type is cJSON_String, cJSON_Number or cJSON_Raw.
 valuestring                     &STRING, PRIVATE
-!writing to valueint is DEPRECATED, use cJSON_SetNumberValue instead
+!writing to valueint is DEPRECATED, use cJSON_SetNumberValue instead.
 valueint                        LONG, PRIVATE
-!The item's number, if type==cJSON_Number
+!The item's number, if type is cJSON_Number.
 valuedouble                     REAL, PRIVATE
 
-!The item's name string, if this item is the child of, or is in the list of subitems of an object
+!The item's name string, if this item is the child of, or is in the list of subitems of an object.
 name                            &STRING, PRIVATE
 
 Construct                       PROCEDURE()
@@ -543,9 +543,16 @@ FindArrayItem                   PROCEDURE(STRING arrayName, LONG itemIndex, BOOL
 !!!<summary>recursively finds an item and returns its value (numeric, boolean or string).</summary>
 !!!<param name="itemName">the name of json item</param>
 !!!<param name="caseSensitive">comparison rule</param>
-!!!<returns>item value, or blank string !if the item not found, or its type is not numeric, boolean or string.</returns>
+!!!<returns>item value, or blank string if the item not found, or its type is not numeric, boolean or string.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 GetValue                        PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), ?
+
+!!!<summary>recursively finds an item and returns its string value.</summary>
+!!!<param name="itemName">the name of json item</param>
+!!!<param name="caseSensitive">comparison rule</param>
+!!!<returns>item value, or blank string if the item not found.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+GetStringValue                  PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), ?
 
 !!!<summary>Get a reference to a string item value.</summary>
 GetStringRef                    PROCEDURE(), *?

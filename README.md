@@ -36,6 +36,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.41 (14.12.2023)
+- NEW: Big int values ("serialNumber": 417610737815768073) can be obtained using GetStringValue().
+
 v1.40 (22.01.2023)
 - NEW: cJSON.GetValue overloaded method returns a value of the item.
 
