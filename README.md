@@ -37,7 +37,7 @@ Free
 
 ## Version history
 v1.41 (14.12.2023)
-- NEW: Big int values ("serialNumber": 417610737815768073) can be obtained using GetStringValue().
+- NEW: GetStringValue is extended to support numeric values.
 
 v1.40 (22.01.2023)
 - NEW: cJSON.GetValue overloaded method returns a value of the item.
