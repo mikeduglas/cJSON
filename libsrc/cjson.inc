@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.41
-!** 14.12.2023
+!** cJSON for Clarion v1.42
+!** 14.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -63,10 +63,10 @@ json::CreateObjectReference PROCEDURE(*cJSON child), *cJSON
 json::CreateArrayReference  PROCEDURE(*cJSON child), *cJSON
 
 !!!<summary>Create an Array of LONGs.>/summary>
-json::CreateIntArray        PROCEDURE(LONG[] numbers), *cJSON
+json::CreateIntArray        PROCEDURE(LONG[] numbers, BOOL pIgnoreZeros=FALSE), *cJSON
 
 !!!<summary>Create an Array of REALs.</summary>
-json::CreateDoubleArray     PROCEDURE(REAL[] numbers), *cJSON
+json::CreateDoubleArray     PROCEDURE(REAL[] numbers, BOOL pIgnoreZeros=FALSE), *cJSON
 
 !!!<summary>Create an Array of STRINGs.</summary>
 !!!<param name="strings">string array.</param>
@@ -157,7 +157,7 @@ IsFile                          BOOL        !field is a filename, result is a fi
 Auto                            BOOL        !field value must be assigned in callback method, most rules are not used.
 
 !- these options are applicable for both field and default rules.
-EmptyString                     STRING(20)  !"null": create null object; "ignore": do not create empty string object.
+EmptyString                     STRING(6)   !"null": create null object; "ignore": do not create empty string object.
 IgnoreFalse                     BOOL        !do not create bool object with 'false' value.
 IgnoreZero                      BOOL        !do not create numeric object with 0 value.
 IgnoreEmptyArray                BOOL        !do not create empty arrays [].

@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.41
-!** 14.12.2023
+!** cJSON for Clarion v1.42
+!** 14.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -1829,15 +1829,20 @@ item                            &cJSON
   
   RETURN item
 
-json::CreateIntArray          PROCEDURE(LONG[] numbers)
+json::CreateIntArray          PROCEDURE(LONG[] numbers, BOOL pIgnoreZeros=FALSE)
 i                               LONG, AUTO
 n                               &cJSON
 p                               &cJSON
 a                               &cJSON
+bFirstChild                     BOOL(TRUE)
   CODE
   a &= json::CreateArray()
   
   LOOP i = 1 TO MAXIMUM(numbers, 1)
+    IF numbers[i] = 0 AND pIgnoreZeros
+      CYCLE
+    END
+    
     IF NOT a &= NULL
       n &= json::CreateNumber(numbers[i])
       IF n &= NULL
@@ -1845,8 +1850,9 @@ a                               &cJSON
         RETURN NULL
       END
       
-      IF i = 1
+      IF bFirstChild
         a.child &= n
+        bFirstChild = FALSE
       ELSE
         suffix_object(p, n)
       END
@@ -1857,15 +1863,20 @@ a                               &cJSON
   
   RETURN a
 
-json::CreateDoubleArray       PROCEDURE(REAL[] numbers)
+json::CreateDoubleArray       PROCEDURE(REAL[] numbers, BOOL pIgnoreZeros=FALSE)
 i                               LONG, AUTO
 n                               &cJSON
 p                               &cJSON
 a                               &cJSON
+bFirstChild                     BOOL(TRUE)
   CODE
   a &= json::CreateArray()
   
   LOOP i = 1 TO MAXIMUM(numbers, 1)
+    IF numbers[i] = 0 AND pIgnoreZeros
+      CYCLE
+    END
+    
     IF NOT a &= NULL
       n &= json::CreateNumber(numbers[i])
       IF n &= NULL
@@ -1873,8 +1884,9 @@ a                               &cJSON
         RETURN NULL
       END
       
-      IF i = 1
+      IF bFirstChild
         a.child &= n
+        bFirstChild = FALSE
       ELSE
         suffix_object(p, n)
       END
@@ -2095,6 +2107,7 @@ bIsNullRef  BOOL, AUTO
 
 CreateStringArray             ROUTINE
   DATA
+a       &cJSON, AUTO
 strings STRING(256), DIM(arrSize)
 elemRef ANY
 elemNdx LONG, AUTO
@@ -2104,10 +2117,16 @@ elemNdx LONG, AUTO
     elemRef &= WHAT(grp, ndx, elemNdx)
     strings[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRules)
   END
-  item.AddItemToObject(jsonName, json::CreateStringArray(strings, fldRules.EmptyString))
-
+  a &= json::CreateStringArray(strings, fldRules.EmptyString)
+  IF NOT (fldRules.IgnoreEmptyArray AND a.GetArraySize() = 0)
+    item.AddItemToObject(jsonName, a)
+  ELSE
+    a.Delete()
+  END
+  
 CreateNumericArray            ROUTINE
   DATA
+a       &cJSON, AUTO
 numbers REAL, DIM(arrSize)
 elemRef ANY
 elemNdx LONG, AUTO
@@ -2117,8 +2136,13 @@ elemNdx LONG, AUTO
     elemRef &= WHAT(grp, ndx, elemNdx)
     numbers[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRules)
   END
-  item.AddItemToObject(jsonName, json::CreateDoubleArray(numbers))
-  
+  a &= json::CreateDoubleArray(numbers, fldRules.IgnoreZero)
+  IF NOT (fldRules.IgnoreEmptyArray AND a.GetArraySize() = 0)
+    item.AddItemToObject(jsonName, a)
+  ELSE
+    a.Delete()
+  END
+
 CreateGroupArray              ROUTINE
   DATA
 grpRef      &GROUP
@@ -2163,6 +2187,7 @@ queArray    &cJSON
   
 json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
 array                           &cJSON, AUTO
+item                            &cJSON, AUTO
 grp                             &GROUP, AUTO
 ndx                             LONG, AUTO
 fldRules                        QUEUE(typCJsonFieldRules)
@@ -2185,7 +2210,14 @@ qInstance                       LONG, AUTO
   LOOP ndx = 1 TO RECORDS(que)
     GET(que, ndx)
     grp &= que
-    array.AddItemToArray(json::CreateObject(grp, pNamesInLowerCase, options))
+    item &= json::CreateObject(grp, pNamesInLowerCase, options)
+
+    IF fldRules.IgnoreEmptyObject AND item.GetArraySize() = 0
+      !- Don't add empty object to this array.
+      CYCLE
+    END
+    
+    array.AddItemToArray(item)
   
     IF NOT rh &= NULL
       !- callback

@@ -36,6 +36,10 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.42 (14.09.2024)
+- FIX: IgnoreEmptyArray/IgnoreEmptyObject options didn't work for DIMmed arrays.
+- FIX: IgnoreZero option didn't work for array items.
+
 v1.41 (14.12.2023)
 - NEW: GetStringValue is extended to support numeric values.
 
