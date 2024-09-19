@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.42
-!** 14.09.2024
+!** cJSON for Clarion v1.43
+!** 19.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -2145,18 +2145,26 @@ elemNdx LONG, AUTO
 
 CreateGroupArray              ROUTINE
   DATA
-grpRef      &GROUP
+grpRef  &GROUP
 grpArray    &cJSON
-grpItem     &cJSON
-elemNdx     LONG, AUTO
+grpItem &cJSON
+elemNdx LONG, AUTO
   CODE
   grpArray &= json::CreateArray()
   LOOP elemNdx = 1 TO arrSize
     grpRef &= GETGROUP(grp,ndx,elemNdx)
     grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, options)
-    grpArray.AddItemToObject(jsonName, grpItem)
+    
+    IF NOT (fldRules.IgnoreEmptyObject AND grpItem.GetArraySize() = 0)
+      grpArray.AddItemToObject(jsonName, grpItem)
+    END
   END
-  !- I dont't check IgnoreEmptyObject rule here because an empty array in this case is possible only with "GROUP,DIM(0)" declaraion.
+  
+  IF fldDim > 1 AND (fldRules.IgnoreEmptyArray AND grpArray.GetArraySize() = 0) !- this is really an array DIM(n) where n>1
+    grpArray.Delete()
+    grpArray &= NULL
+  END
+  
   item.AddItemToObject(jsonName, grpArray)
   !- don't process anymore the fields from this group array
   nestedGrpRef &= grpRef

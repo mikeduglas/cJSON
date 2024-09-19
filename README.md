@@ -36,8 +36,11 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.43 (19.09.2024)
+- FIX: IgnoreEmptyArray/IgnoreEmptyObject options didn't work for nested DIMmed groups.
+
 v1.42 (14.09.2024)
-- FIX: IgnoreEmptyArray/IgnoreEmptyObject options didn't work for DIMmed arrays.
+- FIX: IgnoreEmptyArray/IgnoreEmptyObject options didn't work for DIMmed arrays (LONG,DIM(n), STRING(m),DIM(n)).
 - FIX: IgnoreZero option didn't work for array items.
 
 v1.41 (14.12.2023)
