@@ -36,6 +36,12 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.44 (21.09.2024)
+- REGRESSION: The very First rule option was considered as a default option. For example, in the options below the first ("Password") option is considered as a default, so all other options ("Balance", "LastVisitDate", "LastVisitTime") get "ignore":true rule:
+```
+'[{{"name":"Password", "ignore":true}, {{"name":"Balance", "format":"@N$9.2"}, {{"name":"LastVisitDate", "format":"@d17"}, {{"name":"LastVisitTime", "format":"@t8"}]'
+```
+
 v1.43 (19.09.2024)
 - FIX: IgnoreEmptyArray/IgnoreEmptyObject options didn't work for nested DIMmed groups.
 

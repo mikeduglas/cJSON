@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.43
-!** 19.09.2024
+!** cJSON for Clarion v1.44
+!** 21.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -552,10 +552,10 @@ GetValue                        PROCEDURE(STRING itemName, BOOL caseSensitive = 
 !!!<param name="caseSensitive">comparison rule</param>
 !!!<returns>item value, or blank string if the item not found.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
-GetStringValue                  PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), ?
+GetStringValue                  PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), STRING
 
 !!!<summary>Get a reference to a string item value.</summary>
-GetStringRef                    PROCEDURE(), *?
+GetStringRef                    PROCEDURE(), *STRING
 
 !!!<summary>Get size of a string item value.</summary>
 GetStringSize                   PROCEDURE(), LONG

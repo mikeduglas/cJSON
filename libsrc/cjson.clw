@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.43
-!** 19.09.2024
+!** cJSON for Clarion v1.44
+!** 21.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -191,7 +191,7 @@ i                               LONG, AUTO
       !- find default rule (name='*')
       LOOP i=1 TO jArray.GetArraySize()
         jOption &= jArray.GetArrayItem(i)
-        IF jOption.GetValue('name') = '*'
+        IF jOption.GetStringValue('name') = '*'
           jDefaultOption &= jOption
           jDefaultOption.ToGroup(defaultRule)
           BREAK
