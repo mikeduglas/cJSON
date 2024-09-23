@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.44
-!** 21.09.2024
+!** cJSON for Clarion v1.45
+!** 22.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -463,7 +463,7 @@ AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
 ToGroup                         PROCEDURE(*GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
 
 !!!<summary>Recursively find the object by name and save it to a GROUP.</summary>
-!!!<param name="pObjectName">the name of the object.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
 !!!<param name="pGrp">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
@@ -479,7 +479,7 @@ ToGroup                         PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL 
 ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
 
 !!!<summary>Recursively find the array by name and save it to a QUEUE.</summary>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
@@ -496,7 +496,7 @@ ToQueue                         PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL p
 ToQueueField                    PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
 
 !!!<summary>Recursively find the array by name and save it to a QUEUE.</summary>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pFieldNumber">An ordinal position of the field in the queue.</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
@@ -517,7 +517,7 @@ ToFile                          PROCEDURE(*FILE pFile, BOOL pMatchByFieldNumber 
 !!!<summary>Recursively find the array by name and save it to a FILE's RECORD and optionally in blobs/memos.
 !!! pFile must allow ADD(). Any ADD() errors are logged in the DebugView.
 !!!</summary>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pFile">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
@@ -630,7 +630,7 @@ ToGroup                         PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatch
 
 !!!<summary>Recursively finds the object by name and writes it into a group.</summary>
 !!!<param name="pJson">json string.</param>
-!!!<param name="pObjectName">the name of the object.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
 !!!<param name="pGrp">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
@@ -648,7 +648,7 @@ ToGroup                         PROCEDURE(*STRING pJson, *GROUP pGrp, BOOL pMatc
 
 !!!<summary>Recursively finds the object by name and writes it into a group.</summary>
 !!!<param name="pJson">json string.</param>
-!!!<param name="pObjectName">the name of the object.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
 !!!<param name="pGrp">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
@@ -666,7 +666,7 @@ ToGroup                         PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMat
 
 !!!<summary>Recursively finds the object by name and writes it into a group.</summary>
 !!!<param name="pJson">json string.</param>
-!!!<param name="pObjectName">the name of the object.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
 !!!<param name="pGrp">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
@@ -684,7 +684,7 @@ ToQueue                         PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatch
 
 !!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
 !!!<param name="pOptions">json string which defines field converting options</param>
@@ -702,7 +702,7 @@ ToQueue                         PROCEDURE(*STRING pJson, *QUEUE pQue, BOOL pMatc
 
 !!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
 !!!<param name="pOptions">json string which defines field converting options</param>
@@ -720,7 +720,7 @@ ToQueue                         PROCEDURE(*IDynStr pJson, *QUEUE pQue, BOOL pMat
 
 !!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
 !!!<param name="pOptions">json string which defines field converting options</param>
@@ -739,7 +739,7 @@ ToQueueField                    PROCEDURE(STRING pJson, *QUEUE pQue, LONG pField
 
 !!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pFieldNumber">An ordinal position of the field.</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
@@ -759,7 +759,7 @@ ToQueueField                    PROCEDURE(*STRING pJson, *QUEUE pQue, LONG pFiel
 
 !!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pFieldNumber">An ordinal position of the field.</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
@@ -779,7 +779,7 @@ ToQueueField                    PROCEDURE(*IDynStr pJson, *QUEUE pQue, LONG pFie
 
 !!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pQue">receiver</param>
 !!!<param name="pFieldNumber">An ordinal position of the field.</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
@@ -799,7 +799,7 @@ ToFile                          PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatch
 
 !!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pFile">receiver</param>
 !!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
 !!!<param name="pOptions">json string which defines field converting options</param>
@@ -819,7 +819,7 @@ ToFile                          PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatc
 
 !!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pFile">receiver</param>
 !!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
 !!!<param name="pOptions">json string which defines field converting options</param>
@@ -839,7 +839,7 @@ ToFile                          PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMat
 
 !!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
 !!!<param name="pJson">json string</param>
-!!!<param name="pArrayName">the name of the array.</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
 !!!<param name="pFile">receiver</param>
 !!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
 !!!<param name="pOptions">json string which defines field converting options</param>

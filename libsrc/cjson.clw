@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.44
-!** 21.09.2024
+!** cJSON for Clarion v1.45
+!** 22.09.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -3206,7 +3206,11 @@ fldValue                      ANY
 cJSON.ToGroup                 PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jObject                         &cJSON, AUTO
   CODE
-  jObject &= SELF.FindObjectItem(pObjectName)
+  IF pObjectName
+    jObject &= SELF.FindObjectItem(pObjectName)
+  ELSE
+    jObject &= SELF
+  END
   IF NOT jObject &= NULL
     RETURN jObject.ToGroup(pGrp, pMatchByFieldNumber, pOptions)
   ELSE
@@ -3220,7 +3224,11 @@ cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FA
 cJSON.ToQueue                 PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jArray                          &cJSON, AUTO
   CODE
-  jArray &= SELF.FindObjectItem(pArrayName)
+  IF pArrayName
+    jArray &= SELF.FindObjectItem(pArrayName)
+  ELSE
+    jArray &= SELF
+  END
   IF NOT jArray &= NULL
     RETURN jArray.ToQueue(pQue, pMatchByFieldNumber, pOptions)
   ELSE
@@ -3314,7 +3322,11 @@ qInstance                       LONG, AUTO
 cJSON.ToQueueField            PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jArray                          &cJSON, AUTO
   CODE
-  jArray &= SELF.FindObjectItem(pArrayName)
+  IF pArrayName
+    jArray &= SELF.FindObjectItem(pArrayName)
+  ELSE
+    jArray &= SELF
+  END
   IF NOT jArray &= NULL
     RETURN jArray.ToQueueField(pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
   ELSE
@@ -3383,7 +3395,11 @@ ndx                             LONG, AUTO
 cJSON.ToFile                  PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
 jArray                          &cJSON, AUTO
   CODE
-  jArray &= SELF.FindObjectItem(pArrayName)
+  IF pArrayName
+    jArray &= SELF.FindObjectItem(pArrayName)
+  ELSE
+    jArray &= SELF
+  END
   IF NOT jArray &= NULL
     RETURN jArray.ToFile(pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
   ELSE

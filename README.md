@@ -36,6 +36,14 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.45 (23.09.2024)
+- CHG: ToGroup/ToQueue/ToQueueField/ToFile methods that accept an object name treat an empty name as the root object.   
+These calls are now equivalent:
+```
+  jParser.ToGroup(json, grp)
+  jParser.ToGroup(json, '', grp)
+```
+
 v1.44 (21.09.2024)
 - REGRESSION: The very First rule option was considered as a default option. For example, in the options below the first ("Password") option is considered as a default, so all other options ("Balance", "LastVisitDate", "LastVisitTime") get "ignore":true rule:
 ```
