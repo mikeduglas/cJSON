@@ -1,11 +1,16 @@
-!** cJSON for Clarion v1.45
-!** 22.09.2024
+!** cJSON for Clarion v1.46.2
+!** 03.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
 
   MEMBER
   
+  COMPILE('** CJSON COUNTERS **', _ENABLE_CJSON_COUNTERS_)
+s_cjson_ctor_counter          LONG  !- ctor counter
+s_cjson_dtor_counter          LONG  !- dtor counter
+  ! ** CJSON COUNTERS **
+
   INCLUDE('cjson.inc'), ONCE
 
 typPrintBuffer                GROUP, TYPE
@@ -95,16 +100,25 @@ filterExpr                      STRING(256)
     CharToHex2(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to 'XX' hex string
     CharToHex4(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to '00XX' hex string
     RemoveFieldPrefix(*STRING fldName), PRIVATE                                   !- removes prefix from field name
-    ParseFieldRules(STRING json, *typCJsonFieldRules rules), PRIVATE              !- parses json string and fills rules queue
-    FindFieldRule(STRING fldName, *typCJsonFieldRules rules), PRIVATE             !- searches an entry by field name in rules queue
+    ParseFieldRules(STRING options, *typCJsonFieldRules rules), PRIVATE           !- parses json string and fills rules queue
+    ParseFieldRules(*cJSON jOptions, *typCJsonFieldRules rules), PRIVATE          !- parses json string and fills rules queue
+    MakeRulesLowercase(*cJSON jjOptions), PRIVATE                                 !- convert rule names into lowercase
+    ExpandSharedRules(*cJSON jOptions), PRIVATE                                   !- replace {"name":["fld1", "fld2"...]} options with a set of {"name":"fld1"}, {"name":"fld2"}... options
+    FindOptionByName(*cJSON jOptions, STRING pName), *cJSON, PRIVATE              !- find an option with "name":pName
+    FindFieldRule(STRING fldName, typCJsonFieldRules rules, *typCJsonFieldRule rule), PRIVATE  !- searches an entry by field name in rules queue
     ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE   !- applies the rules to the field, returns modified field value
     FindRuleHelper(typCJsonFieldRule rule), *TCJsonRuleHelper, PRIVATE            !- returns TCJsonRuleHelper instance or null
     ProcessAutoField(STRING fldName, cJSON item, typCJsonFieldRule rule), PRIVATE !- processes "auto" field
     IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE                 !- returns true if the group contains a field with passed name
     IsAnyNullRef(? value), BOOL, PRIVATE                                          !- determines either the ANY value refers to a field (ex. &STRING) which is NULL reference
 
-    json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>), PRIVATE
-    json::ObjectToBlobs(*cJSON pItem, *FILE pFile, <STRING options>), PRIVATE
+    json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, *typCJsonFieldRules fldRules), PRIVATE
+    json::ObjectToBlobs(*cJSON pItem, *FILE pFile, *typCJsonFieldRules fldRules), PRIVATE
+
+    json::CreateObject(*GROUP grp, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules), *cJSON, PRIVATE
+    json::CreateArray(*QUEUE que, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules), *cJSON, PRIVATE
+    json::CreateArray(*FILE pFile, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules, BOOL pWithBlobs), *cJSON, PRIVATE
+    json::CreateSimpleArray(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules), *cJSON PRIVATE
 
     AddItemReferenceToObject(cJSON pDst, cJSON pSrc, STRING pItemName), PRIVATE
   END
@@ -123,7 +137,6 @@ _CRLF_                        EQUATE('<0Dh,0Ah>') !\r\n
 !- json::LoadFile/json::SaveFile
 OS_INVALID_HANDLE_VALUE       EQUATE(-1)
   
-
 !!!region TCJsonRuleHelper
 TCJsonRuleHelper.FindCB       PROCEDURE(STRING fldName, *typCJsonFieldRule rule)
   CODE
@@ -144,7 +157,7 @@ TCJsonRuleHelper.ArrayCB      PROCEDURE(LONG pArraySize, LONG pCurrentIndex, CON
   RETURN TRUE
 !!!endregion
 
-!!!region public functions
+!!!region helper functions
 CharToHex2                    PROCEDURE(STRING pChar)
   CODE
   RETURN printf('%X', VAL(pChar))
@@ -163,101 +176,238 @@ first_colon_pos                 LONG, AUTO
 
 ParseFieldRules               PROCEDURE(STRING options, *typCJsonFieldRules rules)
 factory                         cJSONFactory
-jOptions                        &cJSON
-jOption                         &cJSON
-jArray                          &cJSON
-jDefaultOption                  &cJSON
-defaultRule                     LIKE(typCJsonFieldRule), AUTO
-i                               LONG, AUTO
+jOptions                        &cJSON, AUTO
   CODE
   FREE(rules)
   IF options
     jOptions &= factory.Parse(options)
     IF NOT jOptions &= NULL
-      IF jOptions.IsArray()
-        !- Array []
-        jArray &= jOptions
-      ELSIF jOptions.IsObject()
-        !- Object {}, put it into an array
-        jArray &= json::CreateArray()
-        jArray.AddItemToArray(jOptions)
-      ELSE
-        !- Invalid json type
-        json::DebugInfo('[ParseFieldRules] Unable to parse options.')
-        jOptions.Delete()
-        RETURN
-      END
-      
-      !- find default rule (name='*')
-      LOOP i=1 TO jArray.GetArraySize()
-        jOption &= jArray.GetArrayItem(i)
-        IF jOption.GetStringValue('name') = '*'
-          jDefaultOption &= jOption
-          jDefaultOption.ToGroup(defaultRule)
-          BREAK
-        END
-      END
-      
-      !- default rule not found, so create it
-      IF jDefaultOption &= NULL
-        CLEAR(defaultRule)
-        defaultRule.name = '*'
-        jDefaultOption &= json::CreateObject(defaultRule)
-        jArray.AddItemToArray(jDefaultOption)
-      END
-      
-      !- copy default rules if field rules are missing
-      LOOP i=1 TO jArray.GetArraySize()
-        jOption &= jArray.GetArrayItem(i)
-
-        IF NOT jOption &= jDefaultOption
-          !- these rules are inherited:
-          !JsonName
-          !EmptyString
-          !IgnoreFalse
-          !IgnoreZero
-          !IgnoreEmptyArray
-          !IgnoreEmptyObject
-          !Format
-          !FormatLeft
-          !Deformat
-          !Ignore
-          !IsStringRef
-          !IsBool
-          !IsRaw
-          !IsBase64
-          !IsFile
-          !Auto
-          jOption.AddItemReferenceToObject(jDefaultOption, 'JsonName')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyArray')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyObject')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'Format')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'FormatLeft')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'Deformat')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'Ignore')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IsStringRef')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IsBool')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IsBase64')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'IsFile')
-          jOption.AddItemReferenceToObject(jDefaultOption, 'Auto')
-          
-          !- Propagate RuleHelper to field rule to allow call ApplyCB from ApplyFieldRule.
-          jOption.AddItemReferenceToObject(jDefaultOption, 'RuleHelper')
-        END
-      END
-              
-      !- load the rules into queue
-      jArray.ToQueue(rules)
-
-      jArray.Delete()
+      ParseFieldRules(jOptions, rules)
+      jOptions.Delete()
     ELSE
       json::DebugInfo('[ParseFieldRules] Syntax error near "'& factory.GetError() &'" at position '& factory.GetErrorPosition())
     END
   END
+  
+ParseFieldRules               PROCEDURE(*cJSON pOptions, *typCJsonFieldRules rules)
+jParser                         cJSONFactory
+jOptions                        &cJSON, AUTO
+jOption                         &cJSON, AUTO
+jNewOption                      &cJSON, AUTO
+jRule                           &cJSON, AUTO
+jName                           &cJSON, AUTO
+jSingleName                     &cJSON, AUTO
+jDefaultOption                  &cJSON, AUTO
+defaultRule                     LIKE(typCJsonFieldRule), AUTO
+i                               LONG, AUTO
+j                               LONG, AUTO
+k                               LONG, AUTO
+  CODE
+  FREE(rules)
+  IF NOT pOptions &= NULL
+    IF pOptions.IsArray()
+      !- Array []: make full copy of passed options object
+      jOptions &= pOptions.Duplicate(TRUE)
+    ELSIF pOptions.IsObject()
+      !- Object {}, put full copy of passed options object into an array
+      jOptions &= json::CreateArray()
+      jOptions.AddItemToArray(pOptions.Duplicate(TRUE))
+    ELSE
+      !- Invalid json type
+      json::DebugInfo('[ParseFieldRules] Unable to parse options.')
+      RETURN
+    END
+    
+    !-convert all rule names to lowercase
+    MakeRulesLowercase(jOptions)
+    
+    !- replace {"name":["fld1", "fld2"...]} options with a set of {"name":"fld1"}, {"name":"fld2"}... options
+    ExpandSharedRules(jOptions)
+      
+    !- find default rule (name='*')
+    jDefaultOption &= NULL
+    LOOP i=1 TO jOptions.GetArraySize()
+      jOption &= jOptions.GetArrayItem(i)
+      IF jOption.GetStringValue('name') = '*'
+        jDefaultOption &= jOption
+        jDefaultOption.ToGroup(defaultRule)
+        BREAK
+      END
+    END
+      
+    !- default rule not found, so create it
+    IF jDefaultOption &= NULL
+      CLEAR(defaultRule)
+      defaultRule.name = '*'
+      jDefaultOption &= json::CreateObject(defaultRule)
+      jOptions.AddItemToArray(jDefaultOption)
+    END
+      
+    !- copy default rules if field rules are missing
+    LOOP i=1 TO jOptions.GetArraySize()
+      jOption &= jOptions.GetArrayItem(i)
+
+      IF NOT jOption &= jDefaultOption
+        !- these rules are inherited:
+        !JsonName
+        !EmptyString
+        !IgnoreFalse
+        !IgnoreZero
+        !IgnoreEmptyArray
+        !IgnoreEmptyObject
+        !Format
+        !FormatLeft
+        !Deformat
+        !Ignore
+        !IsStringRef
+        !IsBool
+        !IsRaw
+        !IsBase64
+        !IsFile
+        !Auto
+        jOption.AddItemReferenceToObject(jDefaultOption, 'JsonName')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyArray')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyObject')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'Format')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'FormatLeft')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'Deformat')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'Ignore')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IsStringRef')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IsBool')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IsRaw')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IsBase64')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IsFile')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'Auto')
+          
+        !- Propagate RuleHelper to field rule to allow call ApplyCB from ApplyFieldRule.
+        jOption.AddItemReferenceToObject(jDefaultOption, 'RuleHelper')
+      END
+    END
+    
+    !- load the rules into queue
+    jOptions.ToQueue(rules)
+    jOptions.Delete()
+    
+    !- position to the default rule
+    rules.Name = '*'
+    GET(rules, rules.Name)
+  END
+  
+MakeRulesLowercase            PROCEDURE(*cJSON jOptions)
+jOption                         &cJSON, AUTO
+jRule                           &cJSON, AUTO
+jName                           &cJSON, AUTO
+i                               LONG, AUTO
+j                               LONG, AUTO
+  CODE
+  !-convert all rule names to lowercase
+  LOOP i=1 TO jOptions.GetArraySize()
+    jOption &= jOptions.GetArrayItem(i)
+    jRule &= jOption.GetObjectItem('name')
+    IF NOT jRule &= NULL
+      IF jRule.IsString()
+        !- "name":"fld1"
+        jRule.valuestring = LOWER(jRule.valuestring)
+      ELSIF jRule.IsArray()
+        !- "name":["fld1", "fld2"...]
+        LOOP j=1 TO jRule.GetArraySize()
+          jName &= jRule.GetArrayItem(j)
+          jName.SetStringValue(LOWER(jName.GetStringValue()))
+        END
+      END
+    END
+  END
+
+ExpandSharedRules             PROCEDURE(*cJSON jOptions)
+jOption                         &cJSON, AUTO
+jAnotherOption                  &cJSON, AUTO
+jNewOption                      &cJSON, AUTO
+jNames                          &cJSON, AUTO
+jName                           &cJSON, AUTO
+jRule                           &cJSON, AUTO
+i                               LONG, AUTO
+j                               LONG, AUTO
+k                               LONG, AUTO
+  CODE
+  !- replace {"name":["fld1", "fld2"...]} options with a set of {"name":"fld1"}, {"name":"fld2"}... options
+  LOOP i=1 TO jOptions.GetArraySize()
+    jOption &= jOptions.GetArrayItem(i)
+
+    jNames &= jOption.GetObjectItem('name')
+    IF NOT jNames &= NULL AND jNames.IsArray() AND jNames.GetArraySize() > 0
+      !- "name":["fld1", "fld2"...]
+ 
+      !- create new option object for each name, and copy all rules from this option into new option.
+      LOOP j=1 TO jNames.GetArraySize()
+        jName &= jNames.GetArrayItem(j)
+ 
+        jNewOption &= json::CreateObject()
+        jNewOption.AddStringToObject('name', jName.GetStringValue())
+                    
+        LOOP k=1 TO jOption.GetArraySize()
+          jRule &= jOption.GetArrayItem(k)
+          
+          IF LOWER(jRule.GetName()) <> 'name'
+            jNewOption.AddItemToObject(jRule.GetName(), jRule.Duplicate(TRUE))
+          END
+        END
+        
+        !- if there is no option with the name="fldN" then add new option to options array,
+        !- otherwise merge rules into existing "fldN" option.
+        jAnotherOption &= FindOptionByName(jOptions, jName.GetStringValue())
+        IF jAnotherOption &= NULL
+          jOptions.AddItemToArray(jNewOption) !- an index of just added item is greater than limit value (jOptions.GetArraySize()) in LOOP statement.
+        ELSE
+          LOOP k=1 TO jNewOption.GetArraySize()
+            jRule &= jNewOption.GetArrayItem(k)
+            IF LOWER(jRule.GetName()) <> 'name'
+              IF jAnotherOption.FindObjectItem(jRule.GetName()) &= NULL
+                jAnotherOption.AddItemToObject(jRule.GetName(), jRule.Duplicate(TRUE))
+              END
+            END
+          END
+          !- delete new option because we didn't add it to the array.
+          jNewOption.Delete()
+        END
+      END
+    END
+  END
+  
+  !- remove options with name arrays
+  i = 1
+  LOOP
+    jOption &= jOptions.GetArrayItem(i)
+    IF jOption &= NULL
+      !- no more items
+      BREAK
+    END
+    
+    jNames &= jOption.GetObjectItem('name')
+    IF NOT jNames &= NULL AND jNames.IsArray()
+      !- delete item by its index
+      jOptions.DeleteItemFromArray(i)
+    ELSE
+      !- next item
+      i += 1
+    END
+  END
+
+FindOptionByName              PROCEDURE(*cJSON jOptions, STRING pName)
+jOption                         &cJSON, AUTO
+jName                           &cJSON, AUTO
+i                               LONG, AUTO
+  CODE
+  LOOP i=1 TO jOptions.GetArraySize()
+    jOption &= jOptions.GetArrayItem(i)
+    jName &= jOption.FindObjectItem('name')
+    IF NOT jName &= NULL AND LOWER(jName.GetStringValue()) = LOWER(pName)
+      RETURN jOption
+    END
+  END
+  RETURN NULL
   
 FindRuleHelper                PROCEDURE(typCJsonFieldRule rule)
 rh                              &TCJsonRuleHelper, AUTO
@@ -268,21 +418,23 @@ rh                              &TCJsonRuleHelper, AUTO
   END
   RETURN NULL
   
-FindFieldRule                 PROCEDURE(STRING fldName, *typCJsonFieldRules rules)
+FindFieldRule                 PROCEDURE(STRING fldName, typCJsonFieldRules rules, *typCJsonFieldRule rule)
 i                               LONG, AUTO
 rh                              &TCJsonRuleHelper
   CODE
-  !- search for rule helper
-  rh &= FindRuleHelper(rules)
-
-  !- search for field rule
-  LOOP i = 1 TO RECORDS(rules)
-    GET(rules, i)
-    IF LOWER(rules.Name) = LOWER(fldName)
-      !- found field rule
+  CLEAR(rule)
+  
+  IF fldName
+    !- search for field rule (rule names are in lowercase)
+    rules.Name = LOWER(fldName)
+    GET(rules, 'Name')
+    IF NOT ERRORCODE()
+      !- found
+      rule = rules
+      rh &= FindRuleHelper(rule)
       IF NOT rh &= NULL
         !- callback
-        rh.FindCB(fldName, rules)
+        rh.FindCB(fldName, rule)
       END
       RETURN
     END
@@ -292,16 +444,18 @@ rh                              &TCJsonRuleHelper
   rules.Name = '*'
   GET(rules, 'Name')
   IF NOT ERRORCODE()
+    rule = rules
+    rh &= FindRuleHelper(rule)
     IF NOT rh &= NULL
       !- callback
-      rh.FindCB(fldName, rules)
+      rh.FindCB(fldName, rule)
     END
     RETURN
   END
   
-  !- no rule found, use default behavior
+  !- reset
   CLEAR(rules)
-  
+
 ApplyFieldRule                PROCEDURE(STRING fldName, ? value, typCJsonFieldRule rule)
 fldValue                        ANY
 vGrp                            GROUP
@@ -344,12 +498,15 @@ sFileContent                    &STRING, AUTO
     END
   END
   
+  !- if both Format and Deformat are set, format(deformat()) conversion will be applied.
+  IF rule.Deformat
+    fldValue = DEFORMAT(fldValue, rule.Deformat)
+  END
+
   IF rule.Format
     RETURN FORMAT(fldValue, rule.Format)
   ELSIF rule.FormatLeft
     RETURN LEFT(FORMAT(fldValue, rule.FormatLeft))
-  ELSIF rule.Deformat
-    RETURN DEFORMAT(fldValue, rule.Deformat)
   ELSE
     RETURN fldValue
   END
@@ -572,7 +729,7 @@ b_element                       &cJSON
   END
 !!!endregion
   
-!!!region private functions
+!!!region native cjson functions
 suffix_object                 PROCEDURE(*cJSON prev, *cJSON item)
   CODE
   prev.next &= item
@@ -1940,14 +2097,27 @@ a                               &cJSON
   
   RETURN a
 
-json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  RETURN json::CreateObject(grp, pNamesInLowerCase, fldRules)
+  
+json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, *cJSON jOptions)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(jOptions, fldRules)
+  RETURN json::CreateObject(grp, pNamesInLowerCase, fldRules)
+
+json::CreateObject            PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules)
 ndx                             LONG, AUTO
+fldRule                         GROUP(typCJsonFieldRule).
 fldRef                          ANY
 fldName                         STRING(256), AUTO
 fldDim                          LONG, AUTO
 item                            &cJSON
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
 fldValue                        ANY
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
@@ -1955,9 +2125,6 @@ nestedQueRef                    &QUEUE
 nestedItem                      &cJSON
 arrSize                         LONG, AUTO
   CODE
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
-
   item &= json::CreateObject()
   
   LOOP ndx = 1 TO 99999
@@ -1988,27 +2155,27 @@ arrSize                         LONG, AUTO
     END
     
     !- find field rules
-    FindFieldRule(fldName, fldRules)
+    FindFieldRule(fldName, fldRules, fldRule)
     
     !- map Field name to Json name
-    IF fldRules.JsonName
-      jsonName &= fldRules.JsonName
+    IF fldRule.JsonName
+      jsonName &= fldRule.JsonName
     ELSE
       jsonName &= fldName
     END
     
-    IF fldRules.Ignore <> TRUE
+    IF fldRule.Ignore <> TRUE
       fldDim = HOWMANY(grp, ndx)
 
-      IF fldDim = 1 !AND fldRules.ArraySize = 0
+      IF fldDim = 1 !AND fldRule.ArraySize = 0
         !- not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
        
-        IF fldRules.IsQueue
+        IF fldRule.IsQueue
           DO CreateQueueArray
         ELSE
           !- apply field rules
-          fldValue = ApplyFieldRule(fldName, fldRef, fldRules)
-          IF fldRules.IsBase64
+          fldValue = ApplyFieldRule(fldName, fldRef, fldRule)
+          IF fldRule.IsBase64
             !- encode to base64
             fldValue = printf('%v', fldValue)
           END
@@ -2016,26 +2183,26 @@ arrSize                         LONG, AUTO
           IF ISGROUP(grp, ndx)
             !- recursively add nested group as json object
             nestedGrpRef &= GETGROUP(grp, ndx)
-            nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, options)
+            nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, fldRules)
   
-            IF fldRules.IgnoreEmptyObject AND nestedItem.GetArraySize() = 0
+            IF fldRule.IgnoreEmptyObject AND nestedItem.GetArraySize() = 0
               !- delete empty object
               nestedItem.Delete()
               nestedItem &= NULL
             END
 
             item.AddItemToObject(jsonName, nestedItem)
-          ELSIF fldRules.Instance
-            !- fldRules.Instance is an address of a queue, so create json array
-            nestedQueRef &= (fldRules.Instance)
-            IF fldRules.FieldNumber = 0
-              nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, options)
+          ELSIF fldRule.Instance
+            !- fldRule.Instance is an address of a queue, so create json array
+            nestedQueRef &= (fldRule.Instance)
+            IF fldRule.FieldNumber = 0
+              nestedItem &= json::CreateArray(nestedQueRef, pNamesInLowerCase, fldRules)
             ELSE
               !- an array of one q field
-              nestedItem &= json::CreateSimpleArray(nestedQueRef, fldRules.FieldNumber, pNamesInLowerCase, options)
+              nestedItem &= json::CreateSimpleArray(nestedQueRef, fldRule.FieldNumber, pNamesInLowerCase, fldRules)
             END
             
-            IF fldRules.IgnoreEmptyArray AND nestedItem.GetArraySize() = 0
+            IF fldRule.IgnoreEmptyArray AND nestedItem.GetArraySize() = 0
               !- don't add empty array
               nestedItem.Delete()
               nestedItem &= NULL
@@ -2043,16 +2210,16 @@ arrSize                         LONG, AUTO
 
             item.AddItemToObject(jsonName, nestedItem)
 
-          ELSIF fldRules.IsBool
-            IF NOT (fldRules.IgnoreFalse AND fldValue=0)
+          ELSIF fldRule.IsBool
+            IF NOT (fldRule.IgnoreFalse AND fldValue=0)
               item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
             END
-          ELSIF fldRules.IsRaw
+          ELSIF fldRule.IsRaw
             item.AddRawToObject(jsonName, fldValue)   !- raw json
           ELSIF ISSTRING(fldValue)
             DO CreateString
           ELSIF NUMERIC(fldValue)
-            IF NOT (fldRules.IgnoreZero AND fldValue=0)
+            IF NOT (fldRule.IgnoreZero AND fldValue=0)
               item.AddNumberToObject(jsonName, fldValue)
             END
           ELSE
@@ -2062,7 +2229,7 @@ arrSize                         LONG, AUTO
         END
       ELSE
         !arrays
-        arrSize = CHOOSE(fldRules.ArraySize > 0 AND fldRules.ArraySize < fldDim, fldRules.ArraySize, fldDim)
+        arrSize = CHOOSE(fldRule.ArraySize > 0 AND fldRule.ArraySize < fldDim, fldRule.ArraySize, fldDim)
   
         IF ISGROUP(grp,ndx)
           DO CreateGroupArray
@@ -2090,7 +2257,7 @@ bIsNullRef  BOOL, AUTO
     item.AddStringToObject(jsonName, fldValue)
   ELSE
     !- empty string
-    CASE fldRules.EmptyString
+    CASE fldRule.EmptyString
     OF 'ignore'
       ! do nothing
     OF 'null'
@@ -2115,10 +2282,10 @@ elemNdx LONG, AUTO
   !copy array
   LOOP elemNdx = 1 TO arrSize
     elemRef &= WHAT(grp, ndx, elemNdx)
-    strings[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRules)
+    strings[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRule)
   END
-  a &= json::CreateStringArray(strings, fldRules.EmptyString)
-  IF NOT (fldRules.IgnoreEmptyArray AND a.GetArraySize() = 0)
+  a &= json::CreateStringArray(strings, fldRule.EmptyString)
+  IF NOT (fldRule.IgnoreEmptyArray AND a.GetArraySize() = 0)
     item.AddItemToObject(jsonName, a)
   ELSE
     a.Delete()
@@ -2134,10 +2301,10 @@ elemNdx LONG, AUTO
   !copy array
   LOOP elemNdx = 1 TO arrSize
     elemRef &= WHAT(grp, ndx, elemNdx)
-    numbers[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRules)
+    numbers[elemNdx] = ApplyFieldRule(fldName, elemRef, fldRule)
   END
-  a &= json::CreateDoubleArray(numbers, fldRules.IgnoreZero)
-  IF NOT (fldRules.IgnoreEmptyArray AND a.GetArraySize() = 0)
+  a &= json::CreateDoubleArray(numbers, fldRule.IgnoreZero)
+  IF NOT (fldRule.IgnoreEmptyArray AND a.GetArraySize() = 0)
     item.AddItemToObject(jsonName, a)
   ELSE
     a.Delete()
@@ -2145,22 +2312,24 @@ elemNdx LONG, AUTO
 
 CreateGroupArray              ROUTINE
   DATA
-grpRef  &GROUP
+grpRef      &GROUP
 grpArray    &cJSON
-grpItem &cJSON
-elemNdx LONG, AUTO
+grpItem     &cJSON
+elemNdx     LONG, AUTO
   CODE
   grpArray &= json::CreateArray()
   LOOP elemNdx = 1 TO arrSize
     grpRef &= GETGROUP(grp,ndx,elemNdx)
-    grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, options)
+    grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, fldRules)
     
-    IF NOT (fldRules.IgnoreEmptyObject AND grpItem.GetArraySize() = 0)
+    IF NOT (fldRule.IgnoreEmptyObject AND grpItem.GetArraySize() = 0)
       grpArray.AddItemToObject(jsonName, grpItem)
+    ELSE
+      grpItem.Delete()
     END
   END
   
-  IF fldDim > 1 AND (fldRules.IgnoreEmptyArray AND grpArray.GetArraySize() = 0) !- this is really an array DIM(n) where n>1
+  IF fldDim > 1 AND (fldRule.IgnoreEmptyArray AND grpArray.GetArraySize() = 0) !- this is really an array DIM(n) where n>1
     grpArray.Delete()
     grpArray &= NULL
   END
@@ -2178,14 +2347,14 @@ queArray    &cJSON
   ndx += 1  !- we assume that next field is INSTANCE of queue.
   fla &= WHAT(grp,ndx)
   queRef &= (fla)
-  IF fldRules.FieldNumber = 0
-    queArray &= json::CreateArray(queRef, pNamesInLowerCase, options)
+  IF fldRule.FieldNumber = 0
+    queArray &= json::CreateArray(queRef, pNamesInLowerCase, fldRules)
   ELSE
     !- an array of one q field
-    queArray &= json::CreateSimpleArray(queRef, fldRules.FieldNumber, pNamesInLowerCase, options)
+    queArray &= json::CreateSimpleArray(queRef, fldRule.FieldNumber, pNamesInLowerCase, fldRules)
   END
   
-  IF fldRules.IgnoreEmptyArray AND queArray.GetArraySize() = 0
+  IF fldRule.IgnoreEmptyArray AND queArray.GetArraySize() = 0
     !- don't add empty array
     queArray.Delete()
     queArray &= NULL
@@ -2193,20 +2362,30 @@ queArray    &cJSON
 
   item.AddItemToObject(jsonName, queArray)
   
-json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  RETURN json::CreateArray(que, pNamesInLowerCase, fldRules)
+    
+json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, *cJSON jOptions)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(jOptions, fldRules)
+  RETURN json::CreateArray(que, pNamesInLowerCase, fldRules)
+
+json::CreateArray             PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules)
 array                           &cJSON, AUTO
 item                            &cJSON, AUTO
 grp                             &GROUP, AUTO
 ndx                             LONG, AUTO
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
 rh                              &TCJsonRuleHelper, AUTO
 nRecs                           LONG, AUTO
 qInstance                       LONG, AUTO
-  CODE
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
-
+bIgnoreEmptyObject              BOOL, AUTO
+  CODE  
   !- search for rule helper
   rh &= FindRuleHelper(fldRules)
   IF NOT rh &= NULL
@@ -2214,36 +2393,52 @@ qInstance                       LONG, AUTO
     qInstance = INSTANCE(que, THREAD())
   END
   
+  !- default rule
+  bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
+  
   array &= json::CreateArray()
   LOOP ndx = 1 TO RECORDS(que)
     GET(que, ndx)
     grp &= que
-    item &= json::CreateObject(grp, pNamesInLowerCase, options)
+    item &= json::CreateObject(grp, pNamesInLowerCase, fldRules)
 
-    IF fldRules.IgnoreEmptyObject AND item.GetArraySize() = 0
-      !- Don't add empty object to this array.
-      CYCLE
-    END
-    
-    array.AddItemToArray(item)
+    IF NOT (bIgnoreEmptyObject AND item.GetArraySize() = 0)
+      array.AddItemToArray(item)
   
-    IF NOT rh &= NULL
-      !- callback
-      IF NOT rh.ArrayCB(nRecs, ndx, array, qInstance, fldRules)
-        BREAK
+      IF NOT rh &= NULL
+        !- callback
+        IF NOT rh.ArrayCB(nRecs, ndx, array, qInstance, fldRules)
+          BREAK
+        END
       END
+    ELSE
+      !- Don't add empty object to this array.
+      item.Delete()
     END
   END
 
   RETURN array
 
-json::CreateSimpleArray       PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+json::CreateSimpleArray       PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  RETURN json::CreateSimpleArray(que, pFieldNumber, pNamesInLowerCase, fldRules)
+  
+json::CreateSimpleArray       PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, *cJSON jOptions)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(jOptions, fldRules)
+  RETURN json::CreateSimpleArray(que, pFieldNumber, pNamesInLowerCase, fldRules)
+
+json::CreateSimpleArray       PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules)
 array                           &cJSON
 grp                             &GROUP
 fldRef                          ANY
+fldRule                         GROUP(typCJsonFieldRule).
 fldName                         STRING(256), AUTO
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
 fldValue                        ANY
 ndx                             LONG, AUTO
 rh                              &TCJsonRuleHelper, AUTO
@@ -2260,19 +2455,16 @@ qInstance                       LONG, AUTO
       IF pNamesInLowerCase
         fldName = LOWER(fldName)
       END
-    
-      !- field convertion rules
-      ParseFieldRules(options, fldRules)
+
+      !- find field rules
+      FindFieldRule(fldName, fldRules, fldRule)
 
       !- search for rule helper
-      rh &= FindRuleHelper(fldRules)
+      rh &= FindRuleHelper(fldRule)
       IF NOT rh &= NULL
         nRecs = RECORDS(que)
         qInstance = INSTANCE(que, THREAD())
       END
-
-      !- find field rules
-      FindFieldRule(fldName, fldRules)
 
       !- loop thru queue records
       LOOP ndx = 1 TO RECORDS(que)
@@ -2283,8 +2475,8 @@ qInstance                       LONG, AUTO
           BREAK
         END
       
-        fldValue = ApplyFieldRule(fldName, fldRef, fldRules)
-        IF fldRules.IsBase64
+        fldValue = ApplyFieldRule(fldName, fldRef, fldRule)
+        IF fldRule.IsBase64
           !- encode to base64
           fldValue = printf('%v', fldValue)
         END
@@ -2292,20 +2484,20 @@ qInstance                       LONG, AUTO
         !- add a primitive, checking for empty/false/zero value
         IF ISSTRING(fldValue)
           !- string
-          IF fldValue = '' AND LOWER(fldRules.EmptyString) = 'null'
+          IF fldValue = '' AND LOWER(fldRule.EmptyString) = 'null'
             array.AddItemToArray(json::CreateNull())
-          ELSIF NOT (fldValue = '' AND LOWER(fldRules.EmptyString) = 'ignore')
+          ELSIF NOT (fldValue = '' AND LOWER(fldRule.EmptyString) = 'ignore')
             array.AddItemToArray(json::CreateString(fldValue))
           END
         ELSE
-          IF fldRules.IsBool
+          IF fldRule.IsBool
             !- boolean
-            IF NOT (fldValue = 0 AND fldRules.IgnoreFalse)
+            IF NOT (fldValue = 0 AND fldRule.IgnoreFalse)
               array.AddItemToArray(json::CreateBool(fldValue))
             END
           ELSE
             !- numeric
-            IF NOT (fldValue = 0 AND fldRules.IgnoreZero)
+            IF NOT (fldValue = 0 AND fldRule.IgnoreZero)
               array.AddItemToArray(json::CreateNumber(fldValue))
             END
           END
@@ -2323,17 +2515,30 @@ qInstance                       LONG, AUTO
   
   RETURN array
 
-json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE)
+json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  RETURN json::CreateArray(pFile, pNamesInLowerCase, fldRules, pWithBlobs)
+
+json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, *cJSON jOptions, BOOL pWithBlobs = FALSE)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(jOptions, fldRules)
+  RETURN json::CreateArray(pFile, pNamesInLowerCase, fldRules, pWithBlobs)
+
+json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules, BOOL pWithBlobs)
 array                           &cJSON
 item                            &cJSON
 ferr                            LONG, AUTO
 grp                             &GROUP
 doCloseFile                     BOOL(FALSE)
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
 ndx                             LONG, AUTO
 rh                              &TCJsonRuleHelper, AUTO
 nRecs                           LONG, AUTO
+bIgnoreEmptyObject              BOOL, AUTO
   CODE
   IF STATUS(pFile) = 0
     OPEN(pFile, 40h)  !- Read Only/Deny None
@@ -2344,20 +2549,20 @@ nRecs                           LONG, AUTO
     doCloseFile = TRUE
     SET(pFile)  !- sort by physical order
   END
-    
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
+  
+  !- default rule
+  bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
 
   !- search for rule helper
   rh &= FindRuleHelper(fldRules)
   IF NOT rh &= NULL
     nRecs = RECORDS(pFile)
-    ndx = 0
   END
 
+  ndx = 0
   grp &= pFile{PROP:Record}
-
   array &= json::CreateArray()
+  
   LOOP
     NEXT(pFile)
     ferr = ERRORCODE()
@@ -2369,19 +2574,26 @@ nRecs                           LONG, AUTO
       BREAK
     END
     
-    item &= json::CreateObject(grp, pNamesInLowerCase, options)
+    ndx += 1
+
+    item &= json::CreateObject(grp, pNamesInLowerCase, fldRules)
     
     IF pWithBlobs
-      json::BlobsToObject(item, pFile, pNamesInLowerCase, options)
+      json::BlobsToObject(item, pFile, pNamesInLowerCase, fldRules)
     END
     
-    array.AddItemToArray(item)
+    IF NOT (bIgnoreEmptyObject AND item.GetArraySize() = 0)
+      array.AddItemToArray(item)
          
-    IF NOT rh &= NULL
-      !- callback
-      IF NOT rh.ArrayCB(nRecs, ndx, array, 0, fldRules)
-        BREAK
+      IF NOT rh &= NULL
+        !- callback
+        IF NOT rh.ArrayCB(nRecs, ndx, array, 0, fldRules)
+          BREAK
+        END
       END
+    ELSE
+      !- Don't add empty object to this array.
+      item.Delete()
     END
   END
   
@@ -2390,18 +2602,58 @@ nRecs                           LONG, AUTO
   END
 
   RETURN array
-  
-json::BlobsToObject           PROCEDURE(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>)
+    
+json::CreateArray             PROCEDURE(*GROUP[] grp, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>)
 fldRules                        QUEUE(typCJsonFieldRules)
                                 END
+array                           &cJSON
+item                            &cJSON
+ndx                             LONG, AUTO
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
+bIgnoreEmptyObject              BOOL, AUTO
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  !- default rule
+  bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
+  
+  !- search for rule helper
+  rh &= FindRuleHelper(fldRules)
+  IF NOT rh &= NULL
+    nRecs = MAXIMUM(grp, 1)
+  END
+
+  array &= json::CreateArray()
+  LOOP ndx = 1 TO MAXIMUM(grp, 1)
+    item &= json::CreateObject(grp[ndx], pNamesInLowerCase, fldRules)
+        
+    IF NOT (bIgnoreEmptyObject AND item.GetArraySize() = 0)
+      array.AddItemToArray(item)
+         
+      IF NOT rh &= NULL
+        !- callback
+        IF NOT rh.ArrayCB(nRecs, ndx, array, 0, fldRules)
+          BREAK
+        END
+      END
+    ELSE
+      !- Don't add empty object to this array.
+      item.Delete()
+    END
+  END
+  RETURN array
+    
+json::CreateArray             PROCEDURE(*GROUP[] grp, BOOL pNamesInLowerCase = TRUE, *cJSON jOptions)
+  CODE
+  RETURN json::CreateArray(grp, pNamesInLowerCase, jOptions.ToString())
+
+json::BlobsToObject           PROCEDURE(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, *typCJsonFieldRules fldRules)
 cIndex                          BYTE, AUTO
+fldRule                         GROUP(typCJsonFieldRule).
 fldName                         STRING(256), AUTO
 fldValue                        ANY
 jsonName                        &STRING
   CODE
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
-
   LOOP cIndex = 1 TO pFile{PROP:Memos} + pFile{PROP:Blobs}
     fldName = pFile{PROP:Label, -cIndex}
     IF NOT fldName
@@ -2416,19 +2668,19 @@ jsonName                        &STRING
     END
     
     !- find field rules
-    FindFieldRule(fldName, fldRules)
+    FindFieldRule(fldName, fldRules, fldRule)
     
     !- map Field name to Json name
-    IF fldRules.JsonName
-      jsonName &= fldRules.JsonName
+    IF fldRule.JsonName
+      jsonName &= fldRule.JsonName
     ELSE
       jsonName &= fldName
     END
     
-    IF fldRules.Ignore <> TRUE
+    IF fldRule.Ignore <> TRUE
       !- apply field rules
-      fldValue = ApplyFieldRule(fldName, pFile{PROP:Value, -cIndex}, fldRules)
-      IF fldRules.IsBase64
+      fldValue = ApplyFieldRule(fldName, pFile{PROP:Value, -cIndex}, fldRule)
+      IF fldRule.IsBase64
         !- encode to base64
         fldValue = printf('%v', fldValue)
       END
@@ -2436,11 +2688,10 @@ jsonName                        &STRING
     END
   END
   
-json::ObjectToBlobs           PROCEDURE(*cJSON pObject, *FILE pFile, <STRING options>)
+json::ObjectToBlobs           PROCEDURE(*cJSON pObject, *FILE pFile, *typCJsonFieldRules fldRules)
 item                            &cJSON
+fldRule                         GROUP(typCJsonFieldRule).
 fldName                         STRING(256), AUTO
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
 cIndex                          BYTE, AUTO
 jsonName                        &STRING
   CODE
@@ -2452,9 +2703,6 @@ jsonName                        &STRING
   IF item &= NULL
     !empty object
   END
-
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
   
   !by field names
   LOOP WHILE NOT item &= NULL
@@ -2469,11 +2717,11 @@ jsonName                        &STRING
         RemoveFieldPrefix(fldName)
         
         !- find field rules
-        FindFieldRule(fldName, fldRules)
+        FindFieldRule(fldName, fldRules, fldRule)
         
         !- map Field name to Json name
-        IF fldRules.JsonName
-          jsonName &= fldRules.JsonName
+        IF fldRule.JsonName
+          jsonName &= fldRule.JsonName
         ELSE
           jsonName &= fldName
         END
@@ -2482,7 +2730,7 @@ jsonName                        &STRING
             
           IF item.IsObject() !AND ISGROUP(grp, fidNdx)
             !- skip
-          ELSIF item.IsArray() !AND fldRules.Instance
+          ELSIF item.IsArray() !AND fldRule.Instance
             !- skip
           ELSE
             !found group field, assign the value
@@ -2502,9 +2750,9 @@ AssignGroup                   ROUTINE
   DATA
 fldValue    ANY
   CODE
-  IF fldRules.Ignore <> TRUE
+  IF fldRule.Ignore <> TRUE
     IF item.IsString()
-      IF NOT fldRules.IsBase64
+      IF NOT fldRule.IsBase64
         fldValue = item.valuestring
       ELSE
         !- decode base64 encoded string
@@ -2521,16 +2769,38 @@ fldValue    ANY
     END
 
     !- apply field rule, if exists
-    pFile{PROP:Value, -cIndex} = ApplyFieldRule(fldName, fldValue, fldRules)
+    pFile{PROP:Value, -cIndex} = ApplyFieldRule(fldName, fldValue, fldRule)
   END
 !!!endregion
+  
+!!!region _CJSON_COUNTERS_
+  COMPILE('** CJSON COUNTERS **', _ENABLE_CJSON_COUNTERS_)
+get_cjson_ctor_counter        PROCEDURE()
+  CODE
+  RETURN s_cjson_ctor_counter
+get_cjson_dtor_counter        PROCEDURE()
+  CODE
+  RETURN s_cjson_dtor_counter
+reset_cjson_counters          PROCEDURE()
+  CODE
+  s_cjson_ctor_counter = 0
+  s_cjson_dtor_counter = 0
+  ! ** CJSON COUNTERS **
+!!!endregion 
 
 !!!region cJSON
 cJSON.Construct               PROCEDURE()
   CODE
-  
+  COMPILE('** CJSON COUNTERS **', _ENABLE_CJSON_COUNTERS_)
+  s_cjson_ctor_counter += 1
+  ! ** CJSON COUNTERS **
+
 cJSON.Destruct                PROCEDURE()
   CODE
+  COMPILE('** CJSON COUNTERS **', _ENABLE_CJSON_COUNTERS_)
+  s_cjson_dtor_counter += 1
+  ! ** CJSON COUNTERS **
+  
   IF NOT SELF.name &= NULL
     DISPOSE(SELF.name)
     SELF.name &= NULL
@@ -2951,7 +3221,7 @@ newchild                        &cJSON
       next &= newchild
     ELSE
       !Set newitem->child and move to it 
-      newitem.child &= child
+      newitem.child &= newchild
       next &= newchild
     END
   
@@ -3066,13 +3336,12 @@ array                           &cJSON
   array.Delete()
   RETURN NULL
 
-cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING options>)
-item                            &cJSON
+cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules)
+item                            &cJSON, AUTO
 fldRef                          ANY
 fldName                         STRING(256), AUTO
 fidNdx                          LONG, AUTO
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
+fldRule                         LIKE(typCJsonFieldRule)
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
 nestedQueRef                    &QUEUE
@@ -3089,9 +3358,6 @@ nestedQueRef                    &QUEUE
     !empty object
     RETURN TRUE
   END
-
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
   
   IF NOT matchByFieldNumber
     !by field names
@@ -3110,11 +3376,11 @@ nestedQueRef                    &QUEUE
           RemoveFieldPrefix(fldName)
 
           !- find field rules
-          FindFieldRule(fldName, fldRules)
+          FindFieldRule(fldName, fldRules, fldRule)
           
           !- map Field name to Json name
-          IF fldRules.JsonName
-            jsonName &= fldRules.JsonName
+          IF fldRule.JsonName
+            jsonName &= fldRule.JsonName
           ELSE
             jsonName &= fldName
           END
@@ -3124,14 +3390,14 @@ nestedQueRef                    &QUEUE
             IF item.IsObject() AND ISGROUP(grp, fidNdx)
               !- child item is of object type, and it matches a nested group
               nestedGrpRef &= GETGROUP(grp, fidNdx)
-              item.ToGroup(nestedGrpRef, matchByFieldNumber, options)
-            ELSIF item.IsArray() AND fldRules.Instance
+              item.ToGroup(nestedGrpRef, matchByFieldNumber, fldRules)
+            ELSIF item.IsArray() AND fldRule.Instance
               !- child item is an array, so load it into a queue
-              nestedQueRef &= (fldRules.Instance)
-              IF fldRules.FieldNumber = 0
-                item.ToQueue(nestedQueRef, matchByFieldNumber, options)
+              nestedQueRef &= (fldRule.Instance)
+              IF fldRule.FieldNumber = 0
+                item.ToQueue(nestedQueRef, matchByFieldNumber, fldRules)
               ELSE
-                item.ToQueueField(nestedQueRef, fldRules.FieldNumber, matchByFieldNumber, options)
+                item.ToQueueField(nestedQueRef, fldRule.FieldNumber, matchByFieldNumber, fldRules)
               END
             ELSE
               !found group field, assign the value
@@ -3162,7 +3428,7 @@ nestedQueRef                    &QUEUE
       RemoveFieldPrefix(fldName)
 
       !- find field rules
-      FindFieldRule(fldName, fldRules)
+      FindFieldRule(fldName, fldRules, fldRule)
 
       DO AssignGroup
 
@@ -3174,12 +3440,12 @@ nestedQueRef                    &QUEUE
 
 AssignGroup                   ROUTINE
   DATA
-fldValue                      ANY
+fldValue    ANY
   CODE
-  IF fldRules.Ignore <> TRUE
-    IF NOT fldRules.Auto
+  IF fldRule.Ignore <> TRUE
+    IF NOT fldRule.Auto
       IF item.IsString()
-        IF NOT fldRules.IsBase64
+        IF NOT fldRule.IsBase64
           fldValue = item.valuestring
         ELSE
           !- decode base64 encoded string
@@ -3196,13 +3462,24 @@ fldValue                      ANY
       END
 
       !- apply field rule if it exists
-      fldRef = ApplyFieldRule(fldName, fldValue, fldRules)
+      fldRef = ApplyFieldRule(fldName, fldValue, fldRule)
     ELSE
       !- "auto" field must be explicitly assigned
-      ProcessAutoField(fldName, item, fldRules)
+      ProcessAutoField(fldName, item, fldRule)
     END
   END
   
+cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING pOptions>)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  RETURN SELF.ToGroup(grp, matchByFieldNumber, fldRules)
+  
+cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroup(grp, matchByFieldNumber, pOptions.ToString())
+
 cJSON.ToGroup                 PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jObject                         &cJSON, AUTO
   CODE
@@ -3217,10 +3494,22 @@ jObject                         &cJSON, AUTO
     RETURN FALSE
   END
   
-cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSON.ToGroup                 PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
   CODE
-  RETURN SELF.ToQueueField(que, 0, matchByFieldNumber, options)
+  RETURN SELF.ToGroup(pObjectName, pGrp, pMatchByFieldNumber, pOptions.ToString())
+
+cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules)
+  CODE
+  RETURN SELF.ToQueueField(que, 0, matchByFieldNumber, fldRules)
+
+cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueueField(que, 0, matchByFieldNumber, pOptions)
   
+cJSON.ToQueue                 PROCEDURE(*QUEUE que, BOOL matchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueueField(que, 0, matchByFieldNumber, pOptions.ToString())
+
 cJSON.ToQueue                 PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jArray                          &cJSON, AUTO
   CODE
@@ -3235,13 +3524,15 @@ jArray                          &cJSON, AUTO
     RETURN FALSE
   END
 
-cJSON.ToQueueField            PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, <STRING options>)
+cJSON.ToQueue                 PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueue(pArrayName, pQue, pMatchByFieldNumber, pOptions.ToString())
+
+cJSON.ToQueueField            PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules)
 grp                             &GROUP
 item                            &cJSON
 fldRef                          ANY
 fldValue                        ANY
-fldRules                        QUEUE(typCJsonFieldRules)
-                                END
 rh                              &TCJsonRuleHelper, AUTO
 nRecs                           LONG, AUTO
 ndx                             LONG, AUTO
@@ -3257,15 +3548,11 @@ qInstance                       LONG, AUTO
     !empty array
     RETURN TRUE
   END
-  
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
 
   !- search for rule helper
   rh &= FindRuleHelper(fldRules)
   IF NOT rh &= NULL
     nRecs = SELF.GetArraySize()
-    ndx = 0
     qInstance = INSTANCE(que, THREAD())
   END
   
@@ -3273,14 +3560,17 @@ qInstance                       LONG, AUTO
     !- assume default field number is 1
     pFieldNumber = 1
   END
+  
+  ndx = 0
 
   !go thru array elements
   LOOP WHILE NOT item &= NULL
+    ndx += 1
     grp &= que
     
     IF item.IsObject()
       !- array of objects
-      IF item.ToGroup(grp, matchByFieldNumber, options)
+      IF item.ToGroup(grp, matchByFieldNumber, fldRules)
         !add a record
         ADD(que)
       END
@@ -3308,7 +3598,6 @@ qInstance                       LONG, AUTO
       
     IF NOT rh &= NULL
       !- callback
-      ndx += 1
       IF NOT rh.ArrayCB(nRecs, ndx, SELF, qInstance, fldRules)
         BREAK
       END
@@ -3319,6 +3608,17 @@ qInstance                       LONG, AUTO
 
   RETURN TRUE
   
+cJSON.ToQueueField            PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  RETURN SELF.ToQueueField(pQue, pFieldNumber, pMatchByFieldNumber, fldRules)
+
+cJSON.ToQueueField            PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueueField(pQue, pFieldNumber, pMatchByFieldNumber, pOptions.ToString())
+
 cJSON.ToQueueField            PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jArray                          &cJSON, AUTO
   CODE
@@ -3332,8 +3632,12 @@ jArray                          &cJSON, AUTO
   ELSE
     RETURN FALSE
   END
+  
+cJSON.ToQueueField            PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueueField(pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions.ToString())
 
-cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING options>, BOOL pWithBlobs = FALSE)
+cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
 grp                             &GROUP
 item                            &cJSON
 fldRules                        QUEUE(typCJsonFieldRules)
@@ -3353,23 +3657,24 @@ ndx                             LONG, AUTO
     RETURN TRUE
   END
   
-  !- field convertion rules
-  ParseFieldRules(options, fldRules)
+  ParseFieldRules(pOptions, fldRules)
 
   !- search for rule helper
   rh &= FindRuleHelper(fldRules)
   IF NOT rh &= NULL
     nRecs = SELF.GetArraySize()
-    ndx = 0
   END
+
+  ndx = 0
 
   !go thru array elements
   LOOP WHILE NOT item &= NULL
+    ndx += 1
     grp &= pFile{PROP:Record}
-    IF item.ToGroup(grp, matchByFieldNumber, options)
+    IF item.ToGroup(grp, matchByFieldNumber, fldRules)
       
       IF pWithBlobs
-        json::ObjectToBlobs(item, pFile, options)
+        json::ObjectToBlobs(item, pFile, fldRules)
       END
       
       !add a record
@@ -3381,7 +3686,6 @@ ndx                             LONG, AUTO
           
     IF NOT rh &= NULL
       !- callback
-      ndx += 1
       IF NOT rh.ArrayCB(nRecs, ndx, SELF, 0, fldRules)
         BREAK
       END
@@ -3391,6 +3695,10 @@ ndx                             LONG, AUTO
   END
 
   RETURN TRUE
+
+cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pFile, matchByFieldNumber, pOptions.ToString(), pWithBlobs)
   
 cJSON.ToFile                  PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
 jArray                          &cJSON, AUTO
@@ -3405,7 +3713,113 @@ jArray                          &cJSON, AUTO
   ELSE
     RETURN FALSE
   END
-             
+
+cJSON.ToFile                  PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pArrayName, pFile, pMatchByFieldNumber, pOptions.ToString(), pWithBlobs)
+     
+cJSON.ToGroupArray            PROCEDURE(*GROUP[] grp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+item                            &cJSON
+grpRef                          &GROUP, AUTO
+fldRef                          ANY
+fldValue                        ANY
+rh                              &TCJsonRuleHelper, AUTO
+nRecs                           LONG, AUTO
+nDim                            LONG, AUTO
+ndx                             LONG, AUTO
+fldRules                        QUEUE(typCJsonFieldRules)
+                                END
+  CODE
+  ParseFieldRules(pOptions, fldRules)
+  IF NOT SELF.IsArray()
+    !not an array
+    RETURN FALSE
+  END
+
+  item &= SELF.child
+  IF item &= NULL
+    !empty array
+    RETURN TRUE
+  END
+
+  !- search for rule helper
+  rh &= FindRuleHelper(fldRules)
+  IF NOT rh &= NULL
+    nRecs = SELF.GetArraySize()
+  END
+  
+  ndx = 0
+  nDim = MAXIMUM(grp, 1)
+
+  !go thru array elements
+  LOOP WHILE NOT item &= NULL
+    ndx += 1
+    IF ndx > nDim
+      !- out of DIM(x).
+      BREAK
+    END
+    
+    grpRef &= grp[ndx]
+    
+    IF item.IsObject()
+      !- array of objects
+      item.ToGroup(grpRef, pMatchByFieldNumber, fldRules)
+    ELSE
+      !- array of constants
+      !- save the constant into a field which ordinal position is 1
+      fldRef &= WHAT(grpRef, 1)
+      IF NOT fldRef&= NULL
+        IF item.IsString()
+          fldRef = item.valuestring
+        ELSIF item.IsNumber()
+          fldRef = item.valuedouble
+        ELSIF item.IsBool()
+          fldRef = item.valueint
+        ELSIF item.IsFalse()
+          fldRef = FALSE
+        ELSIF item.IsTrue()
+          fldRef = TRUE
+        ELSE
+          fldRef = ''
+        END
+      END
+    END
+      
+    IF NOT rh &= NULL
+      !- callback
+      IF NOT rh.ArrayCB(nRecs, ndx, SELF, 0, fldRules)
+        BREAK
+      END
+    END
+
+    item &= item.next
+  END
+
+  RETURN TRUE
+  
+cJSON.ToGroupArray            PROCEDURE(*GROUP[] grp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroupArray(grp, pMatchByFieldNumber, pOptions.ToString())
+
+  
+cJSON.ToGroupArray            PROCEDURE(STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jArray                          &cJSON, AUTO
+  CODE
+  IF pArrayName
+    jArray &= SELF.FindObjectItem(pArrayName)
+  ELSE
+    jArray &= SELF
+  END
+  IF NOT jArray &= NULL
+    RETURN jArray.ToGroupArray(pGrp, pMatchByFieldNumber, pOptions)
+  ELSE
+    RETURN FALSE
+  END
+
+cJSON.ToGroupArray                 PROCEDURE(STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroupArray(pArrayName, pGrp, pMatchByFieldNumber, pOptions.ToString())
+
 cJSON.FindObjectItem          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
 item                            &cJSON
 current_element                 &cJSON
@@ -3634,17 +4048,37 @@ cJSONFactory.ToGroup          PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatchBy
   CODE
   RETURN SELF.ToGroup(pJson, pGrp, pMatchByFieldNumber, pOptions)
   
+cJSONFactory.ToGroup          PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroup(pJson, pGrp, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToGroup          PROCEDURE(STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
   CODE
   RETURN SELF.ToGroup(pJson, pObjectName, pGrp, pMatchByFieldNumber, pOptions)
-  
+    
+cJSONFactory.ToGroup          PROCEDURE(STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroup(pJson, pObjectName, pGrp, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToGroup          PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 sRef                            &STRING, AUTO
   CODE
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
   RETURN SELF.ToGroup(sRef, pGrp, pMatchByFieldNumber, pOptions)
-  
+    
+cJSONFactory.ToGroup          PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroup(sRef, pGrp, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToGroup          PROCEDURE(*IDynStr pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroup(sRef, pObjectName, pGrp, pMatchByFieldNumber, pOptions)
+  
+cJSONFactory.ToGroup          PROCEDURE(*IDynStr pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
 sRef                            &STRING, AUTO
   CODE
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
@@ -3662,6 +4096,10 @@ ret                             BOOL(FALSE)
   
   RETURN ret
   
+cJSONFactory.ToGroup          PROCEDURE(*STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroup(pJson, pGrp, pMatchByFieldNumber, pOptions.ToString())
+
 cJSONFactory.ToGroup          PROCEDURE(*STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
@@ -3673,12 +4111,24 @@ ret                             BOOL(FALSE)
   END
   
   RETURN ret
+  
+cJSONFactory.ToGroup          PROCEDURE(*STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroup(pJson, pObjectName, pGrp, pMatchByFieldNumber, pOptions.ToString())
 
 cJSONFactory.ToQueue          PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
   CODE
   RETURN SELF.ToQueue(pJson, pQue, pMatchByFieldNumber, pOptions)
       
+cJSONFactory.ToQueue          PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueue(pJson, pQue, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToQueue          PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueue(pJson, pArrayName, pQue, pMatchByFieldNumber, pOptions)
+      
+cJSONFactory.ToQueue          PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
   CODE
   RETURN SELF.ToQueue(pJson, pArrayName, pQue, pMatchByFieldNumber, pOptions)
 
@@ -3688,7 +4138,19 @@ sRef                            &STRING, AUTO
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
   RETURN SELF.ToQueue(sRef, pQue, pMatchByFieldNumber, pOptions)
 
+cJSONFactory.ToQueue          PROCEDURE(*IDynStr pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueue(sRef, pQue, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToQueue          PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueue(sRef, pArrayName, pQue, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueue          PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
 sRef                            &STRING, AUTO
   CODE
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
@@ -3706,6 +4168,10 @@ ret                             BOOL(FALSE)
   
   RETURN ret
     
+cJSONFactory.ToQueue          PROCEDURE(*STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueue(pJson, pQue, pMatchByFieldNumber, pOptions.ToString())
+
 cJSONFactory.ToQueue          PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
@@ -3717,12 +4183,24 @@ ret                             BOOL(FALSE)
   END
   
   RETURN ret
+    
+cJSONFactory.ToQueue          PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueue(pJson, pArrayName, pQue, pMatchByFieldNumber, pOptions.ToString())
 
 cJSONFactory.ToQueueField     PROCEDURE(STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
   CODE
   RETURN SELF.ToQueueField(pJson, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
       
+cJSONFactory.ToQueueField     PROCEDURE(STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueueField(pJson, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToQueueField     PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToQueueField(pJson, pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+      
+cJSONFactory.ToQueueField     PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
   CODE
   RETURN SELF.ToQueueField(pJson, pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
 
@@ -3732,7 +4210,19 @@ sRef                            &STRING, AUTO
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
   RETURN SELF.ToQueueField(sRef, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
 
+cJSONFactory.ToQueueField     PROCEDURE(*IDynStr pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueueField(sRef, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+
 cJSONFactory.ToQueueField     PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToQueueField(sRef, pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToQueueField     PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
 sRef                            &STRING, AUTO
   CODE
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
@@ -3750,6 +4240,10 @@ ret                             BOOL(FALSE)
   
   RETURN ret
 
+cJSONFactory.ToQueueField     PROCEDURE(*STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueueField(pJson, pQue, pFieldNumber, pMatchByFieldNumber, pOptions.ToString())
+
 cJSONFactory.ToQueueField     PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
 jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
@@ -3762,15 +4256,33 @@ ret                             BOOL(FALSE)
   
   RETURN ret
 
+cJSONFactory.ToQueueField     PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToQueueField(pJson, pArrayName, pQue, pFieldNumber, pMatchByFieldNumber, pOptions.ToString())
+
 cJSONFactory.ToFile           PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
   CODE
   RETURN SELF.ToFile(pJson, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
   
+cJSONFactory.ToFile           PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pJson, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+
 cJSONFactory.ToFile           PROCEDURE(STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pJson, pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+  
+cJSONFactory.ToFile           PROCEDURE(STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
   CODE
   RETURN SELF.ToFile(pJson, pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
 
 cJSONFactory.ToFile           PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToFile(sRef, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+
+cJSONFactory.ToFile           PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
 sRef                            &STRING, AUTO
   CODE
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
@@ -3782,29 +4294,116 @@ sRef                            &STRING, AUTO
   sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
   RETURN SELF.ToFile(sRef, pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
 
+cJSONFactory.ToFile           PROCEDURE(*IDynStr pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToFile(sRef, pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+
 cJSONFactory.ToFile           PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
-object                          &cJSON
+jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
   CODE
-  object &= SELF.Parse(pJson)
-  IF NOT object &= NULL
-    ret = object.ToFile(pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
-    object.Delete()
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToFile(pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+    jObject.Delete()
   END
   
   RETURN ret
 
+cJSONFactory.ToFile           PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pJson, pFile, pMatchByFieldNumber, pOptions.ToString(), pWithBlobs)
+
 cJSONFactory.ToFile           PROCEDURE(*STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
-object                          &cJSON
+jObject                         &cJSON, AUTO
 ret                             BOOL(FALSE)
   CODE
-  object &= SELF.Parse(pJson)
-  IF NOT object &= NULL
-    ret = object.ToFile(pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
-    object.Delete()
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToFile(pArrayName, pFile, pMatchByFieldNumber, pOptions, pWithBlobs)
+    jObject.Delete()
   END
   
   RETURN ret
+
+cJSONFactory.ToFile           PROCEDURE(*STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE)
+  CODE
+  RETURN SELF.ToFile(pJson, pArrayName, pFile, pMatchByFieldNumber, pOptions.ToString(), pWithBlobs)
+
+  
+cJSONFactory.ToGroupArray     PROCEDURE(STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToGroupArray(pJson, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray     PROCEDURE(STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroupArray(pJson, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray     PROCEDURE(STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+  CODE
+  RETURN SELF.ToGroupArray(pJson, pArrayName, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray     PROCEDURE(STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroupArray(pJson, pArrayName, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray     PROCEDURE(*STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+ret                             BOOL(FALSE)
+  CODE
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToGroupArray(pGrp, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
+  END
+  
+  RETURN ret
+
+cJSONFactory.ToGroupArray     PROCEDURE(*STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroupArray(pJson, pGrp, pMatchByFieldNumber, pOptions.ToString())
+
+cJSONFactory.ToGroupArray     PROCEDURE(*STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+jObject                         &cJSON, AUTO
+ret                             BOOL(FALSE)
+  CODE
+  jObject &= SELF.Parse(pJson)
+  IF NOT jObject &= NULL
+    ret = jObject.ToGroupArray(pArrayName, pGrp, pMatchByFieldNumber, pOptions)
+    jObject.Delete()
+  END
+  
+  RETURN ret
+
+cJSONFactory.ToGroupArray     PROCEDURE(*STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+  CODE
+  RETURN SELF.ToGroupArray(pJson, pArrayName, pGrp, pMatchByFieldNumber, pOptions.ToString())
+
+cJSONFactory.ToGroupArray     PROCEDURE(*IDynStr pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroupArray(sRef, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray     PROCEDURE(*IDynStr pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroupArray(sRef, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray     PROCEDURE(*IDynStr pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
+sRef                            &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroupArray(sRef, pArrayName, pGrp, pMatchByFieldNumber, pOptions)
+
+cJSONFactory.ToGroupArray                  PROCEDURE(*IDynStr pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions)
+sRef                                          &STRING, AUTO
+  CODE
+  sRef &= (pJson.CStrRef()) &':'& pJson.StrLen()
+  RETURN SELF.ToGroupArray(sRef, pArrayName, pGrp, pMatchByFieldNumber, pOptions)
 
 cJSONFactory.GetError         PROCEDURE()
   CODE

@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.45
-!** 22.09.2024
+!** cJSON for Clarion v1.46.2
+!** 03.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -8,106 +8,131 @@
   INCLUDE('dynstrclass.inc'), ONCE
   INCLUDE('dynstr.inc'), ONCE
 
+  COMPILE('** CJSON COUNTERS **', _ENABLE_CJSON_COUNTERS_)
   MAP
-                          MODULE('cjson')
+    MODULE('cjson')
+      get_cjson_ctor_counter(), LONG
+      get_cjson_dtor_counter(), LONG
+      reset_cjson_counters()
+    END
+  END
+  ! ** CJSON COUNTERS **
+
+  MAP
+                              MODULE('cjson')
 
 !!!<summary>a wrapper of OutputDebugString api.</summary>
-json::DebugInfo             PROCEDURE(STRING pMsg)
+json::DebugInfo                 PROCEDURE(STRING pMsg)
 
 !!!<summary>Removes all whitespeces from the string.</summary>
-json::Minify                PROCEDURE(*STRING pJson)
+json::Minify                    PROCEDURE(*STRING pJson)
       
 !!!<summary>Recursively compare two items for equality. If either a or b is NULL or invalid, they will be considered unequal.</summary>
 !!!<param name="case_sensitive">determines if object keys are treated case sensitive (true) or case insensitive (false).</param>
 !!!<returns>true if items are equal.</returns>
-json::Compare               PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
+json::Compare                   PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
 
 !!!<summary>Create a cJSON item of null type.</summary>
-json::CreateNull            PROCEDURE(), *cJSON
+json::CreateNull                PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON item of boolean type with true value.</summary>
-json::CreateTrue            PROCEDURE(), *cJSON
+json::CreateTrue                PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON item of boolean type with false value.</summary>
-json::CreateFalse           PROCEDURE(), *cJSON
+json::CreateFalse               PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON item of boolean type.</summary>
 !!!<param name="b">item value</param>
-json::CreateBool            PROCEDURE(BOOL b), *cJSON
+json::CreateBool                PROCEDURE(BOOL b), *cJSON
 
 !!!<summary>Create a cJSON item of numeric type.</summary>
 !!!<param name="num">item value</param>
-json::CreateNumber          PROCEDURE(REAL num), *cJSON
+json::CreateNumber              PROCEDURE(REAL num), *cJSON
 
 !!!<summary>Create a cJSON item of string type.</summary>
 !!!<param name="str">item value</param>
-json::CreateString          PROCEDURE(STRING str), *cJSON
+json::CreateString              PROCEDURE(STRING str), *cJSON
 
 !!!<summary>Create a cJSON item of raw type.</summary>
 !!!<param name="rawJson">item value</param>
-json::CreateRaw             PROCEDURE(STRING rawJson), *cJSON
+json::CreateRaw                 PROCEDURE(STRING rawJson), *cJSON
 
 !!!<summary>Create a cJSON array.</summary>
-json::CreateArray           PROCEDURE(), *cJSON
+json::CreateArray               PROCEDURE(), *cJSON
 
 !!!<summary>Create a cJSON object.</summary>
-json::CreateObject          PROCEDURE(), *cJSON
+json::CreateObject              PROCEDURE(), *cJSON
 
 !!!<summary>Create a string where valuestring references a string so it will not be freed by Delete.</summary>
-json::CreateStringReference PROCEDURE(*STRING str), *cJSON
+json::CreateStringReference     PROCEDURE(*STRING str), *cJSON
 
 !!!<summary>Create an object that only references it's elements so they will not be freed by Delete.</summary>
-json::CreateObjectReference PROCEDURE(*cJSON child), *cJSON
+json::CreateObjectReference     PROCEDURE(*cJSON child), *cJSON
 
 !!!<summary>Create an arrray that only references it's elements so they will not be freed by Delete.</summary>
-json::CreateArrayReference  PROCEDURE(*cJSON child), *cJSON
+json::CreateArrayReference      PROCEDURE(*cJSON child), *cJSON
 
 !!!<summary>Create an Array of LONGs.>/summary>
-json::CreateIntArray        PROCEDURE(LONG[] numbers, BOOL pIgnoreZeros=FALSE), *cJSON
+json::CreateIntArray            PROCEDURE(LONG[] numbers, BOOL pIgnoreZeros=FALSE), *cJSON
 
 !!!<summary>Create an Array of REALs.</summary>
-json::CreateDoubleArray     PROCEDURE(REAL[] numbers, BOOL pIgnoreZeros=FALSE), *cJSON
+json::CreateDoubleArray         PROCEDURE(REAL[] numbers, BOOL pIgnoreZeros=FALSE), *cJSON
 
 !!!<summary>Create an Array of STRINGs.</summary>
 !!!<param name="strings">string array.</param>
 !!!<param name="pIfEmpty">If it is "null", then null objects will be created for empty elements; 
 !!!if it is "ignore", then empty elements will not be created; 
 !!!otherwise empty string elements will be created.</param>
-json::CreateStringArray     PROCEDURE(STRING[] strings, <STRING pIfEmpty>), *cJSON
+json::CreateStringArray         PROCEDURE(STRING[] strings, <STRING pIfEmpty>), *cJSON
 
 !!!<summary>Create an object from GROUP.</summary>
-json::CreateObject          PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+json::CreateObject              PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>), *cJSON
+!!!<summary>Create an object from GROUP.</summary>
+json::CreateObject              PROCEDURE(*GROUP grp, BOOL pNamesInLowerCase = TRUE, *cJSON pOptions), *cJSON
 
 !!!<summary>Create an array from QUEUE.</summary>
-json::CreateArray           PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+json::CreateArray               PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>), *cJSON
+!!!<summary>Create an array from QUEUE.</summary>
+json::CreateArray               PROCEDURE(*QUEUE que, BOOL pNamesInLowerCase = TRUE, *cJSON pOptions), *cJSON
+
+!!!<summary>Create an array from GROUP, DIM(n).</summary>
+json::CreateArray               PROCEDURE(*GROUP[] grp, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>), *cJSON
+!!!<summary>Create an array from GROUP, DIM(n).</summary>
+json::CreateArray               PROCEDURE(*GROUP[] grp, BOOL pNamesInLowerCase = TRUE, *cJSON pOptions), *cJSON
 
 !!!<summary>Create an array from FILE's RECORD and optionally blobs and memos),
 !!! string and numeric arrays are allowed; Blobs and Memos aren't.
 !!! File must be OPENed and SET before calling this method.</summary>
-json::CreateArray           PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING options>, BOOL pWithBlobs = FALSE), *cJSON
+json::CreateArray               PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>, BOOL pWithBlobs = FALSE), *cJSON
+!!!<summary>Create an array from FILE's RECORD and optionally blobs and memos),
+!!! string and numeric arrays are allowed; Blobs and Memos aren't.
+!!! File must be OPENed and SET before calling this method.</summary>
+json::CreateArray               PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase = TRUE, *cJSON pOptions, BOOL pWithBlobs = FALSE), *cJSON
 
 !!!<summary>Create an array from a queue field.</summary>
-json::CreateSimpleArray     PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, <STRING options>), *cJSON
+json::CreateSimpleArray         PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>), *cJSON
+!!!<summary>Create an array from a queue field.</summary>
+json::CreateSimpleArray         PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase = TRUE, *cJSON pOptions), *cJSON
 
 !!!<summary>Converts input string from one encoding to another.</summary>
 !!!<param name="pInput">Input string.</param>
 !!!<param name="pInputCodepage">Input code page, like CP_ACP, CP_UTF8.</param>
 !!!<param name="pOutputCodepage">Output code page; pass -1 to convert to UTF16.</param>
-json::ConvertEncoding       PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
+json::ConvertEncoding           PROCEDURE(STRING pInput, UNSIGNED pInputCodepage, UNSIGNED pOutputCodepage), STRING
 !!!<summary>Converts input string from utf-8.</summary>
-json::FromUtf8              PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+json::FromUtf8                  PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
 !!!<summary>Converts input string to utf-8.</summary>
-json::ToUtf8                PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
+json::ToUtf8                    PROCEDURE(STRING pInput, UNSIGNED pCodepage = CP_ACP), STRING
 
 !!!<summary>Returns a string where each character in form of \uXXXX.</summary>
-json::StringToULiterals     PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
+json::StringToULiterals         PROCEDURE(STRING pInput, UNSIGNED pInputCodepage = CP_ACP), STRING
  
 !!!<summary>Reads data from the specified file.</summary>
-json::LoadFile              PROCEDURE(STRING pFilename), *STRING
+json::LoadFile                  PROCEDURE(STRING pFilename), *STRING
 
 !!!<summary>Writes data to the specified file.</summary>
-json::SaveFile              PROCEDURE(STRING pFilename, STRING pData), BOOL, PROC
-                          END
+json::SaveFile                  PROCEDURE(STRING pFilename, STRING pData), BOOL, PROC
+                              END
   END
 
 !cJSON Types
@@ -193,7 +218,7 @@ AutoCB                          PROCEDURE(STRING pFldName, cJSON pItem), VIRTUAL
 !!!<param name="pArraySize">A size of the array, whether RECORDS(queue/file) or array.GetArraySize().</param>
 !!!<param name="pCurrentIndex">Current item index.</param>
 !!!<param name="pArray">A reference to a JSON array.</param>
-!!!<param name="pQueueInstance">INSTANCE(queue, thread) or 0 for FILE.</param>
+!!!<param name="pQueueInstance">INSTANCE(queue, thread) or 0 for FILE or GROUP[].</param>
 !!!<param name="pRules">The rules.</param>
 !!!<returns>false to abort current array processing.</returns>
 ArrayCB                         PROCEDURE(LONG pArraySize, LONG pCurrentIndex, CONST *cJSON pArray, LONG pQueueInstance, *typCJsonFieldRules pRules), BOOL, VIRTUAL
@@ -455,12 +480,22 @@ AddObjectToObject               PROCEDURE(STRING name), *cJSON  !, PROC
 !!!<returns>a reference to added array or NULL on failure.</returns>
 AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
 
+ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
+ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
+ToQueueField                    PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
+
 !!!<summary>save json object to a GROUP.</summary>
 !!!<param name="pGrp">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
 !!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToGroup                         PROCEDURE(*GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>save json object to a GROUP.</summary>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToGroup                         PROCEDURE(*GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively find the object by name and save it to a GROUP.</summary>
 !!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
@@ -470,13 +505,27 @@ ToGroup                         PROCEDURE(*GROUP pGrp, BOOL pMatchByFieldNumber 
 !!!<returns>true on success, false otherwise.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToGroup                         PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively find the object by name and save it to a GROUP.</summary>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroup                         PROCEDURE(STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>save json array to a QUEUE.</summary>
 !!!<param name="pQue">receiver.</param>
 !!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
-!!!<param name="options">json string which defines field converting options.</param>
+!!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>save json array to a QUEUE.</summary>
+!!!<param name="pQue">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively find the array by name and save it to a QUEUE.</summary>
 !!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
@@ -486,6 +535,14 @@ ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber 
 !!!<returns>true on success, false otherwise.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueue                         PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively find the array by name and save it to a QUEUE.</summary>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueue                         PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>save json array to a QUEUE.</summary>
 !!!<param name="pQue">receiver.</param>
@@ -494,6 +551,13 @@ ToQueue                         PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL p
 !!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToQueueField                    PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>save json array to a QUEUE.</summary>
+!!!<param name="pQue">receiver.</param>
+!!!<param name="pFieldNumber">An ordinal position of the field in the queue.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToQueueField                    PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively find the array by name and save it to a QUEUE.</summary>
 !!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
@@ -504,6 +568,15 @@ ToQueueField                    PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL p
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueueField                    PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively find the array by name and save it to a QUEUE.</summary>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field in the queue.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueueField                    PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>save json array to a FILE's RECORD and optionally in blobs/memos.
 !!! pFile must allow ADD(). Any ADD() errors are logged in the DebugView.
@@ -513,6 +586,14 @@ ToQueueField                    PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG p
 !!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToFile                          PROCEDURE(*FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>save json array to a FILE's RECORD and optionally in blobs/memos.
+!!! pFile must allow ADD(). Any ADD() errors are logged in the DebugView.
+!!!</summary>
+!!!<param name="pFile">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToFile                          PROCEDURE(*FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>Recursively find the array by name and save it to a FILE's RECORD and optionally in blobs/memos.
 !!! pFile must allow ADD(). Any ADD() errors are logged in the DebugView.
@@ -524,6 +605,47 @@ ToFile                          PROCEDURE(*FILE pFile, BOOL pMatchByFieldNumber 
 !!!<returns>true on success, false otherwise.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToFile                          PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Recursively find the array by name and save it to a FILE's RECORD and optionally in blobs/memos.
+!!! pFile must allow ADD(). Any ADD() errors are logged in the DebugView.
+!!!</summary>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pFile">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToFile                          PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
+
+!!!<summary>save json array to a GROUP array.</summary>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json string which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToGroupArray                    PROCEDURE(*GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>save json array to a GROUP array.</summary>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json string which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToGroupArray                    PROCEDURE(*GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
+!!!<summary>Recursively find the array by name and save it to a GROUP array.</summary>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json string which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively find the array by name and save it to a GROUP array.</summary>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position.</param>
+!!!<param name="pOptions">json string which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
 
 !!!<summary>recursively finds an item with passed name.</summary>
 !!!<param name="itemName">the name of json object</param>
@@ -627,6 +749,13 @@ ParseFile                       PROCEDURE(STRING pFileName, LONG pCodePage), *cJ
 !!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToGroup                         PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a group.</summary>
+!!!<param name="pJson">json string.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToGroup                         PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the object by name and writes it into a group.</summary>
 !!!<param name="pJson">json string.</param>
@@ -637,6 +766,15 @@ ToGroup                         PROCEDURE(STRING pJson, *GROUP pGrp, BOOL pMatch
 !!!<returns>true on success, false otherwise.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToGroup                         PROCEDURE(STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the object by name and writes it into a group.</summary>
+!!!<param name="pJson">json string.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroup                         PROCEDURE(STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a group.</summary>
 !!!<param name="pJson">json string.</param>
@@ -645,6 +783,13 @@ ToGroup                         PROCEDURE(STRING pJson, STRING pObjectName, *GRO
 !!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToGroup                         PROCEDURE(*STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a group.</summary>
+!!!<param name="pJson">json string.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToGroup                         PROCEDURE(*STRING pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the object by name and writes it into a group.</summary>
 !!!<param name="pJson">json string.</param>
@@ -655,6 +800,15 @@ ToGroup                         PROCEDURE(*STRING pJson, *GROUP pGrp, BOOL pMatc
 !!!<returns>true on success, false otherwise.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToGroup                         PROCEDURE(*STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the object by name and writes it into a group.</summary>
+!!!<param name="pJson">json string.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroup                         PROCEDURE(*STRING pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a group.</summary>
 !!!<param name="pJson">json string.</param>
@@ -663,6 +817,13 @@ ToGroup                         PROCEDURE(*STRING pJson, STRING pObjectName, *GR
 !!!<param name="pOptions">json string which defines field converting options.</param>
 !!!<returns>true on success, false otherwise.</returns>
 ToGroup                         PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a group.</summary>
+!!!<param name="pJson">json string.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+ToGroup                         PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the object by name and writes it into a group.</summary>
 !!!<param name="pJson">json string.</param>
@@ -673,6 +834,15 @@ ToGroup                         PROCEDURE(*IDynStr pJson, *GROUP pGrp, BOOL pMat
 !!!<returns>true on success, false otherwise.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToGroup                         PROCEDURE(*IDynStr pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the object by name and writes it into a group.</summary>
+!!!<param name="pJson">json string.</param>
+!!!<param name="pObjectName">the name of the object. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver.</param>
+!!!<param name="pMatchByFieldNumber">if true then group fields are assigned by their position.</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise.</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroup                         PROCEDURE(*IDynStr pJson, STRING pObjectName, *GROUP pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a queue.</summary>
 !!!<param name="pJson">json string</param>
@@ -681,6 +851,13 @@ ToGroup                         PROCEDURE(*IDynStr pJson, STRING pObjectName, *G
 !!!<param name="pOptions">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a queue.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueue                         PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
 !!!<param name="pJson">json string</param>
@@ -691,6 +868,15 @@ ToQueue                         PROCEDURE(STRING pJson, *QUEUE pQue, BOOL pMatch
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueue                         PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueue                         PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a queue.</summary>
 !!!<param name="pJson">json string</param>
@@ -699,6 +885,13 @@ ToQueue                         PROCEDURE(STRING pJson, STRING pArrayName, *QUEU
 !!!<param name="pOptions">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(*STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a queue.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueue                         PROCEDURE(*STRING pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
 !!!<param name="pJson">json string</param>
@@ -709,6 +902,15 @@ ToQueue                         PROCEDURE(*STRING pJson, *QUEUE pQue, BOOL pMatc
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueue                         PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueue                         PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a queue.</summary>
 !!!<param name="pJson">json string</param>
@@ -717,6 +919,13 @@ ToQueue                         PROCEDURE(*STRING pJson, STRING pArrayName, *QUE
 !!!<param name="pOptions">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueue                         PROCEDURE(*IDynStr pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a queue.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueue                         PROCEDURE(*IDynStr pJson, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
 !!!<param name="pJson">json string</param>
@@ -727,6 +936,15 @@ ToQueue                         PROCEDURE(*IDynStr pJson, *QUEUE pQue, BOOL pMat
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueue                         PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a queue.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueue                         PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a queue field.</summary>
 !!!<param name="pJson">json string</param>
@@ -736,6 +954,14 @@ ToQueue                         PROCEDURE(*IDynStr pJson, STRING pArrayName, *QU
 !!!<param name="pOptions">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueueField                    PROCEDURE(STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a queue field.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueueField                    PROCEDURE(STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
 !!!<param name="pJson">json string</param>
@@ -747,6 +973,16 @@ ToQueueField                    PROCEDURE(STRING pJson, *QUEUE pQue, LONG pField
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueueField                    PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueueField                    PROCEDURE(STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a queue field.</summary>
 !!!<param name="pJson">json string</param>
@@ -756,6 +992,14 @@ ToQueueField                    PROCEDURE(STRING pJson, STRING pArrayName, *QUEU
 !!!<param name="pOptions">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueueField                    PROCEDURE(*STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a queue field.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueueField                    PROCEDURE(*STRING pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
 !!!<param name="pJson">json string</param>
@@ -767,6 +1011,16 @@ ToQueueField                    PROCEDURE(*STRING pJson, *QUEUE pQue, LONG pFiel
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueueField                    PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueueField                    PROCEDURE(*STRING pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a queue field.</summary>
 !!!<param name="pJson">json string</param>
@@ -776,6 +1030,14 @@ ToQueueField                    PROCEDURE(*STRING pJson, STRING pArrayName, *QUE
 !!!<param name="pOptions">json string which defines field converting options</param>
 !!!<returns>true on success, false otherwise</returns>
 ToQueueField                    PROCEDURE(*IDynStr pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a queue field.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToQueueField                    PROCEDURE(*IDynStr pJson, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
 !!!<param name="pJson">json string</param>
@@ -787,6 +1049,16 @@ ToQueueField                    PROCEDURE(*IDynStr pJson, *QUEUE pQue, LONG pFie
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToQueueField                    PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a queue field.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pQue">receiver</param>
+!!!<param name="pFieldNumber">An ordinal position of the field.</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToQueueField                    PROCEDURE(*IDynStr pJson, STRING pArrayName, *QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>Writes json into a FILE.</summary>
 !!!<param name="pJson">json string</param>
@@ -796,6 +1068,14 @@ ToQueueField                    PROCEDURE(*IDynStr pJson, STRING pArrayName, *QU
 !!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
 !!!<returns>true on success, false otherwise</returns>
 ToFile                          PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Writes json into a FILE.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pFile">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
+!!!<returns>true on success, false otherwise</returns>
+ToFile                          PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
 !!!<param name="pJson">json string</param>
@@ -807,6 +1087,16 @@ ToFile                          PROCEDURE(STRING pJson, *FILE pFile, BOOL pMatch
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToFile                          PROCEDURE(STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pFile">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToFile                          PROCEDURE(STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>Writes json into a FILE.</summary>
 !!!<param name="pJson">json string</param>
@@ -816,6 +1106,14 @@ ToFile                          PROCEDURE(STRING pJson, STRING pArrayName, *FILE
 !!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
 !!!<returns>true on success, false otherwise</returns>
 ToFile                          PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Writes json into a FILE.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pFile">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
+!!!<returns>true on success, false otherwise</returns>
+ToFile                          PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
 !!!<param name="pJson">json string</param>
@@ -827,6 +1125,16 @@ ToFile                          PROCEDURE(*STRING pJson, *FILE pFile, BOOL pMatc
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToFile                          PROCEDURE(*STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pFile">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToFile                          PROCEDURE(*STRING pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>Writes json into a FILE.</summary>
 !!!<param name="pJson">json string</param>
@@ -836,6 +1144,14 @@ ToFile                          PROCEDURE(*STRING pJson, STRING pArrayName, *FIL
 !!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
 !!!<returns>true on success, false otherwise</returns>
 ToFile                          PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Writes json into a FILE.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pFile">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
+!!!<returns>true on success, false otherwise</returns>
+ToFile                          PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
 
 !!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
 !!!<param name="pJson">json string</param>
@@ -847,6 +1163,118 @@ ToFile                          PROCEDURE(*IDynStr pJson, *FILE pFile, BOOL pMat
 !!!<returns>true on success, false otherwise</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 ToFile                          PROCEDURE(*IDynStr pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a FILE.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pFile">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then FILE fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<param name="pWithBlobs">writes into BOLObs and MEMOs</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToFile                          PROCEDURE(*IDynStr pJson, STRING pArrayName, *FILE pFile, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions, BOOL pWithBlobs = FALSE), BOOL, PROC
+
+!!!<summary>Writes json into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+ToGroupArray                    PROCEDURE(STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToGroupArray                    PROCEDURE(STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
+!!!<summary>Recursively finds the array by name and writes it into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
+!!!<summary>Writes json into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+ToGroupArray                    PROCEDURE(*STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToGroupArray                    PROCEDURE(*STRING pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
+!!!<summary>Recursively finds the array by name and writes it into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(*STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(*STRING pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
+!!!<summary>Writes json into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+ToGroupArray                    PROCEDURE(*IDynStr pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Writes json into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+ToGroupArray                    PROCEDURE(*IDynStr pJson, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
+
+!!!<summary>Recursively finds the array by name and writes it into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json string which defines field converting options</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(*IDynStr pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>), BOOL, PROC
+!!!<summary>Recursively finds the array by name and writes it into a GROUP array.</summary>
+!!!<param name="pJson">json string</param>
+!!!<param name="pArrayName">the name of the array. Blank name means the root object.</param>
+!!!<param name="pGrp">receiver</param>
+!!!<param name="pMatchByFieldNumber">if true then queue fields are assigned by their position</param>
+!!!<param name="pOptions">json object which defines field converting options.</param>
+!!!<returns>true on success, false otherwise</returns>
+!!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
+ToGroupArray                    PROCEDURE(*IDynStr pJson, STRING pArrayName, *GROUP[] pGrp, BOOL pMatchByFieldNumber = FALSE, *cJSON pOptions), BOOL, PROC
 
 !!!<summary>For analysing failed parses. You'll probably need to look a few chars back to make sense of it.</summary>
 !!!<returns>a part of json string where parse error happened.</returns>

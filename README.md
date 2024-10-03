@@ -36,6 +36,15 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.46 (04.10.2024)
+- NEW: (Experimental) Field names in options now can be specified as an array. For example this option: {"name":["password","salary"], "ignore":true} says that the fields "password" and "salary" should be ignored if "ignore" rule was not explicitly defined in named options.
+- NEW: json::CreateArray(*GROUP[],...) overloaded functions create json array from passed array of groups.
+- NEW: ToGroupArray(*GROUP[],...) overloaded methods save json array to a GROUP array. 
+- NEW: If options contain both "Format" and "Deformat" rules, rule "Deformat" is executed first, and then "Format" is applied to the result.
+- NEW: Options now can be passed as a cJSON object as well.
+- FIX: cJSON.Duplicate(TRUE) worked incorrectly.
+- FIX: Improved performance, especially when using options.
+
 v1.45 (23.09.2024)
 - CHG: ToGroup/ToQueue/ToQueueField/ToFile methods that accept an object name treat an empty name as the root object.   
 These calls are now equivalent:
