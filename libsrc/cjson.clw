@@ -196,8 +196,6 @@ jOption                         &cJSON, AUTO
 jDefaultOption                  &cJSON, AUTO
 defaultRule                     LIKE(typCJsonFieldRule), AUTO
 i                               LONG, AUTO
-j                               LONG, AUTO
-k                               LONG, AUTO
   CODE
   FREE(rules)
   IF NOT pOptions &= NULL
