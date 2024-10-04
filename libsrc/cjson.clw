@@ -193,10 +193,6 @@ ParseFieldRules               PROCEDURE(*cJSON pOptions, *typCJsonFieldRules rul
 jParser                         cJSONFactory
 jOptions                        &cJSON, AUTO
 jOption                         &cJSON, AUTO
-jNewOption                      &cJSON, AUTO
-jRule                           &cJSON, AUTO
-jName                           &cJSON, AUTO
-jSingleName                     &cJSON, AUTO
 jDefaultOption                  &cJSON, AUTO
 defaultRule                     LIKE(typCJsonFieldRule), AUTO
 i                               LONG, AUTO
