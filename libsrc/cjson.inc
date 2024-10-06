@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.46.2
-!** 03.10.2024
+!** cJSON for Clarion v1.47.2
+!** 06.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -132,6 +132,9 @@ json::LoadFile                  PROCEDURE(STRING pFilename), *STRING
 
 !!!<summary>Writes data to the specified file.</summary>
 json::SaveFile                  PROCEDURE(STRING pFilename, STRING pData), BOOL, PROC
+
+!!!<summary>Clears a group. If there are nested group arrays (with DIM attribute), they will also be cleared.</summary>
+json::DeepClear                 PROCEDURE(*GROUP pGrp)
                               END
   END
 
@@ -480,7 +483,7 @@ AddObjectToObject               PROCEDURE(STRING name), *cJSON  !, PROC
 !!!<returns>a reference to added array or NULL on failure.</returns>
 AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
 
-ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
+ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules, LONG pLevel=0), BOOL, PROC, PRIVATE
 ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
 ToQueueField                    PROCEDURE(*QUEUE pQue, LONG pFieldNumber, BOOL pMatchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
 

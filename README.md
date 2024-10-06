@@ -36,6 +36,37 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.47 (06.10.2024)
+- NEW: ToGroup (and related methods) now allows loading data from json arrays into inner dimensional fields, including nested groups.
+For example, following json object with an array
+```
+{
+ "Round":11,
+ "Results": [
+   {"Home":"Акрон", "Guest":"Пари НН","Score":"2:2"},
+   {"Home":"Зенит", "Guest":"Оренбург","Score":"1:0"},
+   {"Home":"Спартак", "Guest":"Ростов","Score":"3:0"},
+   {"Home":"Рубин", "Guest":"Ахмат","Score":"2:0"}
+  ]
+}
+```
+can be loaded into a group with nested array
+```
+RPLRound                        GROUP
+Round                             LONG
+Results                           GROUP, DIM(8)
+Home                                STRING(20)
+Guest                               STRING(20)
+Score                               STRING(20)
+                                  END
+                                END
+  CODE
+  jParser.ToGroup(sResults, RPLRound)
+```
+- FIX: If "Ignore":true defined for a field which is a nested group, then all fields belonging to that group are ignored as well.
+- FIX: "Auto":true rule used in ToGroup (and related methods) was ignored for json objects and arrays, and TCJsonRuleHelper.AutoCB callback wasn't fired.
+- NEW: Public json::DeepClear procedure to clear groups with nested dimensional groups (when CLEAR(group) call is not enough). ToGroup internally calls json::DeepClear.
+
 v1.46 (04.10.2024)
 - NEW: (Experimental) Field names in options now can be specified as an array. For example this option: {"name":["password","salary"], "ignore":true} says that the fields "password" and "salary" should be ignored if "ignore" rule was not explicitly defined in named options.
 - NEW: json::CreateArray(*GROUP[],...) overloaded functions create json array from passed array of groups.

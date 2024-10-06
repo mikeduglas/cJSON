@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.46.2
-!** 03.10.2024
+!** cJSON for Clarion v1.47.2
+!** 06.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -111,6 +111,8 @@ filterExpr                      STRING(256)
     ProcessAutoField(STRING fldName, cJSON item, typCJsonFieldRule rule), PRIVATE !- processes "auto" field
     IsFieldInGroup(*GROUP pGrp, STRING pFieldName), BOOL, PRIVATE                 !- returns true if the group contains a field with passed name
     IsAnyNullRef(? value), BOOL, PRIVATE                                          !- determines either the ANY value refers to a field (ex. &STRING) which is NULL reference
+    NumberOfFieldsInGroup(*GROUP pGrp), LONG, PRIVATE                             !- returns a number of fields in the group
+
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, *typCJsonFieldRules fldRules), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, *typCJsonFieldRules fldRules), PRIVATE
@@ -541,6 +543,18 @@ sValue                          STRING(4), OVER(vGrp)
   CODE
   sValue = value
   RETURN CHOOSE(vGrp.adr=0)
+
+NumberOfFieldsInGroup         PROCEDURE(*GROUP pGrp)
+fldRef                          ANY
+i                               LONG, AUTO
+  CODE
+  LOOP i = 1 TO 1000
+    fldRef &= WHAT(pGrp, i)
+    IF fldRef &= NULL
+      BREAK
+    END
+  END
+  RETURN (i - 1)
 
 AddItemReferenceToObject      PROCEDURE(cJSON pDst, cJSON pSrc, STRING pItemName)
   CODE
@@ -1873,6 +1887,38 @@ bRC                             LONG, AUTO
   winapi::CloseHandle(hFile)
 
   RETURN bRC
+  
+json::DeepClear               PROCEDURE(*GROUP pGrp)
+fldRef                          ANY, AUTO
+nestedGrpRef                    &GROUP, AUTO
+fldDim                          LONG, AUTO
+i                               LONG, AUTO
+j                               LONG, AUTO
+  CODE
+  !- standard CLEAR first.
+  CLEAR(pGrp)
+  
+  !- CLEAR nested groups
+  LOOP i=1 TO 99999
+    fldRef &= WHAT(pGrp, i)
+    IF fldRef &= NULL
+      !- end of group
+      RETURN
+    END
+
+    IF ISGROUP(pGrp, i)
+      fldDim = HOWMANY(pGrp, i)
+      LOOP j=1 TO fldDim
+        !- Clear each group dimension separately
+        nestedGrpRef &= GETGROUP(pGrp, i, j)
+        json::DeepClear(nestedGrpRef)
+      END
+      
+      !- Skip processed fields, jump to the next field.
+      nestedGrpRef &= GETGROUP(pGrp, i, 1)
+      i += NumberOfFieldsInGroup(nestedGrpRef)
+    END
+  END
 !!!endregion
 
 !!!region shortcuts
@@ -2234,6 +2280,15 @@ arrSize                         LONG, AUTO
           !ELSIF NUMERIC(fldRef)  - this line throws runtime error
         ELSE  !assume this is numeric array
           DO CreateNumericArray
+        END
+      END
+    ELSE
+      !- if a GROUP is ignored, then ignore all its fields as well.
+      IF ISGROUP(grp, ndx)
+        !- recursively add nested group as json object
+        nestedGrpRef &= GETGROUP(grp, ndx)
+        IF NOT nestedGrpRef &= NULL
+          ndx += NumberOfFieldsInGroup(nestedGrpRef)
         END
       END
     END
@@ -2722,7 +2777,7 @@ jsonName                        &STRING
     
         IF LOWER(jsonName) = LOWER(item.name)
             
-          IF item.IsObject() !AND ISGROUP(grp, fidNdx)
+          IF item.IsObject() !AND ISGROUP(grp, fldNdx)
             !- skip
           ELSIF item.IsArray() !AND fldRule.Instance
             !- skip
@@ -3330,11 +3385,14 @@ array                           &cJSON
   array.Delete()
   RETURN NULL
 
-cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules)
+cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules, LONG pLevel=0)
 item                            &cJSON, AUTO
+element                         &cJSON, AUTO
 fldRef                          ANY
 fldName                         STRING(256), AUTO
-fidNdx                          LONG, AUTO
+fldNdx                          LONG, AUTO
+fldDim                          LONG, AUTO
+dimNdx                          LONG, AUTO
 fldRule                         LIKE(typCJsonFieldRule)
 jsonName                        &STRING
 nestedGrpRef                    &GROUP
@@ -3345,8 +3403,13 @@ nestedQueRef                    &QUEUE
     RETURN FALSE
   END
     
-  CLEAR(grp)
-
+  IF pLevel = 0
+    !- deep clear if this is most outer group
+    json::DeepClear(grp)
+  END
+  
+  pLevel += 1
+  
   item &= SELF.child
   IF item &= NULL
     !empty object
@@ -3359,14 +3422,14 @@ nestedQueRef                    &QUEUE
     LOOP WHILE NOT item &= NULL
       IF NOT item.name &= NULL AND item.name <> ''
         !search for group field with same name
-        LOOP fidNdx = 1 TO 99999
-          fldRef &= WHAT(grp, fidNdx)
+        LOOP fldNdx = 1 TO 99999
+          fldRef &= WHAT(grp, fldNdx)
           IF fldRef &= NULL
             !end of group
             BREAK
           END
 
-          fldName = WHO(grp, fidNdx)
+          fldName = WHO(grp, fldNdx)
           RemoveFieldPrefix(fldName)
 
           !- find field rules
@@ -3381,18 +3444,56 @@ nestedQueRef                    &QUEUE
 
           IF LOWER(jsonName) = LOWER(item.name)
             
-            IF item.IsObject() AND ISGROUP(grp, fidNdx)
+            fldDim = HOWMANY(grp, fldNdx)
+
+            IF item.IsObject() AND ISGROUP(grp, fldNdx)
               !- child item is of object type, and it matches a nested group
-              nestedGrpRef &= GETGROUP(grp, fidNdx)
-              item.ToGroup(nestedGrpRef, matchByFieldNumber, fldRules)
+              IF NOT fldRule.Ignore
+                IF NOT fldRule.Auto
+                  nestedGrpRef &= GETGROUP(grp, fldNdx)
+                  item.ToGroup(nestedGrpRef, matchByFieldNumber, fldRules, pLevel)
+                ELSE
+                  ProcessAutoField(fldName, item, fldRule)
+                END
+              END
+              
+            ELSIF item.IsArray() AND ISGROUP(grp, fldNdx) AND fldDim > 1
+              !- child item is of array type, and it matches a nested dimmed group
+              IF NOT fldRule.Ignore
+                IF NOT fldRule.Auto
+                  LOOP dimNdx=1 TO item.GetArraySize()
+                    IF dimNdx > fldDim
+                      !- json array has more elements than the array of groups.
+                      BREAK
+                    END
+                    
+                    element &= item.GetArrayItem(dimNdx)
+                    nestedGrpRef &= GETGROUP(grp, fldNdx, dimNdx)
+                    element.ToGroup(nestedGrpRef, matchByFieldNumber, fldRules, pLevel)
+                  END
+                ELSE
+                  ProcessAutoField(fldName, item, fldRule)
+                END
+              END
+
             ELSIF item.IsArray() AND fldRule.Instance
               !- child item is an array, so load it into a queue
-              nestedQueRef &= (fldRule.Instance)
-              IF fldRule.FieldNumber = 0
-                item.ToQueue(nestedQueRef, matchByFieldNumber, fldRules)
-              ELSE
-                item.ToQueueField(nestedQueRef, fldRule.FieldNumber, matchByFieldNumber, fldRules)
+              IF NOT fldRule.Ignore
+                IF NOT fldRule.Auto
+                  nestedQueRef &= (fldRule.Instance)
+                  IF fldRule.FieldNumber = 0
+                    item.ToQueue(nestedQueRef, matchByFieldNumber, fldRules)
+                  ELSE
+                    item.ToQueueField(nestedQueRef, fldRule.FieldNumber, matchByFieldNumber, fldRules)
+                  END
+                ELSE
+                  ProcessAutoField(fldName, item, fldRule)
+                END
               END
+
+            ELSIF item.IsArray() AND fldDim > 1
+              !- child item is an array, load it into a DIMmed field of primitive type (like STRING, LONG etc)
+              DO AssignSimpleArray
             ELSE
               !found group field, assign the value
               DO AssignGroup
@@ -3409,16 +3510,16 @@ nestedQueRef                    &QUEUE
   ELSE
     !by field ordinal position
     
-    fidNdx = 0
+    fldNdx = 0
     LOOP WHILE NOT item &= NULL
-      fidNdx += 1
-      fldRef &= WHAT(grp, fidNdx)
+      fldNdx += 1
+      fldRef &= WHAT(grp, fldNdx)
       IF fldRef &= NULL
         !index out of range (number of group fields less than number of object items)
         BREAK
       END
 
-      fldName = WHO(grp, fidNdx)
+      fldName = WHO(grp, fldNdx)
       RemoveFieldPrefix(fldName)
 
       !- find field rules
@@ -3463,12 +3564,53 @@ fldValue    ANY
     END
   END
   
+AssignSimpleArray             ROUTINE
+  DATA
+fldValue    ANY
+  CODE
+  IF fldRule.Ignore <> TRUE
+    IF NOT fldRule.Auto
+      LOOP dimNdx=1 TO item.GetArraySize()
+        IF dimNdx > fldDim
+          !- json array has more elements than the array of vars.
+          BREAK
+        END
+                    
+        fldRef &= WHAT(grp, fldNdx, dimNdx)
+        element &= item.GetArrayItem(dimNdx)
+        
+        IF element.IsString()
+          IF NOT fldRule.IsBase64
+            fldValue = element.valuestring
+          ELSE
+            !- decode base64 encoded string
+            fldValue = printf('%w', element.valuestring)
+          END
+        ELSIF element.IsNumber()
+          fldValue = element.valuedouble
+        ELSIF element.IsBool()
+          fldValue = element.valueint
+        ELSIF element.IsFalse()
+          fldValue = FALSE
+        ELSIF element.IsTrue()
+          fldValue = TRUE
+        END
+
+        !- apply field rule if it exists
+        fldRef = ApplyFieldRule(fldName, fldValue, fldRule)
+      END
+    ELSE
+      !- "auto" field must be explicitly assigned
+      ProcessAutoField(fldName, item, fldRule)
+    END
+  END
+
 cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, <STRING pOptions>)
 fldRules                        QUEUE(typCJsonFieldRules)
                                 END
   CODE
   ParseFieldRules(pOptions, fldRules)
-  RETURN SELF.ToGroup(grp, matchByFieldNumber, fldRules)
+  RETURN SELF.ToGroup(grp, matchByFieldNumber, fldRules, 0)
   
 cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *cJSON pOptions)
   CODE
@@ -3564,7 +3706,7 @@ qInstance                       LONG, AUTO
     
     IF item.IsObject()
       !- array of objects
-      IF item.ToGroup(grp, matchByFieldNumber, fldRules)
+      IF item.ToGroup(grp, matchByFieldNumber, fldRules, 0)
         !add a record
         ADD(que)
       END
@@ -3665,7 +3807,7 @@ ndx                             LONG, AUTO
   LOOP WHILE NOT item &= NULL
     ndx += 1
     grp &= pFile{PROP:Record}
-    IF item.ToGroup(grp, matchByFieldNumber, fldRules)
+    IF item.ToGroup(grp, matchByFieldNumber, fldRules, 0)
       
       IF pWithBlobs
         json::ObjectToBlobs(item, pFile, fldRules)
@@ -3757,7 +3899,7 @@ fldRules                        QUEUE(typCJsonFieldRules)
     
     IF item.IsObject()
       !- array of objects
-      item.ToGroup(grpRef, pMatchByFieldNumber, fldRules)
+      item.ToGroup(grpRef, pMatchByFieldNumber, fldRules, 0)
     ELSE
       !- array of constants
       !- save the constant into a field which ordinal position is 1
