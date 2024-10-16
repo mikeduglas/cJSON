@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.47.2
-!** 06.10.2024
+!** cJSON for Clarion v1.48.2
+!** 15.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -104,6 +104,7 @@ filterExpr                      STRING(256)
     ParseFieldRules(*cJSON jOptions, *typCJsonFieldRules rules), PRIVATE          !- parses json string and fills rules queue
     MakeRulesLowercase(*cJSON jjOptions), PRIVATE                                 !- convert rule names into lowercase
     ExpandSharedRules(*cJSON jOptions), PRIVATE                                   !- replace {"name":["fld1", "fld2"...]} options with a set of {"name":"fld1"}, {"name":"fld2"}... options
+    ExpandJsonNameRules(*cJSON jOptions), PRIVATE                                 !- expand "jsonname":"*" to "jsonname":<name>
     FindOptionByName(*cJSON jOptions, STRING pName), *cJSON, PRIVATE              !- find an option with "name":pName
     FindFieldRule(STRING fldName, typCJsonFieldRules rules, *typCJsonFieldRule rule), PRIVATE  !- searches an entry by field name in rules queue
     ApplyFieldRule(STRING fldName, ? value, typCJsonFieldRule rule), ?, PRIVATE   !- applies the rules to the field, returns modified field value
@@ -113,6 +114,8 @@ filterExpr                      STRING(256)
     IsAnyNullRef(? value), BOOL, PRIVATE                                          !- determines either the ANY value refers to a field (ex. &STRING) which is NULL reference
     NumberOfFieldsInGroup(*GROUP pGrp), LONG, PRIVATE                             !- returns a number of fields in the group
 
+    AddItemReferenceToObject(cJSON pDst, cJSON pSrc, STRING pItemName), PRIVATE
+    LastArrayItem(cJSON array), *cJSON, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, *typCJsonFieldRules fldRules), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, *typCJsonFieldRules fldRules), PRIVATE
@@ -122,7 +125,8 @@ filterExpr                      STRING(256)
     json::CreateArray(*FILE pFile, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules, BOOL pWithBlobs), *cJSON, PRIVATE
     json::CreateSimpleArray(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules), *cJSON PRIVATE
 
-    AddItemReferenceToObject(cJSON pDst, cJSON pSrc, STRING pItemName), PRIVATE
+    _min(LONG pX1, LONG pX2), LONG, PRIVATE
+    _min(LONG pX1, LONG pX2, LONG pX3), LONG, PRIVATE
   END
 
 INT_MAX                       EQUATE(2147483647)
@@ -214,12 +218,15 @@ i                               LONG, AUTO
       RETURN
     END
     
-    !-convert all rule names to lowercase
-    MakeRulesLowercase(jOptions)
-    
     !- replace {"name":["fld1", "fld2"...]} options with a set of {"name":"fld1"}, {"name":"fld2"}... options
     ExpandSharedRules(jOptions)
-      
+          
+    !- expand jsonname='*' to jsonname=name
+    ExpandJsonNameRules(jOptions)
+    
+    !-convert all rule (field) names to lowercase - this reduces the number of LOWER(a)=LOWER(b) comparisions in future loops.
+    MakeRulesLowercase(jOptions)
+
     !- find default rule (name='*')
     jDefaultOption &= NULL
     LOOP i=1 TO jOptions.GetArraySize()
@@ -248,6 +255,7 @@ i                               LONG, AUTO
         !JsonName
         !EmptyString
         !IgnoreFalse
+        !IgnoreTrue
         !IgnoreZero
         !IgnoreEmptyArray
         !IgnoreEmptyObject
@@ -264,6 +272,7 @@ i                               LONG, AUTO
         jOption.AddItemReferenceToObject(jDefaultOption, 'JsonName')
         jOption.AddItemReferenceToObject(jDefaultOption, 'EmptyString')
         jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreFalse')
+        jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreTrue')
         jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreZero')
         jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyArray')
         jOption.AddItemReferenceToObject(jDefaultOption, 'IgnoreEmptyObject')
@@ -388,6 +397,19 @@ k                               LONG, AUTO
     ELSE
       !- next item
       i += 1
+    END
+  END
+
+ExpandJsonNameRules           PROCEDURE(*cJSON jOptions)
+jOption                         &cJSON, AUTO
+jJsonName                       &cJSON, AUTO
+i                               LONG, AUTO
+  CODE
+  LOOP i=1 TO jOptions.GetArraySize()
+    jOption &= jOptions.GetArrayItem(i)
+    jJsonName &= jOption.GetObjectItem('jsonname')
+    IF NOT jJsonName &= NULL AND jJsonName.GetStringValue() = '*'
+      jJsonName.SetStringValue(jOption.GetStringValue('name'))
     END
   END
 
@@ -562,6 +584,29 @@ AddItemReferenceToObject      PROCEDURE(cJSON pDst, cJSON pSrc, STRING pItemName
     !- src has the item "pItemName", dst hasn't.
     pDst.AddItemReferenceToObject(pItemName, pSrc.GetObjectItem(pItemName))
   END
+  
+LastArrayItem                 PROCEDURE(cJSON array)
+item                            &CJSON
+  CODE
+  IF array.IsArray()
+    item &= array.child
+    IF NOT item &= NULL
+      LOOP WHILE NOT item.next &= NULL
+        item &= item.next
+      END
+    END
+  END
+  RETURN item
+  
+_min                          PROCEDURE(LONG pX1, LONG pX2)
+  CODE
+  RETURN CHOOSE(pX1 <= pX2, pX1, pX2)
+  
+_min                          PROCEDURE(LONG pX1, LONG pX2, LONG pX3)
+x                               LONG, AUTO
+  CODE
+  x = _min(pX1, pX2)
+  RETURN CHOOSE(x <= pX3, x, pX3)
 
 json::DebugInfo               PROCEDURE(STRING pMsg)
   CODE
@@ -1887,7 +1932,7 @@ bRC                             LONG, AUTO
   winapi::CloseHandle(hFile)
 
   RETURN bRC
-  
+
 json::DeepClear               PROCEDURE(*GROUP pGrp)
 fldRef                          ANY, AUTO
 nestedGrpRef                    &GROUP, AUTO
@@ -2251,7 +2296,7 @@ arrSize                         LONG, AUTO
             item.AddItemToObject(jsonName, nestedItem)
 
           ELSIF fldRule.IsBool
-            IF NOT (fldRule.IgnoreFalse AND fldValue=0)
+            IF (NOT (fldRule.IgnoreFalse AND fldValue=0)) AND (NOT (fldRule.IgnoreTrue AND fldValue <> 0))
               item.AddBoolToObject(jsonName, fldValue)  !- create bool regardless of field type (so if fieldType is STRING, then non empty string will produce true, empty - false).
             END
           ELSIF fldRule.IsRaw
@@ -2435,18 +2480,24 @@ nRecs                           LONG, AUTO
 qInstance                       LONG, AUTO
 bIgnoreEmptyObject              BOOL, AUTO
   CODE  
-  !- search for rule helper
-  rh &= FindRuleHelper(fldRules)
-  IF NOT rh &= NULL
-    nRecs = RECORDS(que)
-    qInstance = INSTANCE(que, THREAD())
-  END
   
-  !- default rule
+  !- default rules
+  nRecs = CHOOSE(fldRules.ArraySize > 0 AND fldRules.ArraySize < RECORDS(que), fldRules.ArraySize, RECORDS(que))
   bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
   
+  qInstance = INSTANCE(que, THREAD())
+
+  !- rule helper
+  rh &= FindRuleHelper(fldRules)
+
   array &= json::CreateArray()
-  LOOP ndx = 1 TO RECORDS(que)
+  
+  !- allow to ignore this array
+  IF NOT rh &= NULL AND NOT rh.ArrayCB(nRecs, 0, array, qInstance, fldRules)
+    RETURN array
+  END
+
+  LOOP ndx = 1 TO nRecs
     GET(que, ndx)
     grp &= que
     item &= json::CreateObject(grp, pNamesInLowerCase, fldRules)
@@ -2508,15 +2559,19 @@ qInstance                       LONG, AUTO
       !- find field rules
       FindFieldRule(fldName, fldRules, fldRule)
 
-      !- search for rule helper
+      nRecs = CHOOSE(fldRule.ArraySize > 0 AND fldRule.ArraySize < RECORDS(que), fldRule.ArraySize, RECORDS(que))
+      qInstance = INSTANCE(que, THREAD())
+
+      !- rule helper
       rh &= FindRuleHelper(fldRule)
-      IF NOT rh &= NULL
-        nRecs = RECORDS(que)
-        qInstance = INSTANCE(que, THREAD())
+
+      !- allow to ignore this array
+      IF NOT rh &= NULL AND NOT rh.ArrayCB(nRecs, 0, array, qInstance, fldRules)
+        RETURN array
       END
 
       !- loop thru queue records
-      LOOP ndx = 1 TO RECORDS(que)
+      LOOP ndx = 1 TO nRecs
         GET(que, ndx)
         grp &= que
         fldRef &= WHAT(grp, pFieldNumber)
@@ -2541,7 +2596,7 @@ qInstance                       LONG, AUTO
         ELSE
           IF fldRule.IsBool
             !- boolean
-            IF NOT (fldValue = 0 AND fldRule.IgnoreFalse)
+            IF (NOT (fldValue = 0 AND fldRule.IgnoreFalse)) AND (NOT (fldValue <> 0 AND fldRule.IgnoreTrue))
               array.AddItemToArray(json::CreateBool(fldValue))
             END
           ELSE
@@ -2599,20 +2654,33 @@ bIgnoreEmptyObject              BOOL, AUTO
     SET(pFile)  !- sort by physical order
   END
   
-  !- default rule
+  !- default rules
   bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
+  nRecs = CHOOSE(fldRules.ArraySize > 0 AND fldRules.ArraySize < RECORDS(pFile), fldRules.ArraySize, RECORDS(pFile))
 
   !- search for rule helper
   rh &= FindRuleHelper(fldRules)
-  IF NOT rh &= NULL
-    nRecs = RECORDS(pFile)
+
+  array &= json::CreateArray()
+  
+  !- allow to ignore this array
+  IF NOT rh &= NULL AND NOT rh.ArrayCB(nRecs, 0, array, 0, fldRules)
+    IF doCloseFile
+      CLOSE(pFile)
+    END
+    RETURN array
   END
 
   ndx = 0
   grp &= pFile{PROP:Record}
-  array &= json::CreateArray()
-  
+
   LOOP
+    ndx += 1
+    IF ndx > nRecs
+      !- out of allowed array size.
+      BREAK
+    END
+
     NEXT(pFile)
     ferr = ERRORCODE()
     IF ferr
@@ -2623,8 +2691,6 @@ bIgnoreEmptyObject              BOOL, AUTO
       BREAK
     END
     
-    ndx += 1
-
     item &= json::CreateObject(grp, pNamesInLowerCase, fldRules)
     
     IF pWithBlobs
@@ -2663,17 +2729,22 @@ nRecs                           LONG, AUTO
 bIgnoreEmptyObject              BOOL, AUTO
   CODE
   ParseFieldRules(pOptions, fldRules)
-  !- default rule
-  bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
   
-  !- search for rule helper
+  !- default rules
+  bIgnoreEmptyObject = fldRules.IgnoreEmptyObject
+  nRecs = CHOOSE(fldRules.ArraySize > 0 AND fldRules.ArraySize < MAXIMUM(grp, 1), fldRules.ArraySize, MAXIMUM(grp, 1))
+
+  !- rule helper
   rh &= FindRuleHelper(fldRules)
-  IF NOT rh &= NULL
-    nRecs = MAXIMUM(grp, 1)
+  
+  array &= json::CreateArray()
+
+  !- allow to ignore this array
+  IF NOT rh &= NULL AND NOT rh.ArrayCB(nRecs, 0, array, 0, fldRules)
+    RETURN array
   END
 
-  array &= json::CreateArray()
-  LOOP ndx = 1 TO MAXIMUM(grp, 1)
+  LOOP ndx = 1 TO nRecs
     item &= json::CreateObject(grp[ndx], pNamesInLowerCase, fldRules)
         
     IF NOT (bIgnoreEmptyObject AND item.GetArraySize() = 0)
@@ -3670,7 +3741,8 @@ item                            &cJSON
 fldRef                          ANY
 fldValue                        ANY
 rh                              &TCJsonRuleHelper, AUTO
-nRecs                           LONG, AUTO
+nArrSize                        LONG, AUTO
+bReverseOrder                   BOOL, AUTO
 ndx                             LONG, AUTO
 qInstance                       LONG, AUTO
   CODE
@@ -3684,24 +3756,42 @@ qInstance                       LONG, AUTO
     !empty array
     RETURN TRUE
   END
-
-  !- search for rule helper
-  rh &= FindRuleHelper(fldRules)
-  IF NOT rh &= NULL
-    nRecs = SELF.GetArraySize()
-    qInstance = INSTANCE(que, THREAD())
-  END
   
   IF pFieldNumber = 0
     !- assume default field number is 1
     pFieldNumber = 1
   END
   
+  !- max allowed array size
+  nArrSize = CHOOSE(ABS(fldRules.ArraySize) > 0, _min(ABS(fldRules.ArraySize), SELF.GetArraySize()), SELF.GetArraySize())
+  !- iteration order
+  bReverseOrder = CHOOSE(fldRules.ArraySize < 0)
+  !- queue instance
+  qInstance = INSTANCE(que, THREAD())
+
+  !- rule helper
+  rh &= FindRuleHelper(fldRules)
+
+  !- allow to ignore this array
+  IF NOT rh &= NULL AND NOT rh.ArrayCB(nArrSize, 0, SELF, qInstance, fldRules)
+    RETURN TRUE
+  END
+
+  IF bReverseOrder
+    !- reverse order: start from last item
+    item &= SELF.LastArrayItem()
+  END
+
   ndx = 0
 
   !go thru array elements
   LOOP WHILE NOT item &= NULL
     ndx += 1
+    IF ndx > nArrSize
+      !- out of allowed array size.
+      BREAK
+    END
+
     grp &= que
     
     IF item.IsObject()
@@ -3734,12 +3824,18 @@ qInstance                       LONG, AUTO
       
     IF NOT rh &= NULL
       !- callback
-      IF NOT rh.ArrayCB(nRecs, ndx, SELF, qInstance, fldRules)
+      IF NOT rh.ArrayCB(nArrSize, ndx, SELF, qInstance, fldRules)
         BREAK
       END
     END
 
-    item &= item.next
+    IF NOT bReverseOrder
+      !- direct order
+      item &= item.next
+    ELSE
+      !- reverse order
+      item &= item.prev
+    END
   END
 
   RETURN TRUE
@@ -3779,7 +3875,8 @@ item                            &cJSON
 fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 rh                              &TCJsonRuleHelper, AUTO
-nRecs                           LONG, AUTO
+nArrSize                        LONG, AUTO
+bReverseOrder                   BOOL, AUTO
 ndx                             LONG, AUTO
   CODE
   IF NOT SELF.IsArray()
@@ -3795,10 +3892,22 @@ ndx                             LONG, AUTO
   
   ParseFieldRules(pOptions, fldRules)
 
-  !- search for rule helper
+  !- max allowed array size
+  nArrSize = CHOOSE(ABS(fldRules.ArraySize) > 0, _min(ABS(fldRules.ArraySize), SELF.GetArraySize()), SELF.GetArraySize())
+  !- iteration order
+  bReverseOrder = CHOOSE(fldRules.ArraySize < 0)
+
+  !- rule helper
   rh &= FindRuleHelper(fldRules)
-  IF NOT rh &= NULL
-    nRecs = SELF.GetArraySize()
+
+  !- allow to ignore this array
+  IF NOT rh &= NULL AND NOT rh.ArrayCB(nArrSize, 0, SELF, 0, fldRules)
+    RETURN TRUE
+  END
+  
+  IF bReverseOrder
+    !- reverse order: start from last item
+    item &= SELF.LastArrayItem()
   END
 
   ndx = 0
@@ -3806,6 +3915,11 @@ ndx                             LONG, AUTO
   !go thru array elements
   LOOP WHILE NOT item &= NULL
     ndx += 1
+    IF ndx > nArrSize
+      !- out of allowed array size.
+      BREAK
+    END
+
     grp &= pFile{PROP:Record}
     IF item.ToGroup(grp, matchByFieldNumber, fldRules, 0)
       
@@ -3822,12 +3936,18 @@ ndx                             LONG, AUTO
           
     IF NOT rh &= NULL
       !- callback
-      IF NOT rh.ArrayCB(nRecs, ndx, SELF, 0, fldRules)
+      IF NOT rh.ArrayCB(nArrSize, ndx, SELF, 0, fldRules)
         BREAK
       END
     END
 
-    item &= item.next
+    IF NOT bReverseOrder
+      !- direct order
+      item &= item.next
+    ELSE
+      !- reverse order
+      item &= item.prev
+    END
   END
 
   RETURN TRUE
@@ -3858,15 +3978,13 @@ cJSON.ToGroupArray            PROCEDURE(*GROUP[] grp, BOOL pMatchByFieldNumber =
 item                            &cJSON
 grpRef                          &GROUP, AUTO
 fldRef                          ANY
-fldValue                        ANY
 rh                              &TCJsonRuleHelper, AUTO
-nRecs                           LONG, AUTO
-nDim                            LONG, AUTO
+nArrSize                        LONG, AUTO
+bReverseOrder                   BOOL, AUTO
 ndx                             LONG, AUTO
 fldRules                        QUEUE(typCJsonFieldRules)
                                 END
   CODE
-  ParseFieldRules(pOptions, fldRules)
   IF NOT SELF.IsArray()
     !not an array
     RETURN FALSE
@@ -3877,21 +3995,34 @@ fldRules                        QUEUE(typCJsonFieldRules)
     !empty array
     RETURN TRUE
   END
+  
+  ParseFieldRules(pOptions, fldRules)
 
-  !- search for rule helper
+  !- max allowed array size
+  nArrSize = CHOOSE(ABS(fldRules.ArraySize) > 0, _min(ABS(fldRules.ArraySize), MAXIMUM(grp, 1), SELF.GetArraySize()), _min(MAXIMUM(grp, 1), SELF.GetArraySize()))
+  !- iteration order
+  bReverseOrder = CHOOSE(fldRules.ArraySize < 0)
+
+  !- rule helper
   rh &= FindRuleHelper(fldRules)
-  IF NOT rh &= NULL
-    nRecs = SELF.GetArraySize()
+
+  !- allow to ignore this array
+  IF NOT rh &= NULL AND NOT rh.ArrayCB(nArrSize, 0, SELF, 0, fldRules)
+    RETURN TRUE
+  END
+  
+  IF bReverseOrder
+    !- reverse order: start from last item
+    item &= SELF.LastArrayItem()
   END
   
   ndx = 0
-  nDim = MAXIMUM(grp, 1)
 
   !go thru array elements
   LOOP WHILE NOT item &= NULL
     ndx += 1
-    IF ndx > nDim
-      !- out of DIM(x).
+    IF ndx > nArrSize
+      !- out of allowed array size.
       BREAK
     END
     
@@ -3923,12 +4054,18 @@ fldRules                        QUEUE(typCJsonFieldRules)
       
     IF NOT rh &= NULL
       !- callback
-      IF NOT rh.ArrayCB(nRecs, ndx, SELF, 0, fldRules)
+      IF NOT rh.ArrayCB(nArrSize, ndx, SELF, 0, fldRules)
         BREAK
       END
     END
 
-    item &= item.next
+    IF NOT bReverseOrder
+      !- direct order
+      item &= item.next
+    ELSE
+      !- reverse order
+      item &= item.prev
+    END
   END
 
   RETURN TRUE

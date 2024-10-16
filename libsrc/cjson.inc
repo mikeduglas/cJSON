@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.47.2
-!** 06.10.2024
+!** cJSON for Clarion v1.48.2
+!** 15.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -170,7 +170,7 @@ JsonName                        STRING(64)  !json name.
 Instance                        LONG        !INSTANCE(queue).
 IsQueue                         BOOL        !field is a queue: create a json array.
 FieldNumber                     LONG        !an ordinal position of a field in a queue; if FieldNumber > 0 then json array will be built from this field only and look like ["alpha", "beta"] or [1,2,3].
-ArraySize                       LONG        !DIM(1) issue fix.
+ArraySize                       LONG        !max allowed array size; also DIM(1) issue fix.
 
 !- field specific options, but can be applied for default rule (*).
 Format                          STRING(32)  !call fld = FORMAT(value, picture).
@@ -187,6 +187,7 @@ Auto                            BOOL        !field value must be assigned in cal
 !- these options are applicable for both field and default rules.
 EmptyString                     STRING(6)   !"null": create null object; "ignore": do not create empty string object.
 IgnoreFalse                     BOOL        !do not create bool object with 'false' value.
+IgnoreTrue                      BOOL        !do not create bool object with 'true' value.
 IgnoreZero                      BOOL        !do not create numeric object with 0 value.
 IgnoreEmptyArray                BOOL        !do not create empty arrays [].
 IgnoreEmptyObject               BOOL        !do not create empty objects {}.
@@ -219,7 +220,7 @@ ApplyCB                         PROCEDURE(STRING pFldName, *typCJsonFieldRule pR
 AutoCB                          PROCEDURE(STRING pFldName, cJSON pItem), VIRTUAL
 !!!<summary>Called after each item of an array has been processed.</summary>
 !!!<param name="pArraySize">A size of the array, whether RECORDS(queue/file) or array.GetArraySize().</param>
-!!!<param name="pCurrentIndex">Current item index.</param>
+!!!<param name="pCurrentIndex">Current item index. 0 is valid and means "before the start of the loop" state.</param>
 !!!<param name="pArray">A reference to a JSON array.</param>
 !!!<param name="pQueueInstance">INSTANCE(queue, thread) or 0 for FILE or GROUP[].</param>
 !!!<param name="pRules">The rules.</param>

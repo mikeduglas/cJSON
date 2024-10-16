@@ -36,6 +36,14 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.48 (16.10.2024)
+- NEW: Support for the "ArraySize" rule in methods ToQueue/ToGroupArray and in functions json::CreateArray(FILE/QUEUE/GROUP[]).
+- NEW: "IgnoreTrue" rule.
+- CHG: "JsonName" rule now accepts "*" value, that means, the "JsonName" uses a value of the "Name" rule. It's useful when many json items must be in camel case:
+```
+{"name":["startDate", "endDate", "startTime", "endTime"], "jsonname":"*"}
+```
+
 v1.47 (06.10.2024)
 - NEW: ToGroup (and related methods) now allows loading data from json arrays into inner dimensional fields, including nested groups.
 For example, following json object with an array
