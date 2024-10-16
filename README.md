@@ -38,6 +38,7 @@ Free
 ## Version history
 v1.48 (16.10.2024)
 - NEW: Support for the "ArraySize" rule in methods ToQueue/ToGroupArray and in functions json::CreateArray(FILE/QUEUE/GROUP[]).
+- NEW: ArraySize can have a negative value. Negative value means that the json array will be read from the end in reverse order.
 - NEW: "IgnoreTrue" rule.
 - CHG: "JsonName" rule now accepts "*" value, that means, the "JsonName" uses a value of the "Name" rule. It's useful when many json items must be in camel case:
 ```
