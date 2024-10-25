@@ -1,5 +1,5 @@
 !** Dynamic string support.
-!** 29.11.2022
+!** 25.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -43,10 +43,10 @@ Replace                         PROCEDURE(STRING pPattern, STRING pReplacement),
 
 
 TStringBuilder                CLASS, TYPE, MODULE('dynstrclass.CLW'), LINK('dynstrclass.CLW')
-memBlock                        LONG, PRIVATE
-blockSize                       LONG, PRIVATE
-dataSize                        LONG, PRIVATE
-extraSize                       LONG, PRIVATE
+memBlock                        LONG, PRIVATE !- an address of memory block
+blockSize                       LONG, PRIVATE !- capacity
+dataSize                        LONG, PRIVATE !- string length
+extraSize                       LONG, PRIVATE !- a number of bytes added when a reallocation is needed
 
 Construct                       PROCEDURE()
 Destruct                        PROCEDURE(), VIRTUAL
@@ -55,5 +55,6 @@ Kill                            PROCEDURE()
 Str                             PROCEDURE(), STRING
 Cat                             PROCEDURE(STRING pStr)                 ! Concatenates a string
 Cat                             PROCEDURE(*STRING pStr)                ! Concatenates a string
+Reset                           PROCEDURE()
 StrLen                          PROCEDURE(), LONG
                               END

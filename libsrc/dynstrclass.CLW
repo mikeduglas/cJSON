@@ -1,5 +1,5 @@
 !** Dynamic string support.
-!** 29.11.2022
+!** 25.10.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -172,6 +172,10 @@ TStringBuilder.Destruct       PROCEDURE()
   
 TStringBuilder.Init           PROCEDURE(LONG pStrLen)
   CODE
+  IF pStrLen=0
+    RETURN
+  END
+  
   IF SELF.memBlock = 0
     SELF.memBlock = _malloc(pStrLen)
     IF SELF.memBlock
@@ -236,6 +240,10 @@ newDataSize                     LONG, AUTO
     !- not allocated yet
     json::DebugInfo('[TStringBuilder.Cat] buffer not allocated yet.')
   END
+  
+TStringBuilder.Reset          PROCEDURE()
+  CODE
+  SELF.dataSize = 0
   
 TStringBuilder.StrLen         PROCEDURE()
   CODE
