@@ -27,6 +27,9 @@ resCount = jRoot.FindPathContext('$["store"]["book"][?(@.price << 10)]', output)
 You can find jpathtest example in examples folder.  
 JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/master/jsonpath.md).
 
+## cJSON Mapper
+There is an utility for creating a Clarion data structure corresponding to the json structure:  
+https://github.com/mikeduglas/cJSON_Mapper
 
 ## Contacts
 - <mikeduglas@yandex.ru>
@@ -36,6 +39,9 @@ JSONPath syntax is described [here](https://github.com/mikeduglas/cjson/blob/mas
 Free
 
 ## Version history
+v1.49 (??????)
+- FIX: cJSON.SetNumberValue did not change valuestring member.
+
 v1.48 (16.10.2024)
 - NEW: Support for the "ArraySize" rule in methods ToQueue/ToGroupArray and in functions json::CreateArray(FILE/QUEUE/GROUP[]).
 - NEW: ArraySize can have a negative value. Negative value means that the json array will be read from the end in reverse order.
