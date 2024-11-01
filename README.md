@@ -39,8 +39,11 @@ https://github.com/mikeduglas/cJSON_Mapper
 Free
 
 ## Version history
-v1.49 (??????)
-- FIX: cJSON.SetNumberValue did not change valuestring member.
+v1.49 (01.11.2024)
+- FIX: In some cases json::CreateObject(*group) could fail if the group contains fields with the same name.
+- FIX: In some cases cJSON.ToGroup(*group) could fail if the group contains fields with the same name.
+- FIX: cJSON.ToGroup could fail in "match by field number" mode.
+- FIX: The cJSON.SetNumberValue method did not change the value of the "valuestring" member.
 
 v1.48 (16.10.2024)
 - NEW: Support for the "ArraySize" rule in methods ToQueue/ToGroupArray and in functions json::CreateArray(FILE/QUEUE/GROUP[]).
