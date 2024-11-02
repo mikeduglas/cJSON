@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.49.2
-!** 31.10.2024
+!** cJSON for Clarion v1.50.0
+!** 02.11.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -115,6 +115,8 @@ filterExpr                      STRING(256)
 
     AddItemReferenceToObject(cJSON pDst, cJSON pSrc, STRING pItemName), PRIVATE
     LastArrayItem(cJSON array), *cJSON, PRIVATE
+    IsNullOrEmpty(*cJSON item), BOOL, PRIVATE                                     !- returns true if item is NULL, IsNull(), empty string, empty object or empty array.
+    FindNotEmptyChild(cJSON object, STRING childName), *cJSON, PRIVATE
 
     json::BlobsToObject(*cJSON pItem, *FILE pFile, BOOL pNamesInLowerCase = TRUE, *typCJsonFieldRules fldRules), PRIVATE
     json::ObjectToBlobs(*cJSON pItem, *FILE pFile, *typCJsonFieldRules fldRules), PRIVATE
@@ -593,6 +595,37 @@ item                            &CJSON
   END
   RETURN item
   
+IsNullOrEmpty                 PROCEDURE(*cJSON item)
+  CODE
+  IF         item &= NULL |
+          OR item.IsNull() |
+          OR (item.IsString() AND item.GetStringValue() = '') |
+          OR ((item.IsObject() OR item.IsArray()) AND item.GetArraySize()=0)
+    RETURN TRUE
+  END
+  RETURN FALSE
+  
+FindNotEmptyChild             PROCEDURE(cJSON object, STRING childName)
+item                            &cJSON
+current_element                 &cJSON
+  CODE
+  item &= object.GetObjectItem(childName)
+  IF NOT item &= NULL AND NOT IsNullOrEmpty(item)
+    RETURN item
+  END
+  
+  current_element &= object.child
+  LOOP WHILE (NOT current_element &= NULL)
+    item &= current_element.FindNotEmptyChild(childName)
+    IF NOT item &= NULL
+      RETURN item
+    END
+
+    current_element &= current_element.next
+  END
+
+  RETURN NULL
+
 _min                          PROCEDURE(LONG pX1, LONG pX2)
   CODE
   RETURN CHOOSE(pX1 <= pX2, pX1, pX2)
@@ -2197,13 +2230,15 @@ fldRule                         GROUP(typCJsonFieldRule).
 fldRef                          ANY
 fldName                         STRING(256), AUTO
 fldDim                          LONG, AUTO
-item                            &cJSON
+fldIsGroup                      BOOL, AUTO
+item                            &cJSON, AUTO
 fldValue                        ANY
-jsonName                        &STRING
+jsonName                        &STRING, AUTO
 nestedGrpRef                    &GROUP
 nestedQueRef                    &QUEUE
 nestedItem                      &cJSON
 arrSize                         LONG, AUTO
+child                           &cJSON, AUTO
   CODE
   item &= json::CreateObject()
   
@@ -2238,9 +2273,10 @@ arrSize                         LONG, AUTO
       jsonName &= fldName
     END
     
+    fldDim = HOWMANY(grp, ndx)
+    fldIsGroup = ISGROUP(grp, ndx)
+      
     IF NOT fldRule.Ignore
-      fldDim = HOWMANY(grp, ndx)
-
       IF fldDim = 1 !AND fldRule.ArraySize = 0
         !- not an array (NOTE: DIM(1) also returns 1, which causes runtime error later.)
        
@@ -2254,7 +2290,7 @@ arrSize                         LONG, AUTO
             fldValue = printf('%v', fldValue)
           END
 
-          IF ISGROUP(grp, ndx)
+          IF fldIsGroup
             !- recursively add nested group as json object
             nestedGrpRef &= GETGROUP(grp, ndx)
             nestedItem &= json::CreateObject(nestedGrpRef, pNamesInLowerCase, fldRules)
@@ -2264,7 +2300,17 @@ arrSize                         LONG, AUTO
               nestedItem.Delete()
               nestedItem &= NULL
             END
-
+      
+            !- check for required child
+            IF fldRule.RequiredChild AND NOT nestedItem &= NULL
+              child &= nestedItem.FindNotEmptyChild(fldRule.RequiredChild)
+              IF child &= NULL
+                !- not found or found null/empty child: remove nested object.
+                nestedItem.Delete()
+                nestedItem &= NULL
+              END
+            END
+            
             item.AddItemToObject(jsonName, nestedItem)
           ELSIF fldRule.Instance
             !- fldRule.Instance is an address of a queue, so create json array
@@ -2305,7 +2351,7 @@ arrSize                         LONG, AUTO
         !arrays
         arrSize = CHOOSE(fldRule.ArraySize > 0 AND fldRule.ArraySize < fldDim, fldRule.ArraySize, fldDim)
   
-        IF ISGROUP(grp,ndx)
+        IF fldIsGroup
           DO CreateGroupArray
           
           nestedGrpRef &= GETGROUP(grp, ndx, 1) !- dimensional group
@@ -2314,15 +2360,16 @@ arrSize                         LONG, AUTO
           !string array
           DO CreateStringArray
 
-        !ELSIF NUMERIC(fldRef)  - this line throws runtime error
+          !ELSIF NUMERIC(fldRef)  - this line throws runtime error
         ELSE  !assume this is numeric array
           DO CreateNumericArray
         END
       END
+      
     ELSE
       !- if a GROUP is ignored, then ignore all its fields as well.
-      IF ISGROUP(grp, ndx)
-        IF HOWMANY(grp, ndx) > 1
+      IF fldIsGroup
+        IF fldDim > 1
           nestedGrpRef &= GETGROUP(grp, ndx, 1) !- dimensional group
         ELSE
           nestedGrpRef &= GETGROUP(grp, ndx)
@@ -2413,11 +2460,22 @@ elemNdx     LONG, AUTO
     grpRef &= GETGROUP(grp,ndx,elemNdx)
     grpItem &= json::CreateObject(grpRef, pNamesInLowerCase, fldRules)
     
-    IF NOT (fldRule.IgnoreEmptyObject AND grpItem.GetArraySize() = 0)
-      grpArray.AddItemToObject(jsonName, grpItem)
-    ELSE
+    IF fldRule.IgnoreEmptyObject AND grpItem.GetArraySize() = 0
       grpItem.Delete()
+      grpItem &= NULL
     END
+    
+    !- check for required child
+    IF fldRule.RequiredChild AND NOT grpItem &= NULL
+      child &= grpItem.FindNotEmptyChild(fldRule.RequiredChild)
+      IF child &= NULL
+        !- not found or found null/empty child: remove nested object.
+        grpItem.Delete()
+        grpItem &= NULL
+      END
+    END
+
+    grpArray.AddItemToObject(jsonName, grpItem)
   END
   
   IF fldDim > 1 AND (fldRule.IgnoreEmptyArray AND grpArray.GetArraySize() = 0) !- this is really an array DIM(n) where n>1
@@ -3460,11 +3518,13 @@ fldRef                          ANY
 fldName                         STRING(256), AUTO
 fldNdx                          LONG, AUTO
 fldDim                          LONG, AUTO
+fldIsGroup                      BOOL, AUTO
 dimNdx                          LONG, AUTO
 fldRule                         LIKE(typCJsonFieldRule)
 jsonName                        &STRING, AUTO
 nestedGrpRef                    &GROUP
 nestedQueRef                    &QUEUE
+bMatchedFieldFound              BOOL, AUTO
   CODE
   IF NOT SELF.IsObject()
     !not an object
@@ -3497,6 +3557,7 @@ nestedQueRef                    &QUEUE
             BREAK
           END
 
+          bMatchedFieldFound = FALSE
           nestedGrpRef &= NULL
           
           fldName = WHO(grp, fldNdx)
@@ -3510,19 +3571,28 @@ nestedQueRef                    &QUEUE
           ELSE
             jsonName &= fldName
           END
+          
+          !- is this field a group?
+          fldIsGroup = ISGROUP(grp, fldNdx)
+
+          !- is this field an array?
+          fldDim = HOWMANY(grp, fldNdx)
 
           IF LOWER(jsonName) = LOWER(item.name)
             !- The group field matches the current json item
             DO AssignItem
-            !go to the next item
-            BREAK
-          ELSE
-            !- The group field doesn't match the current json item
             
-            !- before we get a next field in the group, check if this field is a nested group.
-            !- if yes, skip all nested fields
-            DO SkipNestedFields
+            !go to the next item
+            IF bMatchedFieldFound
+              BREAK
+            END
           END
+          
+          !- The group field doesn't match the current json item
+          
+          !- before we get a next field in the group, check if this field is a nested group.
+          !- if yes, skip all nested fields
+          DO SkipNestedFields
         END
       END
       
@@ -3546,6 +3616,12 @@ nestedQueRef                    &QUEUE
       !- find field rules
       FindFieldRule(fldName, fldRules, fldRule)
 
+      !- is this field a group?
+      fldIsGroup = ISGROUP(grp, fldNdx)
+
+      !- is this field an array?
+      fldDim = HOWMANY(grp, fldNdx)
+
       !- try to assign current json item
       DO AssignItem
 
@@ -3560,8 +3636,8 @@ nestedQueRef                    &QUEUE
   RETURN TRUE
 
 SkipNestedFields              ROUTINE
-  IF ISGROUP(grp, fldNdx)
-    IF HOWMANY(grp, fldNdx) > 1
+  IF fldIsGroup
+    IF fldDim > 1
       nestedGrpRef &= GETGROUP(grp, fldNdx, 1)
     ELSE
       nestedGrpRef &= GETGROUP(grp, fldNdx)
@@ -3574,10 +3650,9 @@ SkipNestedFields              ROUTINE
 AssignItem                    ROUTINE
   DATA
   CODE
-  !- is this field an array?
-  fldDim = HOWMANY(grp, fldNdx)
+  bMatchedFieldFound = TRUE !- found by default
 
-  IF item.IsObject() AND ISGROUP(grp, fldNdx)
+  IF item.IsObject() AND fldIsGroup
     !- child item is of object type, and it matches a nested group
     nestedGrpRef &= GETGROUP(grp, fldNdx)
               
@@ -3589,7 +3664,7 @@ AssignItem                    ROUTINE
       END
     END
               
-  ELSIF item.IsArray() AND ISGROUP(grp, fldNdx) AND fldDim > 1
+  ELSIF item.IsArray() AND fldIsGroup AND fldDim > 1
     !- child item is of array type, and it matches a nested dimed group
     IF NOT fldRule.Ignore
       IF NOT fldRule.Auto
@@ -3626,6 +3701,12 @@ AssignItem                    ROUTINE
   ELSIF item.IsArray() AND fldDim > 1
     !- child item is an array, load it into a DIMmed field of primitive type (like STRING, LONG etc)
     DO AssignSimpleArray
+
+  ELSIF (item.IsObject() AND NOT fldIsGroup) OR (item.IsArray() AND fldDim < 2)
+    !- the item is an object or an array, but the field is not a group, so go to the next field and hope we'll find another matching field later...
+!    printd('Field #%i (%S) doesn''t match the item %S', fldNdx, fldName, item.GetName())
+    bMatchedFieldFound = FALSE
+
   ELSE
     !found group field, assign the value
     DO AssignGroup

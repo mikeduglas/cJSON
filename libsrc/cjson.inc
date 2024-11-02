@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.49.2
-!** 31.10.2024
+!** cJSON for Clarion v1.50.0
+!** 02.11.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -162,7 +162,7 @@ CJSON_NESTING_LIMIT           EQUATE(1000)  !Limits how deeply nested arrays/obj
 
 !Field rule used in CreateObject/ToGroup/ToQueue/ToFILE modifiers.
 typCJsonFieldRule             GROUP, TYPE
-Name                            STRING(64)  !field name w/o prefix, or '*' for any field.
+Name                            STRING(256) !field name w/o prefix, an array of field names, or '*' for any field.
 RuleHelper                      LONG        !an address of the RuleHelper class instance.
 
 !- field specific options (not applicable for default rule (*)).
@@ -171,6 +171,7 @@ Instance                        LONG        !INSTANCE(queue).
 IsQueue                         BOOL        !field is a queue: create a json array.
 FieldNumber                     LONG        !an ordinal position of a field in a queue; if FieldNumber > 0 then json array will be built from this field only and look like ["alpha", "beta"] or [1,2,3].
 ArraySize                       LONG        !max allowed array size; also DIM(1) issue fix.
+RequiredChild                   STRING(256)  !required json child item.
 
 !- field specific options, but can be applied for default rule (*).
 Format                          STRING(32)  !call fld = FORMAT(value, picture).
