@@ -386,7 +386,7 @@ AddItemReferenceToObject        PROCEDURE(STRING itemName, *cJSON item)
 !!!<summary>Detatch an item from Arrays/Objects.</summary>
 !!!<param name="item">an item to detach.</param>
 !!!>returns>detached item</returns>
-DetachItemViaPointer            PROCEDURE(*cJSON item), *cJSON
+DetachItemViaPointer            PROCEDURE(*cJSON item), *cJSON, PROC
 
 !!!<summary>Detatch an item from array.</summary>
 !!!<param name="which">an item index to detach.</param>
