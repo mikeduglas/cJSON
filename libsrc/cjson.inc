@@ -1,4 +1,4 @@
-!** cJSON for Clarion v1.50.0
+!** cJSON for Clarion v1.50.1
 !** 02.11.2024
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
@@ -278,13 +278,13 @@ GetType                         PROCEDURE(), cJSON_Type
 SetType                         PROCEDURE(cJSON_Type pType)
 
 !!!<summary>Render a cJSON entity to text for transfer or storage.</summary>
-!!!param name="pFormat">true to format an output.>/param>
+!!!<param name="pFormat">true to format an output.</param>
 !!!<returns>a string representation of the object.</returns>
 ToString                        PROCEDURE(BOOL pFormat = FALSE), STRING
 
 !!!<summary>Render a cJSON entity to text for transfer or storage. All strings will be converted to utf-8.</summary>
-!!!param name="pFormat">true to format an output.>/param>
-!!!param name="pCodepage">Original code page.>/param>
+!!!<param name="pFormat">true to format an output.</param>
+!!!<param name="pCodepage">Original code page.</param>
 !!!<returns>a string representation of the object.</returns>
 ToUtf8                          PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage=CP_ACP), STRING
 
