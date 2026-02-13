@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.50.1
-!** 02.11.2024
+!** cJSON for Clarion v1.51.0
+!** 13.02.2026
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -735,6 +735,11 @@ Parse                           PROCEDURE(*STRING pJson, LONG pCodePage), *cJSON
 !!!<param name="pCodePage">Code page</param>
 !!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
 Parse                           PROCEDURE(*IDynStr pJson, LONG pCodePage), *cJSON
+!!!<summary>Parse an object - create a new root, and populate.</summary>
+!!!<param name="pBlob">BLOB field</param>
+!!!<param name="pCodePage">Code page</param>
+!!!<returns>a reference to cJSON instance, or NULL on fail.</returns>
+Parse                           PROCEDURE(*BLOB pBlob, LONG pCodePage=-1), *cJSON
 
 !!!<summary>Parse an object - create a new root, and populate.</summary>
 !!!<param name="pFileName">json file</param>

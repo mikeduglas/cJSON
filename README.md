@@ -39,6 +39,9 @@ https://github.com/mikeduglas/cJSON_Mapper
 Free
 
 ## Version history
+v1.51 (13.02.2026)
+- NEW: Overloaded method cJSONFactory.Parse(BLOB) added.
+
 v1.50 (03.11.2024)
 - FIX: .ToGroup method now supports multi-type objects, i.e. the objects whose type can vary. For example, 1st array element has "url":"https://127.0.0.1" string, 2nd element of the same array has "url":{"host":"127.0.0.1", "protocol":"https"} object, and so on.
 - NEW: "RequiredChild" rule: json::CreateObject(*group) will not create json objects whose child item is null or empty.

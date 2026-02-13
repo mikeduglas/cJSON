@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.50.0
-!** 02.11.2024
+!** cJSON for Clarion v1.51.0
+!** 13.02.2026
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -4410,6 +4410,16 @@ cJSONFactory.Parse            PROCEDURE(*STRING json, LONG pCodePage)
   CODE
   SELF.codePage = pCodePage
   RETURN SELF.Parse(json)
+
+cJSONFactory.Parse            PROCEDURE(*BLOB pBlob, LONG pCodePage=-1)
+nSize                           LONG, AUTO
+  CODE
+  IF pBlob &= NULL OR pBlob{PROP:Size} = 0
+    RETURN NULL
+  ELSE
+    nSize = pBlob{PROP:Size}
+    RETURN SELF.Parse(CLIP(pBlob[0 : nSize-1]), pCodePage)
+  END
 
 cJSONFactory.ParseFile        PROCEDURE(STRING pFileName)
 jsData                          &STRING
