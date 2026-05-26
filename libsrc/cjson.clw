@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.51.0
-!** 13.02.2026
+!** cJSON for Clarion v1.52
+!** 26.05.2026
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -3082,6 +3082,25 @@ minPrintedSize                  LONG, AUTO
   print_value(SELF, buffer)
   RETURN buffer.printed.Str()
 
+cJSON.ToBlob                  PROCEDURE(*BLOB pBlob, BOOL pFormat = FALSE, LONG pCodepage=CP_ACP)
+blobSize                        LONG, AUTO
+sData                           ANY, AUTO
+  CODE
+  IF pBlob &= NULL
+    printd('[cJSON.ToBlob] BLOB param is null.')
+    RETURN FALSE
+  END
+  
+  blobSize = pBlob{PROP:Size}
+  pBlob{PROP:Size} = 0
+
+  sData = SELF.ToUtf8(pFormat, pCodepage)
+  blobSize = LEN(CLIP(sData))
+  pBlob{PROP:Size} = blobSize
+  pBlob[0 : blobSize-1] = CLIP(sData)
+    
+  RETURN TRUE
+
 cJSON.Delete                  PROCEDURE()
 item                            &cJSON
 next                            &cJSON
@@ -3413,7 +3432,7 @@ Fail                          ROUTINE
   RETURN NULL
   
 cJSON.AddNullToObject         PROCEDURE(STRING name)
-null_item                       &cJSON
+null_item                       &cJSON, AUTO
   CODE
   null_item &= json::CreateNull()
   IF add_item_to_object(SELF, name, null_item, FALSE)
@@ -3423,8 +3442,19 @@ null_item                       &cJSON
   null_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceNullToObject    PROCEDURE(STRING name)
+null_item                           &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    null_item &= SELF.AddNullToObject(name)
+  ELSE
+    null_item &= json::CreateNull()
+    SELF.ReplaceItemInObject(name, null_item)
+  END
+  RETURN null_item
+  
 cJSON.AddTrueToObject         PROCEDURE(STRING name)
-true_item                       &cJSON
+true_item                       &cJSON, AUTO
   CODE
   true_item &= json::CreateTrue()
   IF add_item_to_object(SELF, name, true_item, FALSE)
@@ -3434,8 +3464,19 @@ true_item                       &cJSON
   true_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceTrueToObject    PROCEDURE(STRING name)
+true_item                           &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    true_item &= SELF.AddTrueToObject(name)
+  ELSE
+    true_item &= json::CreateTrue()
+    SELF.ReplaceItemInObject(name, true_item)
+  END
+  RETURN true_item
+
 cJSON.AddFalseToObject        PROCEDURE(STRING name)
-false_item                      &cJSON
+false_item                      &cJSON, AUTO
   CODE
   false_item &= json::CreateFalse()
   IF add_item_to_object(SELF, name, false_item, FALSE)
@@ -3445,8 +3486,19 @@ false_item                      &cJSON
   false_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceFalseToObject   PROCEDURE(STRING name)
+false_item                          &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    false_item &= SELF.AddFalseToObject(name)
+  ELSE
+    false_item &= json::CreateFalse()
+    SELF.ReplaceItemInObject(name, false_item)
+  END
+  RETURN false_item
+
 cJSON.AddBoolToObject         PROCEDURE(STRING name, BOOL boolean)
-bool_item                       &cJSON
+bool_item                       &cJSON, AUTO
   CODE
   bool_item &= json::CreateBool(boolean)
   IF add_item_to_object(SELF, name, bool_item, FALSE)
@@ -3456,8 +3508,19 @@ bool_item                       &cJSON
   bool_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceBoolToObject    PROCEDURE(STRING name, BOOL boolean)
+bool_item                           &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    bool_item &= SELF.AddBoolToObject(name, boolean)
+  ELSE
+    bool_item &= json::CreateBool(boolean)
+    SELF.ReplaceItemInObject(name, bool_item)
+  END
+  RETURN bool_item
+
 cJSON.AddNumberToObject       PROCEDURE(STRING name, REAL number)
-number_item                     &cJSON
+number_item                     &cJSON, AUTO
   CODE
   number_item &= json::CreateNumber(number)
   IF add_item_to_object(SELF, name, number_item, FALSE)
@@ -3467,8 +3530,19 @@ number_item                     &cJSON
   number_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceNumberToObject  PROCEDURE(STRING name, REAL number)
+number_item                         &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    number_item &= SELF.AddNumberToObject(name, number)
+  ELSE
+    number_item &= json::CreateNumber(number)
+    SELF.ReplaceItemInObject(name, number_item)
+  END
+  RETURN number_item
+
 cJSON.AddStringToObject       PROCEDURE(STRING name, STRING value)
-string_item                     &cJSON
+string_item                     &cJSON, AUTO
   CODE
   string_item &= json::CreateString(value)
   IF add_item_to_object(SELF, name, string_item, FALSE)
@@ -3478,8 +3552,19 @@ string_item                     &cJSON
   string_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceStringToObject  PROCEDURE(STRING name, STRING value)
+string_item                         &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    string_item &= SELF.AddStringToObject(name, value)
+  ELSE
+    string_item &= json::CreateString(value)
+    SELF.ReplaceItemInObject(name, string_item)
+  END
+  RETURN string_item
+
 cJSON.AddRawToObject          PROCEDURE(STRING name, STRING raw)
-raw_item                        &cJSON
+raw_item                        &cJSON, AUTO
   CODE
   raw_item &= json::CreateRaw(raw)
   IF add_item_to_object(SELF, name, raw_item, FALSE)
@@ -3489,8 +3574,19 @@ raw_item                        &cJSON
   raw_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceRawToObject PROCEDURE(STRING name, STRING raw)
+raw_item                        &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    raw_item &= SELF.AddRawToObject(name, raw)
+  ELSE
+    raw_item &= json::CreateRaw(raw)
+    SELF.ReplaceItemInObject(name, raw_item)
+  END
+  RETURN raw_item
+
 cJSON.AddObjectToObject       PROCEDURE(STRING name)
-object_item                     &cJSON
+object_item                     &cJSON, AUTO
   CODE
   object_item &= json::CreateObject()
   IF add_item_to_object(SELF, name, object_item, FALSE)
@@ -3500,8 +3596,19 @@ object_item                     &cJSON
   object_item.Delete()
   RETURN NULL
   
+cJSON.AddOrReplaceObjectToObject  PROCEDURE(STRING name)
+object_item                         &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    object_item &= SELF.AddObjectToObject(name)
+  ELSE
+    object_item &= json::CreateObject()
+    SELF.ReplaceItemInObject(name, object_item)
+  END
+  RETURN object_item
+
 cJSON.AddArrayToObject        PROCEDURE(STRING name)
-array                           &cJSON
+array                           &cJSON, AUTO
   CODE
   array &= json::CreateArray()
   IF add_item_to_object(SELF, name, array, FALSE)
@@ -3510,6 +3617,17 @@ array                           &cJSON
   
   array.Delete()
   RETURN NULL
+
+cJSON.AddOrReplaceArrayToObject   PROCEDURE(STRING name)
+array                               &cJSON, AUTO
+  CODE
+  IF NOT SELF.HasItem(name)
+    array &= SELF.AddArrayToObject(name)
+  ELSE
+    array &= json::CreateArray()
+    SELF.ReplaceItemInObject(name, array)
+  END
+  RETURN array
 
 cJSON.ToGroup                 PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules, LONG pLevel=0)
 item                            &cJSON, AUTO
@@ -4241,6 +4359,16 @@ item                            &cJSON
   ELSE
     RETURN ''
   END
+  
+cJSON.GetObjectItemValue      PROCEDURE(*? itemValue, STRING itemName, BOOL caseSensitive = FALSE)
+item                            &cJSON
+  CODE
+  item &= SELF.GetObjectItem(itemName, caseSensitive)
+  IF NOT item &= NULL
+    itemValue = item.GetValue()
+    RETURN TRUE
+  END
+  RETURN FALSE
   
 cJSON.GetStringValue          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
 item                            &cJSON

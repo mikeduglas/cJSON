@@ -39,6 +39,9 @@ https://github.com/mikeduglas/cJSON_Mapper
 Free
 
 ## Version history
+v1.52 (26.05.2026)
+- NEW: CJSON class methods: ToBlob, GetObjectItemValue, AddOrReplaceNullToObject, AddOrReplaceTrueToObject, AddOrReplaceFalseToObject, AddOrReplaceBoolToObject, AddOrReplaceNumberToObject, AddOrReplaceStringToObject, AddOrReplaceRawToObject, AddOrReplaceObjectToObject, AddOrReplaceArrayToObject.
+
 v1.51 (13.02.2026)
 - NEW: Overloaded method cJSONFactory.Parse(BLOB) added.
 

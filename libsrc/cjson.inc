@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.51.0
-!** 13.02.2026
+!** cJSON for Clarion v1.52
+!** 26.05.2026
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -288,6 +288,9 @@ ToString                        PROCEDURE(BOOL pFormat = FALSE), STRING
 !!!<returns>a string representation of the object.</returns>
 ToUtf8                          PROCEDURE(BOOL pFormat = FALSE, LONG pCodepage=CP_ACP), STRING
 
+!!!<summary>Render a cJSON entity to blob for transfer or storage.</summary>
+ToBlob                          PROCEDURE(*BLOB pBlob, BOOL pFormat = FALSE, LONG pCodepage=CP_ACP), BOOL, PROC
+
 !!!<summary>Delete a cJSON entity and all subentities.</summary>
 Delete                          PROCEDURE()
 
@@ -440,50 +443,59 @@ Duplicate                       PROCEDURE(BOOL recurse), *cJSON
 !!!<param name="name">item name</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddNullToObject                 PROCEDURE(STRING name), *cJSON, PROC
+AddOrReplaceNullToObject        PROCEDURE(STRING name), *cJSON, PROC
 
 !!!<summary>Adds true item.</summary>
 !!!<param name="name">item name</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddTrueToObject                 PROCEDURE(STRING name), *cJSON, PROC
+AddOrReplaceTrueToObject        PROCEDURE(STRING name), *cJSON, PROC
 
 !!!<summary>Adds false item.</summary>
 !!!<param name="name">item name</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddFalseToObject                PROCEDURE(STRING name), *cJSON, PROC
+AddOrReplaceFalseToObject       PROCEDURE(STRING name), *cJSON, PROC
 
 !!!<summary>Adds boolean item.</summary>
 !!!<param name="name">item name</param>
 !!!<param name="boolean">item value</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddBoolToObject                 PROCEDURE(STRING name, BOOL boolean), *cJSON, PROC
+AddOrReplaceBoolToObject        PROCEDURE(STRING name, BOOL boolean), *cJSON, PROC
 
 !!!<summary>Adds numeric item.</summary>
 !!!<param name="name">item name</param>
 !!!<param name="number">item value</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddNumberToObject               PROCEDURE(STRING name, REAL number), *cJSON, PROC
+AddOrReplaceNumberToObject      PROCEDURE(STRING name, REAL number), *cJSON, PROC
 
 !!!<summary>Adds string item.</summary>
 !!!<param name="name">item name</param>
 !!!<param name="value">item value</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddStringToObject               PROCEDURE(STRING name, STRING value), *cJSON, PROC
+AddOrReplaceStringToObject      PROCEDURE(STRING name, STRING value), *cJSON, PROC
 
 !!!<summary>Adds raw json item.</summary>
 !!!<param name="name">item name</param>
 !!!<param name="raw">item value</param>
 !!!<returns>a reference to added item or NULL on failure.</returns>
 AddRawToObject                  PROCEDURE(STRING name, STRING raw), *cJSON, PROC
+AddOrReplaceRawToObject         PROCEDURE(STRING name, STRING raw), *cJSON, PROC
 
 !!!<summary>Adds an object.</summary>
 !!!<param name="name">object name</param>
 !!!<returns>a reference to added object or NULL on failure.</returns>
 AddObjectToObject               PROCEDURE(STRING name), *cJSON  !, PROC
+AddOrReplaceObjectToObject      PROCEDURE(STRING name), *cJSON  !, PROC
 
 !!!<summary>Adds an array.</summary>
 !!!<param name="name">array name</param>
 !!!<returns>a reference to added array or NULL on failure.</returns>
 AddArrayToObject                PROCEDURE(STRING name), *cJSON  !, PROC
+AddOrReplaceArrayToObject       PROCEDURE(STRING name), *cJSON  !, PROC
 
 ToGroup                         PROCEDURE(*GROUP grp, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules, LONG pLevel=0), BOOL, PROC, PRIVATE
 ToQueue                         PROCEDURE(*QUEUE pQue, BOOL pMatchByFieldNumber = FALSE, *typCJsonFieldRules fldRules), BOOL, PROC, PRIVATE
@@ -668,15 +680,23 @@ FindObjectItem                  PROCEDURE(STRING itemName, BOOL caseSensitive = 
 FindArrayItem                   PROCEDURE(STRING arrayName, LONG itemIndex, BOOL caseSensitive = FALSE), *cJSON
 
 !!!<summary>recursively finds an item and returns its value (numeric, boolean or string).</summary>
-!!!<param name="itemName">the name of json item</param>
-!!!<param name="caseSensitive">comparison rule</param>
+!!!<param name="itemName">the name of json item.</param>
+!!!<param name="caseSensitive">comparison rule.</param>
 !!!<returns>item value, or blank string if the item not found, or its type is not numeric, boolean or string.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 GetValue                        PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), ?
 
+!!!<summary>Get a child item value.</summary>
+!!!<param name="itemValue">received child value.</param>
+!!!<param name="itemName">the name of json item.</param>
+!!!<param name="caseSensitive">comparison rule.</param>
+!!!<returns>true if the object has an item with passed name.</returns>
+!!!<remarks>if the item does not exist, the value is not changed.</remarks>
+GetObjectItemValue              PROCEDURE(*? itemValue, STRING itemName, BOOL caseSensitive = FALSE), BOOL, PROC
+
 !!!<summary>recursively finds an item and returns its string value.</summary>
-!!!<param name="itemName">the name of json item</param>
-!!!<param name="caseSensitive">comparison rule</param>
+!!!<param name="itemName">the name of json item.</param>
+!!!<param name="caseSensitive">comparison rule.</param>
 !!!<returns>item value, or blank string if the item not found.</returns>
 !!!<remarks>If there are 2 or more objects with same name, only first object is used.</remarks>
 GetStringValue                  PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE), STRING

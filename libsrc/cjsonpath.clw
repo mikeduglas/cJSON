@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.28
-!** 07.12.2022
+!** cJSON for Clarion v1.52
+!** 26.05.2026
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -242,7 +242,7 @@ i                               LONG, AUTO
         ds.Replace(printf('@.%s', qChildNames.name), 0)
       END
     ELSE
-      printd('EvaluateBoolExpr: child "%s" not found.', qChildNames.name)
+      !printd('EvaluateBoolExpr: child "%s" not found.', qChildNames.name)
     END
   END
   
@@ -327,18 +327,8 @@ TCJsonPathResultAccumulator.Construct PROCEDURE()
   SELF.q &= NEW typCJsonPathResult
   
 TCJsonPathResultAccumulator.Destruct  PROCEDURE()
-i                                       LONG, AUTO
   CODE
-  LOOP i=RECORDS(SELF.q) TO 1 BY -1
-    GET(SELF.q, i)
-    IF NOT SELF.q.path &= NULL
-      DISPOSE(SELF.q.path)
-      SELF.q.path &= NULL
-    END
-    SELF.q.object &= NULL
-    PUT(SELF.q)
-  END
-  FREE(SELF.q)
+  SELF.Reset()
   DISPOSE(SELF.q)
   SELF.q &= NULL
   
@@ -374,7 +364,20 @@ TCJsonPathResultAccumulator.GetPath   PROCEDURE(LONG pIndex)
     printd('TCJsonPathResultAccumulator.GetPath(%i) out of range.', pIndex)
     RETURN ''
   END
-
+  
+TCJsonPathResultAccumulator.Reset PROCEDURE()
+i                                   LONG, AUTO
+  CODE
+  LOOP i=RECORDS(SELF.q) TO 1 BY -1
+    GET(SELF.q, i)
+    IF NOT SELF.q.path &= NULL
+      DISPOSE(SELF.q.path)
+      SELF.q.path &= NULL
+    END
+    SELF.q.object &= NULL
+    PUT(SELF.q)
+  END
+  FREE(SELF.q)
 !!!endregion
 
 !!!region TCJsonInterpreter
