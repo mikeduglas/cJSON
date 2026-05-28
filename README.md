@@ -39,6 +39,9 @@ https://github.com/mikeduglas/cJSON_Mapper
 Free
 
 ## Version history
+v1.52.1 (29.05.2026)
+- NEW: CJSON_VERSION, CJSON_VERSION_MAJOR, CJSON_VERSION_MINOR, CJSON_VERSION_PATCH, CJSON_TIMESTAMP equates added.
+
 v1.52 (26.05.2026)
 - NEW: CJSON class methods: ToBlob, GetObjectItemValue, AddOrReplaceNullToObject, AddOrReplaceTrueToObject, AddOrReplaceFalseToObject, AddOrReplaceBoolToObject, AddOrReplaceNumberToObject, AddOrReplaceStringToObject, AddOrReplaceRawToObject, AddOrReplaceObjectToObject, AddOrReplaceArrayToObject.
 
