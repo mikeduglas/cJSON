@@ -3,6 +3,8 @@
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
+  SECTION('CJSON VERSION EQUATES')
+
 !- This is the version number of the cJSON for Clarion package from which this header file origins:
 CJSON_VERSION                 EQUATE('1.52.1')
 
@@ -13,6 +15,8 @@ CJSON_VERSION_PATCH           EQUATE(1)
 
 !- This is the date and time when the full source package was created.
 CJSON_TIMESTAMP               EQUATE('28.05.2026 22:00')
+
+  SECTION('END OF CJSON VERSION EQUATES')
 
   INCLUDE('svapi.inc'), ONCE
   INCLUDE('dynstrclass.inc'), ONCE
