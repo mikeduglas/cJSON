@@ -1,5 +1,5 @@
-!** cJSON for Clarion v1.52.1
-!** 28.05.2026
+!** cJSON for Clarion v1.52.2
+!** 02.07.2026
 !** mikeduglas@yandex.com
 !** mikeduglas66@gmail.com
 
@@ -583,7 +583,7 @@ AddItemReferenceToObject      PROCEDURE(cJSON pDst, cJSON pSrc, STRING pItemName
   END
   
 LastArrayItem                 PROCEDURE(cJSON array)
-item                            &CJSON
+item                            &cJSON
   CODE
   IF array.IsArray()
     item &= array.child
@@ -606,8 +606,8 @@ IsNullOrEmpty                 PROCEDURE(*cJSON item)
   RETURN FALSE
   
 FindNotEmptyChild             PROCEDURE(cJSON object, STRING childName)
-item                            &cJSON
-current_element                 &cJSON
+item                            &cJSON, AUTO
+current_element                 &cJSON, AUTO
   CODE
   item &= object.GetObjectItem(childName)
   IF NOT item &= NULL AND NOT IsNullOrEmpty(item)
@@ -844,7 +844,7 @@ new_type                        cJSON_Type(cJSON_Invalid)
   RETURN add_item_to_array(object, item)
     
 add_item_to_array             PROCEDURE(*cJSON array, *cJSON item)
-child                           &cJSON
+child                           &cJSON, AUTO
   CODE
   IF item &= NULL OR array &= NULL
     RETURN FALSE
@@ -885,7 +885,7 @@ replace_item_in_object        PROCEDURE(*cJSON object, *STRING str, *cJSON repla
   RETURN TRUE
   
 get_object_item               PROCEDURE(*cJSON object, *STRING name, BOOL case_sensitive)
-current_element                 &cJSON
+current_element                 &cJSON, AUTO
   CODE
   IF object &= NULL !OR name &= NULL
     RETURN NULL
@@ -905,7 +905,7 @@ current_element                 &cJSON
   RETURN current_element
 
 get_array_item                PROCEDURE(*cJSON array, LONG index)
-current_child                   &cJSON
+current_child                   &cJSON, AUTO
   CODE
   IF array &= NULL
     RETURN NULL
@@ -920,7 +920,7 @@ current_child                   &cJSON
   RETURN current_child
 
 create_reference              PROCEDURE(*cJSON item)
-reference                       &cJSON
+reference                       &cJSON, AUTO
   CODE
   IF item &= NULL
     RETURN NULL
@@ -1080,7 +1080,7 @@ print_string                  PROCEDURE(*cJSON item, *typPrintBuffer buffer)
   RETURN print_string_ptr(item.valuestring, buffer)
   
 print_array                   PROCEDURE(*cJSON item, *typPrintBuffer buffer)
-current_element                 &cJSON
+current_element                 &cJSON, AUTO
   CODE
   IF item &= NULL OR buffer.printed &= NULL
     RETURN FALSE
@@ -1114,7 +1114,7 @@ current_element                 &cJSON
   RETURN TRUE
 
 print_object                  PROCEDURE(*cJSON item, *typPrintBuffer buffer)
-current_item                    &cJSON
+current_item                    &cJSON, AUTO
   CODE
   IF item &= NULL OR buffer.printed &= NULL
     RETURN FALSE
@@ -1996,44 +1996,43 @@ j                               LONG, AUTO
 
 !!!region shortcuts
 json::CreateNull              PROCEDURE()
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_Null
   RETURN item
   
 json::CreateTrue              PROCEDURE()
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_True
   RETURN item
 
 json::CreateFalse             PROCEDURE()
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_False
   RETURN item
 
 json::CreateBool              PROCEDURE(BOOL b)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = CHOOSE(b = TRUE, cJSON_True, cJSON_False)
   RETURN item
 
 json::CreateNumber            PROCEDURE(REAL num)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_Number
   item.SetNumberValue(num)
-
   RETURN item
 
 json::CreateString            PROCEDURE(STRING str)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_String
@@ -2041,11 +2040,10 @@ item                            &cJSON
     item.valuestring &= NEW STRING(LEN(CLIP(str)))
     item.valuestring = CLIP(str)
   END
-  
   RETURN item
 
 json::CreateRaw               PROCEDURE(STRING rawJson)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_Raw
@@ -2053,57 +2051,51 @@ item                            &cJSON
     item.valuestring &= NEW STRING(LEN(CLIP(rawJson)))
     item.valuestring = CLIP(rawJson)
   END
-  
   RETURN item
 
 json::CreateArray             PROCEDURE()
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_Array
-  
   RETURN item
 
 json::CreateObject            PROCEDURE()
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = cJSON_Object
-  
   RETURN item
 
 json::CreateStringReference   PROCEDURE(*STRING str)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = BOR(cJSON_String, cJSON_IsReference)
   item.valuestring &= str
-  
   RETURN item
 
 json::CreateObjectReference   PROCEDURE(*cJSON child)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = BOR(cJSON_Object, cJSON_IsReference)
   item.child &= child
-  
   RETURN item
 
 json::CreateArrayReference    PROCEDURE(*cJSON child)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= NEW cJSON
   item.type = BOR(cJSON_Array, cJSON_IsReference)
   item.child &= child
-  
   RETURN item
 
 json::CreateIntArray          PROCEDURE(LONG[] numbers, BOOL pIgnoreZeros=FALSE)
 i                               LONG, AUTO
-n                               &cJSON
+n                               &cJSON, AUTO
 p                               &cJSON
-a                               &cJSON
+a                               &cJSON, AUTO
 bFirstChild                     BOOL(TRUE)
   CODE
   a &= json::CreateArray()
@@ -2135,9 +2127,9 @@ bFirstChild                     BOOL(TRUE)
 
 json::CreateDoubleArray       PROCEDURE(REAL[] numbers, BOOL pIgnoreZeros=FALSE)
 i                               LONG, AUTO
-n                               &cJSON
+n                               &cJSON, AUTO
 p                               &cJSON
-a                               &cJSON
+a                               &cJSON, AUTO
 bFirstChild                     BOOL(TRUE)
   CODE
   a &= json::CreateArray()
@@ -2170,9 +2162,9 @@ bFirstChild                     BOOL(TRUE)
 json::CreateStringArray       PROCEDURE(STRING[] strings, <STRING pIfEmpty>)
 i                               LONG, AUTO
 j                               LONG, AUTO
-n                               &cJSON
+n                               &cJSON, AUTO
 p                               &cJSON
-a                               &cJSON
+a                               &cJSON, AUTO
   CODE
   a &= json::CreateArray()
   
@@ -2433,7 +2425,7 @@ CreateNumericArray            ROUTINE
   DATA
 a       &cJSON, AUTO
 numbers REAL, DIM(arrSize)
-elemRef ANY
+elemRef ANY, AUTO
 elemNdx LONG, AUTO
   CODE
   !copy array
@@ -2450,9 +2442,9 @@ elemNdx LONG, AUTO
 
 CreateGroupArray              ROUTINE
   DATA
-grpRef      &GROUP
-grpArray    &cJSON
-grpItem     &cJSON
+grpRef      &GROUP, AUTO
+grpArray    &cJSON, AUTO
+grpItem     &cJSON, AUTO
 elemNdx     LONG, AUTO
   CODE
   grpArray &= json::CreateArray()
@@ -2487,9 +2479,9 @@ elemNdx     LONG, AUTO
 
 CreateQueueArray              ROUTINE
   DATA
-fla         ANY
-queRef      &QUEUE
-queArray    &cJSON
+fla         ANY, AUTO
+queRef      &QUEUE, AUTO
+queArray    &cJSON, AUTO
   CODE
   ndx += 1  !- we assume that next field is INSTANCE of queue.
   fla &= WHAT(grp,ndx)
@@ -2587,7 +2579,7 @@ fldRules                        QUEUE(typCJsonFieldRules)
   RETURN json::CreateSimpleArray(que, pFieldNumber, pNamesInLowerCase, fldRules)
 
 json::CreateSimpleArray       PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules)
-array                           &cJSON
+array                           &cJSON, AUTO
 grp                             &GROUP
 fldRef                          ANY
 fldRule                         GROUP(typCJsonFieldRule).
@@ -2687,8 +2679,8 @@ fldRules                        QUEUE(typCJsonFieldRules)
   RETURN json::CreateArray(pFile, pNamesInLowerCase, fldRules, pWithBlobs)
 
 json::CreateArray             PROCEDURE(*FILE pFile, BOOL pNamesInLowerCase, *typCJsonFieldRules fldRules, BOOL pWithBlobs)
-array                           &cJSON
-item                            &cJSON
+array                           &cJSON, AUTO
+item                            &cJSON, AUTO
 ferr                            LONG, AUTO
 grp                             &GROUP
 doCloseFile                     BOOL(FALSE)
@@ -2774,8 +2766,8 @@ bIgnoreEmptyObject              BOOL, AUTO
 json::CreateArray             PROCEDURE(*GROUP[] grp, BOOL pNamesInLowerCase = TRUE, <STRING pOptions>)
 fldRules                        QUEUE(typCJsonFieldRules)
                                 END
-array                           &cJSON
-item                            &cJSON
+array                           &cJSON, AUTO
+item                            &cJSON, AUTO
 ndx                             LONG, AUTO
 rh                              &TCJsonRuleHelper, AUTO
 nRecs                           LONG, AUTO
@@ -2862,11 +2854,11 @@ jsonName                        &STRING
   END
   
 json::ObjectToBlobs           PROCEDURE(*cJSON pObject, *FILE pFile, *typCJsonFieldRules fldRules)
-item                            &cJSON
+item                            &cJSON, AUTO
 fldRule                         GROUP(typCJsonFieldRule).
 fldName                         STRING(256), AUTO
 cIndex                          BYTE, AUTO
-jsonName                        &STRING
+jsonName                        &STRING, AUTO
   CODE
   IF NOT pObject.IsObject()
     !not an object
@@ -3102,8 +3094,8 @@ sData                           ANY, AUTO
   RETURN TRUE
 
 cJSON.Delete                  PROCEDURE()
-item                            &cJSON
-next                            &cJSON
+item                            &cJSON, AUTO
+next                            &cJSON, AUTO
   CODE
   item &= SELF
   LOOP WHILE (NOT item &= NULL)
@@ -3127,7 +3119,7 @@ next                            &cJSON
   END
     
 cJSON.GetArraySize            PROCEDURE(BOOL recurse = FALSE)
-child                           &cJSON
+child                           &cJSON, AUTO
 sz                              LONG(0)
   CODE
   child &= SELF.child
@@ -3283,7 +3275,7 @@ cJSON.DetachItemFromArray     PROCEDURE(LONG which)
   RETURN SELF.DetachItemViaPointer(get_array_item(SELF, which))
   
 cJSON.DeleteItemFromArray     PROCEDURE(LONG which)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= SELF.DetachItemFromArray(which)
   IF NOT item &= NULL
@@ -3291,13 +3283,13 @@ item                            &cJSON
   END
 
 cJSON.DetachItemFromObject    PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= SELF.GetObjectItem(itemName, caseSensitive)
   RETURN SELF.DetachItemViaPointer(item)
   
 cJSON.DeleteItemFromObject    PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= SELF.DetachItemFromObject(itemName, caseSensitive)
   IF NOT item &= NULL
@@ -3305,7 +3297,7 @@ item                            &cJSON
   END
   
 cJSON.InsertItemInArray       PROCEDURE(LONG which, cJSON newitem)
-after_inserted                  &cJSON
+after_inserted                  &cJSON, AUTO
   CODE
   IF which < 1
     RETURN
@@ -3371,10 +3363,10 @@ cJSON.ReplaceItemInObject     PROCEDURE(STRING str, *cJSON newitem, BOOL caseSen
   replace_item_in_object(SELF, str, newitem, caseSensitive)
   
 cJSON.Duplicate               PROCEDURE(BOOL recurse)
-newitem                         &cJSON
-child                           &cJSON
+newitem                         &cJSON, AUTO
+child                           &cJSON, AUTO
 next                            &cJSON
-newchild                        &cJSON
+newchild                        &cJSON, AUTO
   CODE
   !Create new item
   newitem &= NEW cJSON
@@ -3963,9 +3955,8 @@ cJSON.ToQueue                 PROCEDURE(STRING pArrayName, *QUEUE pQue, BOOL pMa
 
 cJSON.ToQueueField            PROCEDURE(*QUEUE que, LONG pFieldNumber, BOOL matchByFieldNumber = FALSE, *typCJsonFieldRules fldRules)
 grp                             &GROUP
-item                            &cJSON
-fldRef                          ANY
-fldValue                        ANY
+item                            &cJSON, AUTO
+fldRef                          ANY, AUTO
 rh                              &TCJsonRuleHelper, AUTO
 nArrSize                        LONG, AUTO
 bReverseOrder                   BOOL, AUTO
@@ -4097,7 +4088,7 @@ cJSON.ToQueueField            PROCEDURE(STRING pArrayName, *QUEUE pQue, LONG pFi
 
 cJSON.ToFile                  PROCEDURE(*FILE pFile, BOOL matchByFieldNumber = FALSE, <STRING pOptions>, BOOL pWithBlobs = FALSE)
 grp                             &GROUP
-item                            &cJSON
+item                            &cJSON, AUTO
 fldRules                        QUEUE(typCJsonFieldRules)
                                 END
 rh                              &TCJsonRuleHelper, AUTO
@@ -4201,7 +4192,7 @@ cJSON.ToFile                  PROCEDURE(STRING pArrayName, *FILE pFile, BOOL pMa
   RETURN SELF.ToFile(pArrayName, pFile, pMatchByFieldNumber, pOptions.ToString(), pWithBlobs)
      
 cJSON.ToGroupArray            PROCEDURE(*GROUP[] grp, BOOL pMatchByFieldNumber = FALSE, <STRING pOptions>)
-item                            &cJSON
+item                            &cJSON, AUTO
 grpRef                          &GROUP, AUTO
 fldRef                          ANY
 rh                              &TCJsonRuleHelper, AUTO
@@ -4320,8 +4311,8 @@ cJSON.ToGroupArray                 PROCEDURE(STRING pArrayName, *GROUP[] pGrp, B
   RETURN SELF.ToGroupArray(pArrayName, pGrp, pMatchByFieldNumber, pOptions.ToString())
 
 cJSON.FindObjectItem          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
-item                            &cJSON
-current_element                 &cJSON
+item                            &cJSON, AUTO
+current_element                 &cJSON, AUTO
   CODE
   item &= SELF.GetObjectItem(itemName, caseSensitive)
   IF NOT item &= NULL
@@ -4341,7 +4332,7 @@ current_element                 &cJSON
   RETURN NULL
 
 cJSON.FindArrayItem           PROCEDURE(STRING arrayName, LONG itemIndex, BOOL caseSensitive = FALSE)
-array                           &cJSON
+array                           &cJSON, AUTO
   CODE
   array &= SELF.FindObjectItem(arrayName, caseSensitive)
   IF NOT array &= NULL
@@ -4351,7 +4342,7 @@ array                           &cJSON
   RETURN NULL
   
 cJSON.GetValue                PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= SELF.FindObjectItem(itemName, caseSensitive)
   IF NOT item &= NULL
@@ -4361,7 +4352,7 @@ item                            &cJSON
   END
   
 cJSON.GetObjectItemValue      PROCEDURE(*? itemValue, STRING itemName, BOOL caseSensitive = FALSE)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= SELF.GetObjectItem(itemName, caseSensitive)
   IF NOT item &= NULL
@@ -4371,7 +4362,7 @@ item                            &cJSON
   RETURN FALSE
   
 cJSON.GetStringValue          PROCEDURE(STRING itemName, BOOL caseSensitive = FALSE)
-item                            &cJSON
+item                            &cJSON, AUTO
   CODE
   item &= SELF.FindObjectItem(itemName, caseSensitive)
   IF NOT item &= NULL
@@ -4393,7 +4384,7 @@ cJSON.GetStringSize           PROCEDURE()
   END
   
 cJSON.GetMinimalOutputSize    PROCEDURE()
-child                           &cJSON
+child                           &cJSON, AUTO
 dataSize                        LONG(0)
   CODE
   IF NOT SELF.name &= NULL
@@ -4451,7 +4442,7 @@ sRef                            &STRING, AUTO
   RETURN SELF.Parse(sRef)
 
 cJSONFactory.Parse            PROCEDURE(*STRING json)
-item                            &cJSON
+item                            &cJSON, AUTO
 buffer                          LIKE(typParseBuffer)
 minival                         &STRING
   CODE
@@ -4550,8 +4541,8 @@ nSize                           LONG, AUTO
   END
 
 cJSONFactory.ParseFile        PROCEDURE(STRING pFileName)
-jsData                          &STRING
-item                            &cJSON
+jsData                          &STRING, AUTO
+item                            &cJSON, AUTO
   CODE
   jsData &= json::LoadFile(pFileName)
   item &= SELF.Parse(jsData)
