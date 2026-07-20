@@ -28,4 +28,5 @@ AddResult                       PROCEDURE(*cJSON pItem, STRING pPath)
 GetCount                        PROCEDURE(), LONG
 GetObject                       PROCEDURE(LONG pIndex), *cJSON
 GetPath                         PROCEDURE(LONG pIndex), STRING
+Reset                           PROCEDURE()
                               END
