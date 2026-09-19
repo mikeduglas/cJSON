@@ -1,20 +1,20 @@
-!** cJSON for Clarion v1.52.1
-!** 28.05.2026
-!** mikeduglas@yandex.com
+!** cJSON for Clarion v1.53
+!** 04.07.2026
+!** mikeduglas@yandex.ru
 !** mikeduglas66@gmail.com
 
   SECTION('CJSON VERSION EQUATES')
 
 !- This is the version number of the cJSON for Clarion package from which this header file origins:
-CJSON_VERSION                 EQUATE('1.52.1')
+CJSON_VERSION                 EQUATE('1.53')
 
 !- The numeric version number is also available "in parts" by using these defines:
 CJSON_VERSION_MAJOR           EQUATE(1)
-CJSON_VERSION_MINOR           EQUATE(52)
-CJSON_VERSION_PATCH           EQUATE(1)
+CJSON_VERSION_MINOR           EQUATE(53)
+CJSON_VERSION_PATCH           EQUATE(0)
 
 !- This is the date and time when the full source package was created.
-CJSON_TIMESTAMP               EQUATE('28.05.2026 22:00')
+CJSON_TIMESTAMP               EQUATE('04.07.2026 22:00')
 
   SECTION('END OF CJSON VERSION EQUATES')
 
@@ -44,7 +44,7 @@ json::Minify                    PROCEDURE(*STRING pJson)
 !!!<summary>Recursively compare two items for equality. If either a or b is NULL or invalid, they will be considered unequal.</summary>
 !!!<param name="case_sensitive">determines if object keys are treated case sensitive (true) or case insensitive (false).</param>
 !!!<returns>true if items are equal.</returns>
-json::Compare                   PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL
+json::Compare                   PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive, <*IcJsonCompareCallback cb>), BOOL
 
 !!!<summary>Create a cJSON item of null type.</summary>
 json::CreateNull                PROCEDURE(), *cJSON
@@ -727,7 +727,7 @@ GetMinimalOutputSize            PROCEDURE(), LONG
 !!!<summary>Recursively compare two items for equality. If either SELF or pItemToCompare is NULL or invalid, they will be considered unequal.</summary>
 !!!<param name="case_sensitive">determines if object keys are treated case sensitive (true) or case insensitive (false).</param>
 !!!<returns>true if items are equal.</returns>
-Compare                         PROCEDURE(*cJSON pItemToCompare, BOOL case_sensitive), BOOL
+Compare                         PROCEDURE(*cJSON pItemToCompare, BOOL case_sensitive, <*IcJsonCompareCallback cb>), BOOL
                               END
 
 
@@ -1330,4 +1330,12 @@ GetErrorPosition                PROCEDURE(), LONG
 
 !!!<summary>Callback.</summary>
 ParseCallback                   PROCEDURE(LONG pInputLength, LONG pCurrentPos, LONG pCurrentDepth), VIRTUAL, PROTECTED
+                              END
+
+!!!<summary>Callback interface for Compare method.</summary>
+IcJsonCompareCallback         INTERFACE, TYPE
+Log                             PROCEDURE(*cJSON a, *cJSON b)
+OnFalse                         PROCEDURE(*cJSON a, *cJSON b)
+!!!<returns>1: consider items identical and CYCLE; -1: consider items not identical and RETURN FALSE; 0: continue.</returns>
+CheckItemName                   PROCEDURE(STRING ItemName), SIGNED
                               END

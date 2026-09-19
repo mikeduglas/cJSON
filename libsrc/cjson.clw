@@ -1,6 +1,6 @@
-!** cJSON for Clarion v1.52.2
-!** 02.07.2026
-!** mikeduglas@yandex.com
+!** cJSON for Clarion v1.53
+!** 04.07.2026
+!** mikeduglas@yandex.ru
 !** mikeduglas66@gmail.com
 
 
@@ -95,7 +95,7 @@ filterExpr                      STRING(256)
     !Utility to jump whitespace and cr/lf
     buffer_skip_whitespace(*typParseBuffer buffer), PRIVATE
   
-    json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive), BOOL, PRIVATE
+    json::Compare_In_Module(*cJSON a, *cJSON b, BOOL case_sensitive, <*IcJsonCompareCallback cb>), BOOL, PRIVATE
 
     CharToHex2(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to 'XX' hex string
     CharToHex4(STRING pChar), STRING, PRIVATE                                     !- converts STRING[1] to '00XX' hex string
@@ -697,15 +697,24 @@ dstpos                          LONG, AUTO
     dstpos += 1
   END
 
-json::Compare                 PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive)
+json::Compare                 PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive, <*IcJsonCompareCallback cb>)
   CODE
-  RETURN json::Compare_In_Module(a, b, case_sensitive)
+  RETURN json::Compare_In_Module(a, b, case_sensitive, cb)
 
-json::Compare_In_Module       PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive)
+json::Compare_In_Module       PROCEDURE(*cJSON a, *cJSON b, BOOL case_sensitive, <*IcJsonCompareCallback cb>)
 a_element                       &cJSON
 b_element                       &cJSON
+retCheckItemName                SIGNED, AUTO
   CODE
+  IF NOT cb &= NULL
+    cb.Log(a, b)
+  END
+  
   IF (a &= NULL) OR (b &= NULL) OR (BAND(a.GetType(), 0FFh) <> BAND(b.GetType(), 0FFh)) OR a.IsInvalid()
+    IF NOT cb &= NULL
+      cb.OnFalse(a, b)
+    END
+    
     RETURN FALSE
   END
   
@@ -721,6 +730,10 @@ b_element                       &cJSON
   OROF cJSON_Object
     !nop
   ELSE
+    IF NOT cb &= NULL
+      cb.OnFalse(a, b)
+    END
+    
     RETURN FALSE
   END
   
@@ -740,16 +753,28 @@ b_element                       &cJSON
     IF a.valuedouble = b.valuedouble
       RETURN TRUE
     END
+    IF NOT cb &= NULL
+      cb.OnFalse(a, b)
+    END
+    
     RETURN FALSE
     
   OF cJSON_String
   OROF cJSON_Raw
     IF a.valuestring &= NULL OR b.valuestring &= NULL
+      IF NOT cb &= NULL
+        cb.OnFalse(a, b)
+      END
+    
       RETURN FALSE
     END
     IF a.valuestring = b.valuestring
       RETURN TRUE
     END
+    IF NOT cb &= NULL
+      cb.OnFalse(a, b)
+    END
+    
     RETURN FALSE
     
   OF cJSON_Array
@@ -766,6 +791,10 @@ b_element                       &cJSON
     
     !one of the arrays is longer than the other
     IF NOT a_element &= b_element
+      IF NOT cb &= NULL
+        cb.OnFalse(a_element, b_element)
+      END
+    
       RETURN FALSE
     END
     RETURN TRUE
@@ -774,9 +803,25 @@ b_element                       &cJSON
     a_element &= a.child
     b_element &= NULL
     LOOP WHILE NOT a_element &= NULL
+      IF NOT cb &= NULL
+        retCheckItemName = cb.CheckItemName(a_element.name)
+        IF retCheckItemName > 0
+          !- consider items identical
+          a_element &= a_element.next
+          CYCLE
+        ELSIF retCheckItemName < 0
+          !- consider items not identical
+          RETURN FALSE
+        END
+      END
+
       !TODO This has O(n^2) runtime, which is horrible!
       b_element &= get_object_item(b, a_element.name, case_sensitive)
       IF b_element &= NULL
+        IF NOT cb &= NULL
+          cb.OnFalse(a_element, b_element)
+        END
+    
         RETURN FALSE
       END
       
@@ -793,6 +838,10 @@ b_element                       &cJSON
     LOOP WHILE NOT b_element &= NULL
       a_element &= get_object_item(a, b_element.name, case_sensitive)
       IF a_element &= NULL
+        IF NOT cb &= NULL
+          cb.OnFalse(a_element, b_element)
+        END
+    
         RETURN FALSE
       END
 
@@ -806,6 +855,10 @@ b_element                       &cJSON
     RETURN TRUE
     
   ELSE
+    IF NOT cb &= NULL
+      cb.OnFalse(a, b)
+    END
+    
     RETURN FALSE
   END
 !!!endregion
@@ -4419,9 +4472,9 @@ dataSize                        LONG(0)
   
   RETURN dataSize
 
-cJSON.Compare                 PROCEDURE(*cJSON pItemToCompare, BOOL case_sensitive)
+cJSON.Compare                 PROCEDURE(*cJSON pItemToCompare, BOOL case_sensitive, <*IcJsonCompareCallback cb>)
   CODE
-  RETURN json::Compare(SELF, pItemToCompare, case_sensitive)
+  RETURN json::Compare(SELF, pItemToCompare, case_sensitive, cb)
 !!!endregion
   
 !!!region cJSONFactory

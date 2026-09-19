@@ -39,6 +39,9 @@ https://github.com/mikeduglas/cJSON_Mapper
 Free
 
 ## Version history
+v1.53 (19.09.2026)
+- NEW: IcJsonCompareCallback interface for Compare method.
+
 v1.52.1 (29.05.2026)
 - NEW: CJSON_VERSION, CJSON_VERSION_MAJOR, CJSON_VERSION_MINOR, CJSON_VERSION_PATCH, CJSON_TIMESTAMP equates added.
 

@@ -1,6 +1,6 @@
 !** Dynamic string support.
 !** 25.10.2024
-!** mikeduglas@yandex.com
+!** mikeduglas@yandex.ru
 !** mikeduglas66@gmail.com
 
 
